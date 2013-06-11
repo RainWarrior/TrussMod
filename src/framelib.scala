@@ -216,6 +216,14 @@ class TileEntityMovingStrip extends TileEntity {
         }
         //val c = this - dirTo * (size)
         worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 0)
+        for {
+          i <- 0 to size
+          c = this + dirTo * i
+          id = worldObj.getBlockId(c.x, c.y, c.z)
+        } {
+          worldObj.markBlockForUpdate(c.x, c.y, c.z)
+          worldObj.notifyBlockChange(c.x, c.y, c.z, id)
+        }
       case (_, Client) =>
         val shift = (meta / 16F).toFloat
         renderOffset.x = dirTo.x * shift
@@ -284,7 +292,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       metadata: Int,
       modelId: Int,
       rb: RenderBlocks) {
-    rainwarrior.util.renderInventoryBlock(rb, block, metadata)
+    rainwarrior.utils.renderInventoryBlock(rb, block, metadata)
   }
   override def renderWorldBlock(
       world: IBlockAccess,

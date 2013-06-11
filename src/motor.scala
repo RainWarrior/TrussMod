@@ -147,14 +147,14 @@ trait BlockMotor extends BlockContainer {
 }
 
 class TileEntityMotor extends TileEntity {
-  lazy val isServer = worldObj.isRemote
+  lazy val side = EffectiveSide(worldObj)
   var orientation = 0
   var moving = 0
 
   //log.info(s"new TileEntityMotor, isServer: $isServer")
 
   override def getDescriptionPacket(): Packet = {
-    assert(isServer)
+    assert(side.isServer)
     val cmp = new NBTTagCompound
     writeToNBT(cmp);
     log.info("getPacket, world: " + worldObj)
@@ -162,7 +162,7 @@ class TileEntityMotor extends TileEntity {
   }
 
   override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
-    assert(!isServer)
+    assert(side.isClient)
     readFromNBT(packet.customParam1)
   }
 
@@ -170,14 +170,14 @@ class TileEntityMotor extends TileEntity {
     super.readFromNBT(cmp)
     orientation = cmp.getInteger("orientation")
     moving = cmp.getInteger("moving")
-    log.info(s"Motor readFromNBT: ($xCoord,$yCoord,$zCoord), $isServer")
+    log.info(s"Motor readFromNBT: ($xCoord,$yCoord,$zCoord), " + (if(worldObj != null) side else "NONE"))
   }
 
   override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp);
     cmp.setInteger("orientation", orientation)
     cmp.setInteger("moving", moving)
-    log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $isServer")
+    log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $side")
   }
 
   override def updateEntity() {
@@ -211,7 +211,8 @@ class TileEntityMotor extends TileEntity {
     if(moving != 0) return
     moving = 1
     val meta = getBlockMetadata
-    val pos = this + ForgeDirection.values()(meta)
+    val pos = WorldPos(this) + ForgeDirection.values()(meta)
+    if(worldObj.getBlockId(pos.x, pos.y, pos.z) == 0) return
     val dirTo = ForgeDirection.values()(moveDir(orientation)(meta))
     log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo")
     val blocks = bfs(Queue(pos))
@@ -221,15 +222,16 @@ class TileEntityMotor extends TileEntity {
       map.addBinding(c.normal(dirTo), c.basis(dirTo))
     }
 
-    val shift = if(dirTo.basis(dirTo) > 0) 1 else -1
+    val shift = if((dirTo.ordinal & 1) == 1) 1 else -1
     var size = 0
     val strips = for {
       normal <- map.keys
-      line = map(normal).toArray.sorted
-      (basis, size) <- splitLine(line, shift)
+      line = map(normal).toArray
+      sline = if(shift == 1) line.sorted else line.sorted(Ordering[Int].reverse)
+      (basis, size) <- splitLine(sline, shift)
       c = WorldPos(dirTo, normal, basis + shift)
     } yield {
-      log.info(s"xyz: $c, basis: $basis, size: $size")
+      log.info(s"xyz: $c, basis: $basis, size: $size, shift: $shift")
       (c, size)
     }
     val canMove = !strips.exists { (pair) =>

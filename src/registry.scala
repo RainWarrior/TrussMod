@@ -44,7 +44,7 @@ import Tessellator.{ instance => tes }
 import java.util.{ EnumSet, Set, HashSet }
 import cpw.mods.fml.{ common, relauncher }
 import common.{ ITickHandler, TickType, registry }
-import relauncher.Side
+import relauncher.{ Side, SideOnly }
 import rainwarrior.utils._
 
 object HelperRenderer {
@@ -168,5 +168,30 @@ object RenderTickHandler extends ITickHandler {
   }
   override def tickEnd(tp: EnumSet[TickType], tickData: AnyRef*) {
     if(tp contains TickType.RENDER) MovingRegistry.onPostRenderTick()
+  }
+}
+
+@SideOnly(Side.CLIENT)
+trait MovingTileEntityRenderer extends TileEntityRenderer {
+  import org.lwjgl.opengl.GL11._
+  import TileEntityRenderer._
+  override def renderTileEntity(te: TileEntity, parTick: Float) {
+    if (te.getDistanceFrom(this.playerX, this.playerY, this.playerZ) < te.getMaxRenderDistanceSquared()) {
+        val i = this.worldObj.getLightBrightnessForSkyBlocks(te.xCoord, te.yCoord, te.zCoord, 0)
+        val j = i % 0x10000
+        val k = i / 0x10000
+        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, j / 1.0F, k / 1.0F)
+        glColor4f(1.0F, 1.0F, 1.0F, 1.0F)
+        if(MovingRegistry.isMoving(te.xCoord, te.yCoord, te.zCoord)) {
+          this.renderTileEntityAt(
+            te,
+            te.xCoord - staticPlayerX + MovingRegistry.xOffset(te.xCoord, te.yCoord, te.zCoord),
+            te.yCoord - staticPlayerY + MovingRegistry.yOffset(te.xCoord, te.yCoord, te.zCoord),
+            te.zCoord - staticPlayerZ + MovingRegistry.zOffset(te.xCoord, te.yCoord, te.zCoord),
+            parTick)
+      } else {
+        this.renderTileEntityAt(te, te.xCoord - staticPlayerX, te.yCoord - staticPlayerY, te.zCoord - staticPlayerZ, parTick)
+      }
+    }
   }
 }

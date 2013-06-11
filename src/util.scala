@@ -45,17 +45,20 @@ object utils {
     Array(5, 5, 5, 5, 1, 0))
 
   def splitLine(xs: Seq[Int], shift:Int) = {
-    var start = 0
-    val ret = for {
-      (x, i) <- xs.zipWithIndex
-      if i > 0
-      if x != xs(i - 1) + shift
-    } yield {
-      val size = i - start
-      start = i
-      (xs(i - 1), size)
+    if(xs.isEmpty) Seq()
+    else {
+      var start = 0
+      val ret = for {
+        (x, i) <- xs.zipWithIndex
+        if i > 0
+        if x != xs(i - 1) + shift
+      } yield {
+        val size = i - start
+        start = i
+        (xs(i - 1), size)
+      }
+      ret :+ (xs.last, xs.length - start)
     }
-    ret :+ (xs.last, xs.length - start)
   }
 
   //@SideOnly(Side.CLIENT)
@@ -125,11 +128,11 @@ object utils {
       case _ => false
     }
     def isServer = !isClient
-    /*override def toString = this match {
+    override def toString = this match {
       case Client => "Client"
       case Server => "Server"
       //case Bukkit => "Bukkit"
-    }*/
+    }
   }
   object Client extends EffectiveSide
   object Server extends EffectiveSide
@@ -183,7 +186,7 @@ object utils {
   
     def toTuple = (_1, _2, _3)
     def toSeq = Seq[Int](_1, _2, _3)
-    override def toString = "" //(s"WorldPos(${_1},${_2},${_3})")
+    override def toString = s"WorldPos(${_1},${_2},${_3})"
 
     def normal(dir: ForgeDirection) = dir match {
       case DOWN  => (_1, _3)
