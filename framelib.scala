@@ -27,7 +27,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 */
 
-package rainwarrior.scalamod
+package rainwarrior.trussmod
 
 import collection.immutable.Queue
 import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet }
@@ -55,14 +55,14 @@ import registry.{ GameRegistry, LanguageRegistry, TickRegistry }
 import client.registry.{ ClientRegistry, RenderingRegistry, ISimpleBlockRenderingHandler }
 import relauncher.{ FMLRelaunchLog, Side }
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
-import Scalamod._
-import util._
+import TrussMod._
+import rainwarrior.utils._
 
 
 trait BlockMovingStrip extends BlockContainer {
   setHardness(.5f)
   setStepSound(Block.soundGravelFootstep)
-  setUnlocalizedName("Scalamod:BlockMovingStrip")
+  setUnlocalizedName(modId + ":BlockMovingStrip")
   setCreativeTab(CreativeTabs.tabBlock)
 //  setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
 
@@ -79,16 +79,14 @@ trait BlockMovingStrip extends BlockContainer {
   override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
     val metadata = world.getBlockMetadata(x, y, z)
     val te = world.getBlockTileEntity(x, y, z).asInstanceOf[TileEntityMovingStrip]
-    if(metadata == 0 || te == null) {
-//      setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
-    }
-    else
-    {
+    val pos = te - te.dirTo
+    val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
+    if(metadata == 0 || te == null || block == null) {
+      setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
+    } else {
       //x1, y1, z1 = world.getBlockId(x + te.
       //val old List(minX, maxX, minY, maxY, minZ, maxZ
       val shift: Float = (16 - te.blockMetadata).toFloat / 16F
-      val pos = te - te.dirTo
-      val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
       setBlockBounds(
         (block.getBlockBoundsMinX - te.dirTo.x * shift).toFloat,
         (block.getBlockBoundsMinY - te.dirTo.y * shift).toFloat,
@@ -99,7 +97,7 @@ trait BlockMovingStrip extends BlockContainer {
     }
   }
 
-  override def onBlockActivated(
+  /*override def onBlockActivated(
       world: World,
       x: Int,
       y: Int,
@@ -117,7 +115,7 @@ trait BlockMovingStrip extends BlockContainer {
 //      FMLCommonHandler.instance.showGuiScreen(te.openGui())
     //}
     true
-  }
+  }*/
   // should be called server-side
   def create(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection, size: Int) {
     world.setBlock(x, y, z, blockID, 0, 3)
@@ -133,7 +131,8 @@ trait BlockMovingStrip extends BlockContainer {
 }
 
 class TileEntityMovingStrip extends TileEntity {
-  lazy val side: EffectiveSide = worldObj
+  import rainwarrior.hooks.MovingRegistry
+  lazy val side = EffectiveSide(worldObj)
   var dirTo: ForgeDirection = ForgeDirection.UNKNOWN
   var size: Int = 0
   @SideOnly(Side.CLIENT)
@@ -231,7 +230,7 @@ class TileEntityMovingStrip extends TileEntity {
 trait BlockFrame extends Block {
   setHardness(.5f)
   setStepSound(Block.soundGravelFootstep)
-  setUnlocalizedName("Scalamod:BlockFrame")
+  setUnlocalizedName(modId + ":BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
 
   import cpw.mods.fml.common.registry._
@@ -279,113 +278,13 @@ trait BlockFrame extends Block {
   }
 }
 
-object FrameBfs {
-  def apply(world: World, pos: WorldPos, dirTo: ForgeDirection) {
-    val blocks = bfs(world, Queue(pos))
-    val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
-    for (c <- blocks) {
-      //log.info(s"c: $c")
-      map.addBinding(c.normal(dirTo), c.basis(dirTo))
-    }
-
-    val strips = for { // TODO: fix direction here
-      normal <- map.keys
-      strip = map(normal)
-      size = strip.size
-    } yield {
-      val basis = if(dirTo.basis(dirTo) > 0) strip.max else strip.min
-      val c = WorldPos(dirTo, normal, basis)
-      log.info(s"xyz: $c, size: $size")
-      (c + dirTo, size)
-    }
-    val canMove = strips.exists { (pair) =>
-      val c = pair._1
-      val id = world.getBlockId(c.x, c.y, c.z)
-      val block = Block.blocksList(id)
-      log.info(s"block: $block")
-      if(block == null) true
-      else
-        block.isBlockReplaceable(world, c.x, c.y, c.z)
-    }
-    if (canMove) for ((c, size) <- strips) {
-      log.info(s"c: $c")
-      CommonProxy.blockMovingStrip.create(world, c.x, c.y, c.z, dirTo, size)
-    }
-      
-  }
-  def bfs(
-      world: World,
-      greyBlocks: Seq[WorldPos], // fames to visit
-      blackBlocks: Set[WorldPos] = Set.empty): Set[WorldPos] = { // all blocks to move
-    greyBlocks match {
-      case Seq() => blackBlocks
-      case Seq(next, rest@ _*) => world.getBlockId(next.x, next.y, next.z) match {
-        case CommonProxy.blockFrameId =>
-          val toCheck = for {
-            dir <- ForgeDirection.VALID_DIRECTIONS.toList
-            c = next + dir
-            if !blackBlocks(c)
-            if !greyBlocks.contains(c)
-            id = world.getBlockId(c.x, c.y, c.z)
-            if id != 0
-          } yield c
-          List("111",
-            s"next: $next",
-            s"rest: $rest",
-            s"blocks: $blackBlocks",
-            s"toCheck: $toCheck").map(log.info(_))
-          bfs(world, rest ++ toCheck, blackBlocks + next)
-        case _ =>
-          List("222",
-            s"next: $next",
-            s"rest: $rest",
-            s"blocks: $blackBlocks").map(log.info(_))
-          bfs(world, rest, blackBlocks + next)
-      }
-    }
-  }
-}
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
   override def renderInventoryBlock(
       block: Block,
       metadata: Int,
       modelId: Int,
       rb: RenderBlocks) {
-    rb.useInventoryTint = true
-    block.setBlockBoundsForItemRender()
-    rb.setRenderBoundsFromBlock(block)
-    glPushMatrix()
-    glRotatef(90, 0, 1, 0)
-    glTranslatef(-.5F, -.5F, -.5F)
-    tes.startDrawingQuads()
-    tes.setNormal(0, -1, 0)
-    rb.renderFaceYNeg(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 0, metadata))
-
-    if (rb.useInventoryTint) {
-      val c = block.getRenderColor(metadata)
-      val r = c >> 16 & 0xFF
-      val g = c >> 8 & 0xFF
-      val b = c & 0xFF
-      tes.setColorRGBA(r, g, b, 0xFF)
-    }
-
-    tes.setNormal(0, 1, 0)
-    rb.renderFaceYPos(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 1, metadata))
-
-    if (rb.useInventoryTint) {
-      tes.setColorRGBA_F(1, 1, 1, 1)
-    }
-
-    tes.setNormal(0, 0, -1)
-    rb.renderFaceZNeg(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 2, metadata))
-    tes.setNormal(0, 0, 1)
-    rb.renderFaceZPos(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 3, metadata))
-    tes.setNormal(-1, 0, 0)
-    rb.renderFaceXNeg(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 4, metadata))
-    tes.setNormal(1, 0, 0)
-    rb.renderFaceXPos(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 5, metadata))
-    tes.draw()
-    glPopMatrix()
+    rainwarrior.util.renderInventoryBlock(rb, block, metadata)
   }
   override def renderWorldBlock(
       world: IBlockAccess,

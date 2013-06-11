@@ -27,7 +27,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 */
 
-package rainwarrior.scalamod
+package rainwarrior.hooks
 
 import scala.collection.mutable.OpenHashMap
 import net.minecraftforge.event.ForgeSubscribe
@@ -41,9 +41,11 @@ import Minecraft.{ getMinecraft => mc }
 import net.minecraft.client.renderer.{ tileentity, RenderBlocks, RenderHelper, Tessellator, OpenGlHelper }
 import tileentity.TileEntityRenderer//.{ instance => teRenderer }
 import Tessellator.{ instance => tes }
-import util._
-
-class BlockData(var x: Float, var y: Float, var z: Float)
+import java.util.{ EnumSet, Set, HashSet }
+import cpw.mods.fml.{ common, relauncher }
+import common.{ ITickHandler, TickType, registry }
+import relauncher.Side
+import rainwarrior.utils._
 
 object HelperRenderer {
   import org.lwjgl.opengl.GL11._
@@ -145,7 +147,7 @@ object MovingRegistry {
     world.updateAllLightTypes(x, y, z)
     for(d <- ForgeDirection.values) {
       world.markBlockForRenderUpdate(x + d.offsetX, y + d.offsetY, z + d.offsetZ)
-      Scalamod.log.info(f"Update: (${x + d.offsetX}, ${y + d.offsetY}, ${z + d.offsetZ})")
+      //println(f"Update: (${x + d.offsetX}, ${y + d.offsetY}, ${z + d.offsetZ})")
     }
   }
   def delMoving(world: World, pos: WorldPos) {
@@ -155,5 +157,16 @@ object MovingRegistry {
     for(d <- ForgeDirection.values) {
       world.markBlockForRenderUpdate(x + d.offsetX, y + d.offsetY, z + d.offsetZ)
     }
+  }
+}
+
+object RenderTickHandler extends ITickHandler {
+  override def ticks = EnumSet.of(TickType.RENDER)
+  override def getLabel = "MovingRegistry Render Handler"
+  override def tickStart(tp: EnumSet[TickType], tickData: AnyRef*) {
+    if(tp contains TickType.RENDER) MovingRegistry.onPreRenderTick(tickData(0).asInstanceOf[Float])
+  }
+  override def tickEnd(tp: EnumSet[TickType], tickData: AnyRef*) {
+    if(tp contains TickType.RENDER) MovingRegistry.onPostRenderTick()
   }
 }

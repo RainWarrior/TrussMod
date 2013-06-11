@@ -1,4 +1,4 @@
-package rainwarrior.scalamod
+package rainwarrior.trussmod
 
 import cpw.mods.fml.relauncher
 import relauncher.{ Side, SideOnly }
@@ -11,13 +11,13 @@ import net.minecraft._,
   entity.player.EntityPlayer,
   world.World
   import net.minecraftforge.common.{ ForgeDirection => dir }
-import Scalamod._
-import util._
+import TrussMod._
+import rainwarrior.utils._
 
 trait DebugItem extends Item {
   setMaxStackSize(1)
   setCreativeTab(CreativeTabs.tabMisc)
-  setUnlocalizedName("Scalamod:debugItem")
+  setUnlocalizedName(modId + ":debugItem")
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Debug Item")
@@ -53,8 +53,8 @@ trait DebugItem extends Item {
             MovingRegistry.addMoving(world, pos, MovingRegistry.debugOffset)
           }*/
         case Server =>
-          //CommonProxy.blockMovingStrip.create(world, x, y + 1, z, dir.UP, 2)
-          FrameBfs(world, (x, y, z), dir.NORTH)
+          CommonProxy.blockMovingStrip.create(world, x, y + 1, z, dir.UP, 2)
+          //FrameBfs(world, (x, y, z), dir.NORTH)
       }
     //}
     false

@@ -27,17 +27,82 @@ of this Program grant you additional permission to convey the resulting work.
 
 */
 
-package rainwarrior.scalamod
+package rainwarrior
 
 import language.implicitConversions
 import net.minecraft.tileentity.TileEntity
+import net.minecraft.block.Block
 import net.minecraft.world.World
+import net.minecraft.client.renderer.RenderBlocks
 import net.minecraftforge.common.ForgeDirection
-import cpw.mods.fml.relauncher.Side
+import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
-package object util {
+object utils {
+  val moveDir = Array(
+    Array(3, 2, 0, 1, 2, 2),
+    Array(4, 4, 4, 4, 0, 1),
+    Array(2, 3, 1, 0, 3, 3),
+    Array(5, 5, 5, 5, 1, 0))
+
+  def splitLine(xs: Seq[Int], shift:Int) = {
+    var start = 0
+    val ret = for {
+      (x, i) <- xs.zipWithIndex
+      if i > 0
+      if x != xs(i - 1) + shift
+    } yield {
+      val size = i - start
+      start = i
+      (xs(i - 1), size)
+    }
+    ret :+ (xs.last, xs.length - start)
+  }
+
+  //@SideOnly(Side.CLIENT)
+  def renderInventoryBlock(rb: RenderBlocks, block: Block, metadata: Int) {
+    import net.minecraft.client.renderer.Tessellator.{ instance => tes }
+    import org.lwjgl.opengl.GL11._
+    rb.useInventoryTint = true
+    block.setBlockBoundsForItemRender()
+    rb.setRenderBoundsFromBlock(block)
+    glPushMatrix()
+    glRotatef(90, 0, 1, 0)
+    glTranslatef(-.5F, -.5F, -.5F)
+    tes.startDrawingQuads()
+    tes.setNormal(0, -1, 0)
+    rb.renderFaceYNeg(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 0, metadata))
+
+    if (rb.useInventoryTint) {
+      val c = block.getRenderColor(metadata)
+      val r = c >> 16 & 0xFF
+      val g = c >> 8 & 0xFF
+      val b = c & 0xFF
+      tes.setColorRGBA(r, g, b, 0xFF)
+    }
+
+    tes.setNormal(0, 1, 0)
+    rb.renderFaceYPos(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 1, metadata))
+
+    if (rb.useInventoryTint) {
+      tes.setColorRGBA_F(1, 1, 1, 1)
+    }
+
+    tes.setNormal(0, 0, -1)
+    rb.renderFaceZNeg(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 2, metadata))
+    tes.setNormal(0, 0, 1)
+    rb.renderFaceZPos(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 3, metadata))
+    tes.setNormal(-1, 0, 0)
+    rb.renderFaceXNeg(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 4, metadata))
+    tes.setNormal(1, 0, 0)
+    rb.renderFaceXPos(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 5, metadata))
+    tes.draw()
+    glPopMatrix()
+  }
+
+  class BlockData(var x: Float, var y: Float, var z: Float)
+
   object EffectiveSide {
-    def apply(world: World) = world.isRemote match {
+    def apply(world: World) = (world.isRemote) match {
       case true => Client
       case false => Server
     }
@@ -47,8 +112,8 @@ package object util {
       //case Side.BUKKIT => Bukkit
     }
   }
-  implicit def toEffectiveSide(world: World) = EffectiveSide.apply(world)
-  implicit def toEffectiveSide(side: Side) = EffectiveSide.apply(side)
+  implicit def toEffectiveSide(world: World) = EffectiveSide(world)
+  implicit def toEffectiveSide(side: Side) = EffectiveSide(side)
   implicit def toSide(side: EffectiveSide) = side match {
     case Client => Side.CLIENT
     case Server => Side.SERVER
@@ -60,11 +125,11 @@ package object util {
       case _ => false
     }
     def isServer = !isClient
-    override def toString = this match {
+    /*override def toString = this match {
       case Client => "Client"
       case Server => "Server"
       //case Bukkit => "Bukkit"
-    }
+    }*/
   }
   object Client extends EffectiveSide
   object Server extends EffectiveSide
@@ -118,7 +183,7 @@ package object util {
   
     def toTuple = (_1, _2, _3)
     def toSeq = Seq[Int](_1, _2, _3)
-    override def toString = s"WorldPos(${_1},${_2},${_3})"
+    override def toString = "" //(s"WorldPos(${_1},${_2},${_3})")
 
     def normal(dir: ForgeDirection) = dir match {
       case DOWN  => (_1, _3)

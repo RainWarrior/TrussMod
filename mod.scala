@@ -1,4 +1,4 @@
-package rainwarrior.scalamod
+package rainwarrior.trussmod
 
 import scala.collection.mutable.ListBuffer
 import java.util.logging.Logger
@@ -6,7 +6,7 @@ import cpw.mods.fml.{ common, relauncher }
 import common.{ Mod, event, network, FMLCommonHandler, SidedProxy }
 import relauncher.{ FMLRelaunchLog, Side }
 import network.NetworkMod
-import Scalamod._
+import TrussMod._
 
 trait LoadLater extends DelayedInit {
   var stuff = new ListBuffer[() => Unit]
@@ -61,13 +61,13 @@ object CommonProxy extends LoadLater {
     with BlockMovingStrip
   blockMovingStrip
 
-  TickRegistry.registerTickHandler(RenderTickHandler, Side.CLIENT)
+  TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
 }
 object ClientProxy extends LoadLater {
   import cpw.mods.fml.client.registry._
   ClientRegistry.bindTileEntitySpecialRenderer(classOf[TileEntityMotor], TileEntityMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockFrameRenderer)
-  net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(MovingRegistry)
+  net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(rainwarrior.hooks.MovingRegistry)
 }
 
 sealed class CommonProxy
@@ -86,23 +86,22 @@ class ClientProxy extends CommonProxy {
   clientSideRequired = true,
   serverSideRequired = false
 )
-object Scalamod {
-  final val modId = "Scalamod"
-  final val modName = "Scala Mod"
+object TrussMod {
+  final val modId = "TrussMod"
+  final val modName = "Truss Mod"
 
-  val log = Logger.getLogger("Scalamod")
+  val log = Logger.getLogger(modId)
   log.setParent(FMLRelaunchLog.log.getLogger)
 
   def isServer() = FMLCommonHandler.instance.getEffectiveSide.isServer
 
   @SidedProxy(
-    clientSide="rainwarrior.scalamod.ClientProxy",
-    serverSide="rainwarrior.scalamod.CommonProxy")
+    clientSide="rainwarrior.trussmod.ClientProxy",
+    serverSide="rainwarrior.trussmod.CommonProxy")
   var proxy: CommonProxy = null
 
   CommonProxy.delayedInit {
-    println("Hello, World from Scala AND FRIENDS!")
-    //log.info("LULULU: " + CommonProxy.debugItem.getClass.getName)
+    println("Hello, World from TrussMod AND FRIENDS!")
   }
 
   @Mod.PreInit def preinit(e: event.FMLPreInitializationEvent) {}

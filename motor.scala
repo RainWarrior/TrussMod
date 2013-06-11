@@ -27,32 +27,37 @@ of this Program grant you additional permission to convey the resulting work.
 
 */
 
-package rainwarrior.scalamod
+package rainwarrior.trussmod
 
+import collection.immutable.Queue
+import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet }
 import net.minecraft._,
   block.{ Block, BlockContainer },
   block.material.Material,
   client.renderer.tileentity.TileEntitySpecialRenderer,
   client.renderer.Tessellator.{ instance => tes },
-  client.renderer.{ OpenGlHelper, RenderHelper },
+  client.renderer.texture.IconRegister,
+  client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
   nbt.NBTTagCompound,
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
-  world.World
+  world.{ World, IBlockAccess }
+import net.minecraft.util.Icon
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side}
 import cpw.mods.fml.common.FMLCommonHandler
-import net.minecraftforge.common.MinecraftForge
-import Scalamod._
+import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
+import TrussMod._
+import rainwarrior.utils._
 
 
 trait BlockMotor extends BlockContainer {
   setHardness(.5f)
   setStepSound(Block.soundGravelFootstep)
-  setUnlocalizedName("Scalamod:BlockMotor")
+  setUnlocalizedName(s"$modId:BlockMotor")
   setCreativeTab(CreativeTabs.tabBlock)
 
   import cpw.mods.fml.common.registry._
@@ -61,10 +66,41 @@ trait BlockMotor extends BlockContainer {
   GameRegistry.registerBlock(this, "Motor_Block")
   GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity")
 
+  val iconNames = Array(List("Bottom", "Top", "Front", "Back", "Left", "Right").map(s"$modId:Motor_" + _): _*)
+  val iconMap = Array(0, 1, 2, 3, 4, 5)
+
+  @SideOnly(Side.CLIENT)
+  var iconArray: Array[Icon] = null
+
+  override def registerIcons(registry: IconRegister) {
+    iconArray = Array(iconNames.map(registry.registerIcon(_)): _*)
+  }
   override def createNewTileEntity(world: World): TileEntity = new TileEntityMotor
   override def isOpaqueCube = false
   override def renderAsNormalBlock = false
   override def getRenderType = -1
+
+  def rotate(vec: Int, dir: Int, count: Int): Int = count match {
+    case 0 => vec
+    case _ => rotate(ForgeDirection.ROTATION_MATRIX(dir)(vec), dir, count - 1)
+  }
+
+  override def getBlockTexture(world: IBlockAccess, x: Int, y: Int, z: Int, side: Int) = {
+    world.getBlockTileEntity(x, y, z) match {
+      case te: TileEntityMotor =>
+        val meta = te.getBlockMetadata
+        val or = te.orientation
+        val s2 = (side + meta) % 6 // + (if(meta > side) 6 else 0)
+        val s3 = rotate(s2, meta, or)
+        //log.info(s"meta: $meta, or: $or, s2: $s2, s3: $s3")
+        //iconArray(iconMap(tmp(meta)(or)(side)))
+        iconArray(iconMap(side))
+      case _ => iconArray(0)
+    }
+  }
+  override def getIcon(side: Int, metadata: Int) = {
+    iconArray(side)
+  }
 
   override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
     super.onBlockAdded(world, x, y, z)
@@ -92,23 +128,30 @@ trait BlockMotor extends BlockContainer {
       dy: Float,
       dz: Float): Boolean  = {
     //log.info(f"onBlockActivated: ($x,$y,$z), isServer: $isServer")
-    if(world.isRemote) {
-      val te = world.getBlockTileEntity(x, y, z).asInstanceOf[TileEntityMotor]
-      if(te == null)
-        throw new RuntimeException("no tile entity!")
-//      FMLCommonHandler.instance.showGuiScreen(te.openGui())
-    }
+    val te = world.getBlockTileEntity(x, y, z).asInstanceOf[TileEntityMotor]
+    if(te == null)
+      throw new RuntimeException("no tile entity!")
+//    FMLCommonHandler.instance.showGuiScreen(te.openGui())
+      te.rotate(player.isSneaking())
     true
+  }
+  override def onNeighborBlockChange(world: World, x: Int, y: Int, z: Int, id: Int) {
+    if(world.isBlockIndirectlyGettingPowered(x, y, z)) {
+      world.getBlockTileEntity(x, y, z) match {
+        case te: TileEntityMotor =>
+          te.activate()
+        case _ =>
+      }
+    }
   }
 }
 
 class TileEntityMotor extends TileEntity {
-  val isServer: Boolean = Scalamod.isServer
+  lazy val isServer = worldObj.isRemote
+  var orientation = 0
+  var moving = 0
 
-  if(isServer) {
-  } else {
-  }
-  log.info(s"new TileEntityMotor, isServer: $isServer")
+  //log.info(s"new TileEntityMotor, isServer: $isServer")
 
   override def getDescriptionPacket(): Packet = {
     assert(isServer)
@@ -125,21 +168,129 @@ class TileEntityMotor extends TileEntity {
 
   override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
+    orientation = cmp.getInteger("orientation")
+    moving = cmp.getInteger("moving")
     log.info(s"Motor readFromNBT: ($xCoord,$yCoord,$zCoord), $isServer")
   }
 
   override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp);
+    cmp.setInteger("orientation", orientation)
+    cmp.setInteger("moving", moving)
     log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $isServer")
   }
 
   override def updateEntity() {
+    if(moving != 0) moving += 1
+    if(moving > 16) moving = 0
+  }
+  
+  override def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
+    if(oldId == newId) false else true
+  }
+
+  def rotate(isSneaking: Boolean) {
+    if(isSneaking) {
+      val meta = getBlockMetadata() match {
+        case 5 => 0
+        case _ => getBlockMetadata() + 1
+      }
+      log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
+      worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, meta, 1)
+      log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
+    } else {
+      orientation = orientation match {
+        case 3 => 0
+        case o => o + 1
+      }
+      log.info(s"rotated2, m: $getBlockMetadata, o: $orientation")
+    }
+  }
+
+  def activate() {
+    if(moving != 0) return
+    moving = 1
+    val meta = getBlockMetadata
+    val pos = this + ForgeDirection.values()(meta)
+    val dirTo = ForgeDirection.values()(moveDir(orientation)(meta))
+    log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo")
+    val blocks = bfs(Queue(pos))
+    val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
+    for (c <- blocks) {
+      //log.info(s"c: $c")
+      map.addBinding(c.normal(dirTo), c.basis(dirTo))
+    }
+
+    val shift = if(dirTo.basis(dirTo) > 0) 1 else -1
+    var size = 0
+    val strips = for {
+      normal <- map.keys
+      line = map(normal).toArray.sorted
+      (basis, size) <- splitLine(line, shift)
+      c = WorldPos(dirTo, normal, basis + shift)
+    } yield {
+      log.info(s"xyz: $c, basis: $basis, size: $size")
+      (c, size)
+    }
+    val canMove = !strips.exists { (pair) =>
+      val c = pair._1
+      val id = worldObj.getBlockId(c.x, c.y, c.z)
+      val block = Block.blocksList(id)
+      log.info(s"block: $block")
+      if(block == null) false
+      else
+        !block.isBlockReplaceable(worldObj, c.x, c.y, c.z)
+    }
+    if (canMove) for ((c, size) <- strips) {
+      log.info(s"c: $c")
+      CommonProxy.blockMovingStrip.create(worldObj, c.x, c.y, c.z, dirTo, size)
+    }
+      
+  }
+  def bfs(
+      greyBlocks: Seq[WorldPos], // fames to visit
+      blackBlocks: Set[WorldPos] = Set.empty): Set[WorldPos] = { // all blocks to move
+    greyBlocks match {
+      case Seq() => blackBlocks
+      case Seq(next, rest@ _*) => worldObj.getBlockId(next.x, next.y, next.z) match {
+        case CommonProxy.blockFrameId =>
+          val toCheck = for {
+            dir <- ForgeDirection.VALID_DIRECTIONS.toList
+            c = next + dir
+            if !(c == WorldPos(this))
+            if !blackBlocks(c)
+            if !greyBlocks.contains(c)
+            id = worldObj.getBlockId(c.x, c.y, c.z)
+            if id != 0
+            if !(id == CommonProxy.blockMotorId && {
+              val meta = worldObj.getBlockMetadata(c.x, c.y, c.z)
+              c == next - ForgeDirection.values()(meta)
+            })
+          } yield c
+          List("111",
+            s"next: $next",
+            s"rest: $rest",
+            s"blocks: $blackBlocks",
+            s"toCheck: $toCheck").map(log.info(_))
+          bfs(rest ++ toCheck, blackBlocks + next)
+        case _ =>
+          List("222",
+            s"next: $next",
+            s"rest: $rest",
+            s"blocks: $blackBlocks").map(log.info(_))
+          bfs(rest, blackBlocks + next)
+      }
+    }
   }
 }
 
 
-object TileEntityMotorRenderer extends TileEntitySpecialRenderer 
-{
+object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
+  var rb: RenderBlocks = null
+  override def onWorldChange(world: World) {
+    rb = new RenderBlocks(world)
+  }
+
   def addSquareX(x: Double, y1: Double, y2: Double, z1: Double, z2: Double) {
     tes.addVertex(x, y1, z1);
     tes.addVertex(x, y2, z1);
@@ -162,19 +313,72 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer
   }
 
   override def renderTileEntityAt(tile: TileEntity, x: Double, y: Double, z: Double, partialTick: Float) {
+    import net.minecraft.client.Minecraft.{ getMinecraft => mc }
+    //val rb = mc.renderGlobal.globalRenderBlocks
     val te = tile.asInstanceOf[TileEntityMotor]
+    val block = CommonProxy.blockMotor
     if(te == null) return
 
+    /*val pos = WorldPos(
+      (x + tileEntityRenderer.playerX).toInt,
+      (y + tileEntityRenderer.playerY).toInt,
+      (z + tileEntityRenderer.playerZ).toInt)*/
+    val pos = WorldPos(
+      te.xCoord,
+      te.yCoord,
+      te.zCoord)
+    //log.info(s"pos: $pos")
+    val meta = te.getBlockMetadata
+    val or = te.orientation
+    val dir = ForgeDirection.values()(meta)
     glColor4f(0F, 0F, 0F, 0F)
     glPushMatrix()
     glTranslated(x, y, z)
-    glScaled(-1D/16D, -1D/16D, -1D/16D)
+    RenderHelper.disableStandardItemLighting()
+    this.bindTextureByName("/terrain.png")
+    glTranslatef(.5F, .5F, .5F)
+    glRotatef(90 * or, dir.offsetX, dir.offsetY, dir.offsetZ)
+    meta match {
+      case 0 => glRotatef(180, 1, 0, 0)
+      case 1 => 
+      case 2 => glRotatef(90, -1, 0, 0)
+      case 3 => glRotatef(90, 1, 0, 0)
+      case 4 => glRotatef(90, 0, 0, 1)
+      case 5 => glRotatef(90, 0, 0, -1)
+    }
+    //glTranslatef(-.5F, -.5F, -.5F)
+    //glTranslatef(-pos.x, -pos.y, -pos.z)
+    //tes.startDrawingQuads()
+    rb.renderAllFaces = true
+/*    tile.getBlockMetadata match {
+      case 0 => rb.uvRotateBottom = or;     rb.uvRotateTop   = or
+      case 1 => rb.uvRotateBottom = 3 - or; rb.uvRotateTop   = 3 - or
+      case 2 => rb.uvRotateWest   = or;     rb.uvRotateEast  = or
+      case 3 => rb.uvRotateWest   = 3 - or; rb.uvRotateEast  = 3 - or
+      case 4 => rb.uvRotateNorth  = or;     rb.uvRotateSouth = or
+      case 5 => rb.uvRotateNorth  = 3 - or; rb.uvRotateSouth = 3 - or
+    }*/
+    rb.setRenderBoundsFromBlock(block)
+    rb.renderBlockSandFalling(block, tile.worldObj, pos.x, pos.y, pos.z, meta)
+/*    tile.getBlockMetadata match {
+      case 0 => rb.uvRotateBottom = 0; rb.uvRotateTop   = 0
+      case 1 => rb.uvRotateBottom = 0; rb.uvRotateTop   = 0
+      case 2 => rb.uvRotateWest   = 0; rb.uvRotateEast  = 0
+      case 3 => rb.uvRotateWest   = 0; rb.uvRotateEast  = 0
+      case 4 => rb.uvRotateNorth  = 0; rb.uvRotateSouth = 0
+      case 5 => rb.uvRotateNorth  = 0; rb.uvRotateSouth = 0
+    }*/
+    //tes.draw()
+    glTranslatef(pos.x, pos.y, pos.z)
+    RenderHelper.enableStandardItemLighting()
+    /*glScaled(-1D/16D, -1D/16D, -1D/16D)
     glTranslatef(-15, -14, 0)
     RenderHelper.disableStandardItemLighting()
     glTranslatef(7, 6, -8)
     glDisable(GL_TEXTURE_2D)
 
     tes.startDrawingQuads()
+    tes.setTranslation(0, 0, 0)
     tes.setColorRGBA(0xB4, 0x8E, 0x4F, 0xFF)
     val w1 = 6
     val w2 = 3
@@ -204,7 +408,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer
     tes.draw()
 
     glEnable(GL_TEXTURE_2D)
-    RenderHelper.enableStandardItemLighting()
+    RenderHelper.enableStandardItemLighting()*/
     glPopMatrix()
   }
 }
