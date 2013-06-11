@@ -35,11 +35,11 @@ import net.minecraftforge.client.event.RenderWorldLastEvent
 import net.minecraftforge.common.ForgeDirection
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.block.Block
-import net.minecraft.world.World
+import net.minecraft.world.{ World, IBlockAccess }
 import net.minecraft.client.Minecraft
 import Minecraft.{ getMinecraft => mc }
 import net.minecraft.client.renderer.{ tileentity, RenderBlocks, RenderHelper, Tessellator, OpenGlHelper }
-import tileentity.TileEntityRenderer//.{ instance => teRenderer }
+import tileentity.{ TileEntityRenderer, TileEntitySpecialRenderer }
 import Tessellator.{ instance => tes }
 import java.util.{ EnumSet, Set, HashSet }
 import cpw.mods.fml.{ common, relauncher }
@@ -58,7 +58,7 @@ object HelperRenderer {
   def render(c: WorldPos, d: BlockData) {
     if(oldWorld != world) {
       oldWorld = world
-      renderBlocks = new RenderBlocks(world)
+      renderBlocks = new MovingRenderBlocks(world)
       renderBlocks.renderAllFaces = true
     }
 
@@ -111,6 +111,7 @@ object HelperRenderer {
 }
 
 object MovingRegistry {
+  final val eps = 1.0 / 0x10000
   val moving = new OpenHashMap[WorldPos, BlockData]
   val debugOffset = new BlockData(0, 0, 0)
   var isRendering = false
@@ -172,9 +173,16 @@ object RenderTickHandler extends ITickHandler {
 }
 
 @SideOnly(Side.CLIENT)
-trait MovingTileEntityRenderer extends TileEntityRenderer {
+object MovingTileEntityRenderer extends TileEntityRenderer {
   import org.lwjgl.opengl.GL11._
   import TileEntityRenderer._
+  import collection.JavaConversions._
+  val oldRenderer = TileEntityRenderer.instance
+  specialRendererMap = oldRenderer.specialRendererMap
+  for(tesr <- specialRendererMap.asInstanceOf[java.util.HashMap[Class[_], TileEntitySpecialRenderer]].values) {
+    tesr.setTileEntityRenderer(this)
+  }
+  TileEntityRenderer.instance = this
   override def renderTileEntity(te: TileEntity, parTick: Float) {
     if (te.getDistanceFrom(this.playerX, this.playerY, this.playerZ) < te.getMaxRenderDistanceSquared()) {
         val i = this.worldObj.getLightBrightnessForSkyBlocks(te.xCoord, te.yCoord, te.zCoord, 0)
@@ -193,5 +201,22 @@ trait MovingTileEntityRenderer extends TileEntityRenderer {
         this.renderTileEntityAt(te, te.xCoord - staticPlayerX, te.yCoord - staticPlayerY, te.zCoord - staticPlayerZ, parTick)
       }
     }
+  }
+}
+
+@SideOnly(Side.CLIENT)
+class MovingRenderBlocks(world: IBlockAccess) extends RenderBlocks(world)
+{
+  import MovingRegistry.{ isMoving, eps }
+  override def renderStandardBlock(block: Block, x: Int, y: Int, z: Int) = {
+    if(isMoving(x, y, z)) {
+      if(renderMinX == 0.0D) renderMinX += eps;
+      if(renderMinY == 0.0D) renderMinY += eps;
+      if(renderMinZ == 0.0D) renderMinZ += eps;
+      if(renderMaxX == 1.0D) renderMaxX -= eps;
+      if(renderMaxY == 1.0D) renderMaxY -= eps;
+      if(renderMaxZ == 1.0D) renderMaxZ -= eps;
+    }
+    super.renderStandardBlock(block, x, y, z)
   }
 }
