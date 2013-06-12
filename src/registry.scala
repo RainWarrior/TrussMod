@@ -35,7 +35,7 @@ import net.minecraftforge.client.event.RenderWorldLastEvent
 import net.minecraftforge.common.ForgeDirection
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.block.Block
-import net.minecraft.world.{ World, IBlockAccess }
+import net.minecraft.world.{ World, IBlockAccess, EnumSkyBlock }
 import net.minecraft.client.Minecraft
 import Minecraft.{ getMinecraft => mc }
 import net.minecraft.client.renderer.{ tileentity, RenderBlocks, RenderHelper, Tessellator, OpenGlHelper }
@@ -58,7 +58,7 @@ object HelperRenderer {
   def render(c: WorldPos, d: BlockData) {
     if(oldWorld != world) {
       oldWorld = world
-      renderBlocks = new MovingRenderBlocks(world)
+      renderBlocks = new MovingRenderBlocks(new MovingWorldProxy(world))
       renderBlocks.renderAllFaces = true
     }
 
@@ -219,4 +219,66 @@ class MovingRenderBlocks(world: IBlockAccess) extends RenderBlocks(world)
     }
     super.renderStandardBlock(block, x, y, z)
   }
+}
+
+class MovingWorldProxy(val world: World) extends IBlockAccess {
+  def computeLightValue(x: Int, y: Int, z: Int, tpe: EnumSkyBlock) = {
+    (for(dir <- ForgeDirection.VALID_DIRECTIONS; c = (x, y, z) + dir)
+      yield world.getSavedLightValue(tpe, c.x, c.y, c.z)).max
+  }
+  override def getBlockId(x: Int, y: Int, z: Int) = world.getBlockId(x, y, z)
+
+  override def getBlockTileEntity(x: Int, y: Int, z: Int) = world.getBlockTileEntity(x, y, z)
+
+  @SideOnly(Side.CLIENT)
+  override def getLightBrightnessForSkyBlocks(x: Int, y: Int, z: Int, light: Int) = 
+    MovingRegistry.isMoving(x, y, z) match {
+    case true =>
+      val l1 = computeLightValue(x, y, z, EnumSkyBlock.Sky)
+      val l2 = computeLightValue(x, y, z, EnumSkyBlock.Block)
+      l1 << 20 | Seq(l2, light).max << 4
+    case false => world.getLightBrightnessForSkyBlocks(x, y, z, light)
+  }
+
+  override def getBlockMetadata(x: Int, y: Int, z: Int) = world.getBlockMetadata(x, y, z)
+
+  @SideOnly(Side.CLIENT)
+  override def getBrightness(x: Int, y: Int, z: Int, light: Int) = world.getBrightness(x, y, z, light)
+
+  @SideOnly(Side.CLIENT)
+  override def getLightBrightness(x: Int, y: Int, z: Int) = world.getLightBrightness(x, y, z)
+
+  override def getBlockMaterial(x: Int, y: Int, z: Int) = world.getBlockMaterial(x, y, z)
+
+  @SideOnly(Side.CLIENT)
+  override def isBlockOpaqueCube(x: Int, y: Int, z: Int) = MovingRegistry.isMoving(x, y, z) match {
+    case true => false
+    case false => world.isBlockOpaqueCube(x, y, z)
+  }
+
+  override def isBlockNormalCube(x: Int, y: Int, z: Int) = world.isBlockNormalCube(x, y, z)
+
+  @SideOnly(Side.CLIENT)
+  override def isAirBlock(x: Int, y: Int, z: Int) = world.isAirBlock(x, y, z)
+
+  @SideOnly(Side.CLIENT)
+  override def getBiomeGenForCoords(x: Int, z: Int) = world.getBiomeGenForCoords(x, z)
+
+  @SideOnly(Side.CLIENT)
+  override def getHeight() = world.getHeight()
+
+  @SideOnly(Side.CLIENT)
+  override def extendedLevelsInChunkCache() = world.extendedLevelsInChunkCache()
+
+  @SideOnly(Side.CLIENT)
+  override def doesBlockHaveSolidTopSurface(x: Int, y: Int, z: Int) =
+    world.doesBlockHaveSolidTopSurface(x, y, z)
+
+  override def getWorldVec3Pool() = world.getWorldVec3Pool()
+
+  override def isBlockProvidingPowerTo(x: Int, y: Int, z: Int, side: Int) =
+    world.isBlockProvidingPowerTo(x, y, z, side)
+
+  override def isBlockSolidOnSide(x: Int, y:Int, z:Int, side: ForgeDirection, _default: Boolean) = 
+    world.isBlockSolidOnSide(x, y, z, side, _default)
 }

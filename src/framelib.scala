@@ -43,7 +43,7 @@ import net.minecraft._,
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
-  world.{ World, IBlockAccess, ChunkPosition, chunk },
+  world.{ EnumSkyBlock, World, IBlockAccess, ChunkPosition, chunk },
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side}
@@ -178,8 +178,8 @@ class TileEntityMovingStrip extends TileEntity {
     (meta, side) match {
       case (1, Client) =>
         renderOffset = new BlockData(0, 0, 0)
-        for(i <- 1 to size) {
-          MovingRegistry.addMoving(worldObj, this - dirTo * i, renderOffset)
+        for(i <- 1 to size; c = this - dirTo * i) {
+          if(side.isClient) MovingRegistry.addMoving(worldObj, c, renderOffset)
         }
       case (16, _) =>
         if(side.isClient) for(i <- 1 to size) {
