@@ -39,11 +39,12 @@ trait DebugItem extends Item {
       hitZ: Float): Boolean = {
     //if(world.getBlockId(x, y + 1, z) == 0) {
       val id = world.getBlockId(x, y, z)
+      val meta = world.getBlockMetadata(x, y, z)
+      val te = world.getBlockTileEntity(x, y, z)
+      val name = Block.blocksList(id).getUnlocalizedName
       EffectiveSide(world) match {
         case Client =>
-          val name = Block.blocksList(id).getUnlocalizedName
-          val msg = f"USE: ($x,$y,$z), Block: $id, $name"
-          //Scalamod.log.info(msg)
+          val msg = s"USE: ($x,$y,$z), Block: $id, $meta, $te, $name"
           getMinecraft.ingameGUI.getChatGUI.printChatMessage(msg)
           /*val te = world.getBlockTileEntity(x, y, z)
           val pos = WorldPos(x, y, z)
@@ -53,7 +54,7 @@ trait DebugItem extends Item {
             MovingRegistry.addMoving(world, pos, MovingRegistry.debugOffset)
           }*/
         case Server =>
-          CommonProxy.blockMovingStrip.create(world, x, y + 1, z, dir.UP, 2)
+          //CommonProxy.blockMovingStrip.create(world, x, y + 1, z, dir.UP, 2)
           //FrameBfs(world, (x, y, z), dir.NORTH)
       }
     //}

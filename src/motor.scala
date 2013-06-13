@@ -52,6 +52,7 @@ import cpw.mods.fml.common.FMLCommonHandler
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
+import rainwarrior.hooks.MovingRegistry
 
 
 trait BlockMotor extends BlockContainer {
@@ -69,14 +70,17 @@ trait BlockMotor extends BlockContainer {
   val iconNames = Array(List("Bottom", "Top", "Front", "Back", "Left", "Right").map(s"$modId:Motor_" + _): _*)
   val iconMap = Array(0, 1, 2, 3, 4, 5)
 
-  @SideOnly(Side.CLIENT)
   var iconArray: Array[Icon] = null
 
+  @SideOnly(Side.CLIENT)
   override def registerIcons(registry: IconRegister) {
     iconArray = Array(iconNames.map(registry.registerIcon(_)): _*)
   }
   override def createNewTileEntity(world: World): TileEntity = new TileEntityMotor
   override def isOpaqueCube = false
+  override def isBlockSolidOnSide(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
+    side.ordinal != world.getBlockMetadata(x, y, z)
+  }
   override def renderAsNormalBlock = false
   override def getRenderType = -1
 
@@ -85,6 +89,7 @@ trait BlockMotor extends BlockContainer {
     case _ => rotate(ForgeDirection.ROTATION_MATRIX(dir)(vec), dir, count - 1)
   }
 
+  @SideOnly(Side.CLIENT)
   override def getBlockTexture(world: IBlockAccess, x: Int, y: Int, z: Int, side: Int) = {
     world.getBlockTileEntity(x, y, z) match {
       case te: TileEntityMotor =>
@@ -140,13 +145,14 @@ trait BlockMotor extends BlockContainer {
       world.getBlockTileEntity(x, y, z) match {
         case te: TileEntityMotor =>
           te.activate()
+          world.markBlockForUpdate(x, y, z)
         case _ =>
       }
     }
   }
 }
 
-class TileEntityMotor extends TileEntity {
+class TileEntityMotor extends TileEntity with StripHolder {
   lazy val side = EffectiveSide(worldObj)
   var orientation = 0
   var moving = 0
@@ -156,7 +162,7 @@ class TileEntityMotor extends TileEntity {
   override def getDescriptionPacket(): Packet = {
     assert(side.isServer)
     val cmp = new NBTTagCompound
-    writeToNBT(cmp);
+    writeToNBT(cmp)
     log.info("getPacket, world: " + worldObj)
     new Packet132TileEntityData(xCoord, yCoord, zCoord, 255, cmp)
   }
@@ -174,13 +180,14 @@ class TileEntityMotor extends TileEntity {
   }
 
   override def writeToNBT(cmp: NBTTagCompound) {
-    super.writeToNBT(cmp);
+    super.writeToNBT(cmp)
     cmp.setInteger("orientation", orientation)
     cmp.setInteger("moving", moving)
     log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $side")
   }
 
   override def updateEntity() {
+    super.updateEntity()
     if(moving != 0) moving += 1
     if(moving > 16) moving = 0
   }
@@ -207,13 +214,13 @@ class TileEntityMotor extends TileEntity {
     }
   }
 
+  def dirTo = ForgeDirection.values()(moveDir(orientation)(getBlockMetadata))
   def activate() {
     if(moving != 0) return
     moving = 1
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
     if(worldObj.getBlockId(pos.x, pos.y, pos.z) == 0) return
-    val dirTo = ForgeDirection.values()(moveDir(orientation)(meta))
     log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo")
     val blocks = bfs(Queue(pos))
     val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
@@ -245,7 +252,9 @@ class TileEntityMotor extends TileEntity {
     }
     if (canMove) for ((c, size) <- strips) {
       log.info(s"c: $c")
-      CommonProxy.blockMovingStrip.create(worldObj, c.x, c.y, c.z, dirTo, size)
+      //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
+      worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
+      this += StripData(c, dirTo, size)
     }
       
   }
@@ -259,6 +268,7 @@ class TileEntityMotor extends TileEntity {
           val toCheck = for {
             dir <- ForgeDirection.VALID_DIRECTIONS.toList
             c = next + dir
+            if !(MovingRegistry.isMoving(this.worldObj, c.x, c.y, c.z))
             if !(c == WorldPos(this))
             if !blackBlocks(c)
             if !greyBlocks.contains(c)

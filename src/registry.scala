@@ -111,21 +111,20 @@ object HelperRenderer {
 }
 
 object MovingRegistry {
+  case class Key(world: World, pos: WorldPos)
   final val eps = 1.0 / 0x10000
-  val moving = new OpenHashMap[WorldPos, BlockData]
+  var moving = Map.empty[Key, BlockData]
   val debugOffset = new BlockData(0, 0, 0)
   var isRendering = false
   var partialTickTime: Float = 0
 
-  def isMoving(x: Int, y: Int, z: Int): Boolean = moving isDefinedAt WorldPos(x, y, z)
-  def getData(c: WorldPos): BlockData = {
-    (moving.get(c): @unchecked) match {
-      case Some(d) => d
-    }
+  def isMoving(world: World, x: Int, y: Int, z: Int): Boolean = moving isDefinedAt Key(world, (x, y, z))
+  def getData(world: World, c: WorldPos): BlockData = {
+    moving(Key(world, c))
   }
-  def xOffset(x: Int, y: Int, z: Int): Float = getData(WorldPos(x, y, z)).x
-  def yOffset(x: Int, y: Int, z: Int): Float = getData(WorldPos(x, y, z)).y
-  def zOffset(x: Int, y: Int, z: Int): Float = getData(WorldPos(x, y, z)).z
+  def xOffset(world: World, x: Int, y: Int, z: Int): Float = getData(world, WorldPos(x, y, z)).x
+  def yOffset(world: World, x: Int, y: Int, z: Int): Float = getData(world, WorldPos(x, y, z)).y
+  def zOffset(world: World, x: Int, y: Int, z: Int): Float = getData(world, WorldPos(x, y, z)).z
 
   def onPreRenderTick(time: Float) {
     isRendering = true
@@ -138,12 +137,12 @@ object MovingRegistry {
   def onRenderWorld(e: RenderWorldLastEvent) {
     //mc.gameSettings.showDebugInfo = false
     debugOffset.y = Math.sin(System.nanoTime / 0x4000000).toFloat / 2 + .5F
-    for((coords, data) <- moving) {
+    for((Key(world, coords), data) <- moving; if(world.isClient)) {
       HelperRenderer.render(coords, data)
     }
   }
   def addMoving(world: World, pos: WorldPos, offset: BlockData) {
-    moving(pos) = offset
+    moving += ((Key(world, pos), offset))
     val (x, y, z) = pos.toTuple
     world.updateAllLightTypes(x, y, z)
     for(d <- ForgeDirection.values) {
@@ -151,8 +150,8 @@ object MovingRegistry {
       //println(f"Update: (${x + d.offsetX}, ${y + d.offsetY}, ${z + d.offsetZ})")
     }
   }
-  def delMoving(world: World, pos: WorldPos) {
-    MovingRegistry.moving -= pos
+  def delMoving(world: World, pos: WorldPos) = {
+    moving -= Key(world, pos)
     val (x, y, z) = pos.toTuple
     world.updateAllLightTypes(x, y, z)
     for(d <- ForgeDirection.values) {
@@ -190,15 +189,15 @@ object MovingTileEntityRenderer extends TileEntityRenderer {
         val k = i / 0x10000
         OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, j / 1.0F, k / 1.0F)
         glColor4f(1.0F, 1.0F, 1.0F, 1.0F)
-        if(MovingRegistry.isMoving(te.xCoord, te.yCoord, te.zCoord)) {
+        if(MovingRegistry.isMoving(te.worldObj, te.xCoord, te.yCoord, te.zCoord)) {
           this.renderTileEntityAt(
             te,
-            te.xCoord - staticPlayerX + MovingRegistry.xOffset(te.xCoord, te.yCoord, te.zCoord),
-            te.yCoord - staticPlayerY + MovingRegistry.yOffset(te.xCoord, te.yCoord, te.zCoord),
-            te.zCoord - staticPlayerZ + MovingRegistry.zOffset(te.xCoord, te.yCoord, te.zCoord),
+            te.xCoord.toDouble - staticPlayerX + MovingRegistry.xOffset(te.worldObj, te.xCoord, te.yCoord, te.zCoord),
+            te.yCoord.toDouble - staticPlayerY + MovingRegistry.yOffset(te.worldObj, te.xCoord, te.yCoord, te.zCoord),
+            te.zCoord.toDouble - staticPlayerZ + MovingRegistry.zOffset(te.worldObj, te.xCoord, te.yCoord, te.zCoord),
             parTick)
       } else {
-        this.renderTileEntityAt(te, te.xCoord - staticPlayerX, te.yCoord - staticPlayerY, te.zCoord - staticPlayerZ, parTick)
+        this.renderTileEntityAt(te, te.xCoord.toDouble - staticPlayerX, te.yCoord.toDouble - staticPlayerY, te.zCoord.toDouble - staticPlayerZ, parTick)
       }
     }
   }
@@ -209,7 +208,7 @@ class MovingRenderBlocks(world: IBlockAccess) extends RenderBlocks(world)
 {
   import MovingRegistry.{ isMoving, eps }
   override def renderStandardBlock(block: Block, x: Int, y: Int, z: Int) = {
-    if(isMoving(x, y, z)) {
+    if(isMoving(mc.theWorld, x, y, z)) {
       if(renderMinX == 0.0D) renderMinX += eps;
       if(renderMinY == 0.0D) renderMinY += eps;
       if(renderMinZ == 0.0D) renderMinZ += eps;
@@ -232,7 +231,7 @@ class MovingWorldProxy(val world: World) extends IBlockAccess {
 
   @SideOnly(Side.CLIENT)
   override def getLightBrightnessForSkyBlocks(x: Int, y: Int, z: Int, light: Int) = 
-    MovingRegistry.isMoving(x, y, z) match {
+    MovingRegistry.isMoving(mc.theWorld, x, y, z) match {
     case true =>
       val l1 = computeLightValue(x, y, z, EnumSkyBlock.Sky)
       val l2 = computeLightValue(x, y, z, EnumSkyBlock.Block)
@@ -251,7 +250,7 @@ class MovingWorldProxy(val world: World) extends IBlockAccess {
   override def getBlockMaterial(x: Int, y: Int, z: Int) = world.getBlockMaterial(x, y, z)
 
   @SideOnly(Side.CLIENT)
-  override def isBlockOpaqueCube(x: Int, y: Int, z: Int) = MovingRegistry.isMoving(x, y, z) match {
+  override def isBlockOpaqueCube(x: Int, y: Int, z: Int) = MovingRegistry.isMoving(mc.theWorld, x, y, z) match {
     case true => false
     case false => world.isBlockOpaqueCube(x, y, z)
   }

@@ -34,6 +34,7 @@ import net.minecraft.tileentity.TileEntity
 import net.minecraft.block.Block
 import net.minecraft.world.World
 import net.minecraft.client.renderer.RenderBlocks
+import net.minecraft.nbt.NBTTagCompound
 import net.minecraftforge.common.ForgeDirection
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
@@ -102,7 +103,19 @@ object utils {
     glPopMatrix()
   }
 
-  class BlockData(var x: Float, var y: Float, var z: Float)
+  class BlockData(var x: Float, var y: Float, var z: Float) {
+    def writeToNBT(cmp: NBTTagCompound) {
+      cmp.setFloat("x", x)
+      cmp.setFloat("y", y)
+      cmp.setFloat("z", z)
+    }
+    def readFromNBT(cmp: NBTTagCompound) {
+      x = cmp.getFloat("x")
+      y = cmp.getFloat("y")
+      z = cmp.getFloat("z")
+    }
+    override def toString = s"BlockData($x,$y,$z)"
+  }
 
   object EffectiveSide {
     def apply(world: World) = (world.isRemote) match {
