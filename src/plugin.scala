@@ -65,18 +65,26 @@ class Transformer extends IClassTransformer {
         node.methods = for (m <- node.methods) yield m.name match {
           case "isBlockOpaqueCube" =>
             println("FOUND isBlockOpaqueCube")
-            for(inst <- m.instructions.toArray) println(inst)
+            //for(inst <- m.instructions.toArray) println(inst)
             val l1 = m.instructions.toArray.collectFirst{case i: JumpInsnNode if i.getOpcode == GOTO => i.label}.get
             val pos = m.instructions.toArray.collectFirst{case i: FrameNode => i}.get
             val list = new InsnList
             list.add(new VarInsnNode(ALOAD, 0))
             if(name == "net.minecraft.world.ChunkCache") {
-              list.add(new FieldInsnNode(GETFIELD, "net/minecraft/world/ChunkCache", "worldObj", "Lnet/minecraft/world/World;"))
+              list.add(new FieldInsnNode(
+                GETFIELD,
+                "net/minecraft/world/ChunkCache",
+                "worldObj",
+                "Lnet/minecraft/world/World;"))
             }
             list.add(new VarInsnNode(ILOAD, 1))
             list.add(new VarInsnNode(ILOAD, 2))
             list.add(new VarInsnNode(ILOAD, 3))
-            list.add(new MethodInsnNode(INVOKESTATIC, "rainwarrior/hooks/MovingRegistry", "isMoving", "(Lnet/minecraft/world/World;III)Z"))
+            list.add(new MethodInsnNode(
+              INVOKESTATIC,
+              "rainwarrior/hooks/MovingRegistry",
+              "isMoving",
+              "(Lnet/minecraft/world/World;III)Z"))
             val l2 = new LabelNode
             list.add(new JumpInsnNode(IFEQ, l2))
             list.add(new InsnNode(ICONST_0))
@@ -87,7 +95,6 @@ class Transformer extends IClassTransformer {
             m
           case _ => m
         }
-        println("WRITING")
         val writer = new ClassWriter(ClassWriter.COMPUTE_MAXS)
         node.accept(writer)
         //val checker = new TraceClassVisitor(writer, new ASMifier, new PrintWriter(System.out))
@@ -96,8 +103,33 @@ class Transformer extends IClassTransformer {
         //data
       case "net.minecraft.client.renderer.RenderBlocks" =>
         println(s"transforming: $name")
-          case "isBlockOpaqueCube" =>
-        data
+        node.methods = for (m <- node.methods) yield m.name match {
+          case "renderBlockByRenderType" =>
+            println("FOUND renderBlockByRenderType")
+            for(inst <- m.instructions.toArray) println(inst)
+            val old = m.instructions.toArray.collectFirst{case i: MethodInsnNode => i}.get
+            val list = new InsnList
+            list.add(new VarInsnNode(ILOAD, 2))
+            list.add(new VarInsnNode(ILOAD, 3))
+            list.add(new VarInsnNode(ILOAD, 4))
+            list.add(new MethodInsnNode(
+              INVOKESTATIC,
+              "rainwarrior/hooks/MovingRegistry",
+              "getRenderType",
+              "(Lnet/minecraft/block/Block;III)I"))
+            m.instructions.insert(old, list)
+            m.instructions.remove(old)
+            println("transformed")
+            for(inst <- m.instructions.toArray) println(inst)
+            m
+          case _ => m
+        }
+        val writer = new ClassWriter(ClassWriter.COMPUTE_MAXS)
+        node.accept(writer)
+        //val checker = new TraceClassVisitor(writer, new ASMifier, new PrintWriter(System.out))
+        //node.accept(checker)
+        writer.toByteArray
+        //data
       case "net.minecraft.client.renderer.TileEntityRenderer" =>
         println(s"transforming: $name")
         data
