@@ -287,6 +287,11 @@ trait StripHolder extends TileEntity {
   abstract override def updateEntity() = if(!strips.isEmpty) {
     super.updateEntity()
     log.info(s"stripHolder onUpdate, counter: $counter, renderOffset: $renderOffset")
+    if(counter == 0) {
+      for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
+        MovingRegistry.addMoving(worldObj, c, renderOffset)
+      }
+    }
     if(counter < 16) {
       counter += 1
       val shift = (counter / 16F).toFloat
@@ -308,9 +313,6 @@ trait StripHolder extends TileEntity {
         case cmp1: NBTTagCompound => StripData.readFromNBT(cmp1)
         case x => throw new RuntimeException(s"Invalid tag: $x")
       }): _*)
-    for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
-      MovingRegistry.addMoving(worldObj, c, renderOffset)
-    }
     counter = cmp.getInteger("counter")
     renderOffset.readFromNBT(cmp.getCompoundTag("renderOffset"))
   }
