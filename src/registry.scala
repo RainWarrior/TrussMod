@@ -96,7 +96,9 @@ object HelperRenderer {
     //renderBlocks.overrideBlockBounds(x1 + eps, y1 + eps, z1 + eps, x2 - eps, y2 - eps, z2 - eps)
     val oldOcclusion = mc.gameSettings.ambientOcclusion
     mc.gameSettings.ambientOcclusion = 0
-    renderBlocks.do_renderBlockByRenderType(block, c.x, c.y, c.z)
+    MovingRegistry.check = false
+    renderBlocks.renderBlockByRenderType(block, c.x, c.y, c.z)
+    MovingRegistry.check = true
     mc.gameSettings.ambientOcclusion = oldOcclusion
 
     //renderBlocks.unlockBlockBounds()
@@ -117,7 +119,12 @@ object MovingRegistry {
   val debugOffset = new BlockData(0, 0, 0)
   var isRendering = false
   var partialTickTime: Float = 0
+  var check = true
 
+  def getRenderType(block: Block, x: Int, y: Int, z: Int) = {
+    if(check && isMoving(mc.theWorld, x, y, z)) -1
+    else block.getRenderType
+  }
   def isMoving(world: World, x: Int, y: Int, z: Int): Boolean = moving isDefinedAt Key(world, (x, y, z))
   def getData(world: World, c: WorldPos): BlockData = {
     moving(Key(world, c))
