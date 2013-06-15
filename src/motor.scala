@@ -137,7 +137,7 @@ trait BlockMotor extends BlockContainer {
     if(te == null)
       throw new RuntimeException("no tile entity!")
 //    FMLCommonHandler.instance.showGuiScreen(te.openGui())
-      if(te.counter != 0) te.rotate(player.isSneaking())
+      if(te.counter == 0) te.rotate(player.isSneaking())
     true
   }
   override def onNeighborBlockChange(world: World, x: Int, y: Int, z: Int, id: Int) {
