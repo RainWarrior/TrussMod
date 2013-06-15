@@ -278,10 +278,10 @@ class TileEntityMotor extends TileEntity with StripHolder {
             if !greyBlocks.contains(c)
             id = worldObj.getBlockId(c.x, c.y, c.z)
             if id != 0
-            if !(id == CommonProxy.blockMotorId && {
+            /*if !(id == CommonProxy.blockMotorId && {
               val meta = worldObj.getBlockMetadata(c.x, c.y, c.z)
               c == next - ForgeDirection.values()(meta)
-            })
+            })*/
           } yield c
           /*List("111",
             s"next: $next",
