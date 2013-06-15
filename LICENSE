@@ -6,7 +6,7 @@ in the file COPYING.  If you do not have the source code, it is available at:
 
   https://github.com/RainWarrior/TrussMod
 
-Additional permission under GNU GPL version 3 section 7
+Additional permission/restrictions under GNU GPL version 3 section 7
 
 If you modify this Program, or any covered work, by linking or combining it
 with Minecraft and/or MinecraftForge (or a modified version of Minecraft
@@ -14,6 +14,10 @@ and/or Minecraft Forge), containing parts covered by the terms of
 Minecraft Terms of Use and/or Minecraft Forge Public Licence, the licensors
 of this Program grant you additional permission to convey the resulting work.
 
+Altered source versions must be plainly marked as such, and must not be
+misrepresented as being the original software.
+
 Neither the name of 'TrussMod' nor the names of
 its contributors may be used to endorse or promote products derived
 from this software without specific prior written permission.
+
