@@ -244,23 +244,6 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       //world.notifyBlockChange(c.x, c.y, c.z, 0)
     }
   }
-  def notifyOfRenderChanges(world: World) {
-    // fix for WorldRenderer filtering TEs out
-    if(world.isRemote) for(i <- 0 to 1) {
-      for {
-        i <- 0 to size
-        c = pos - dirTo * i
-        te = world.getBlockTileEntity(c.x, c.y, c.z)
-      } {
-        //log.info(s"NOTIFY RENDER, pos: $c")
-        if(te != null) {
-          mc.renderGlobal.tileEntities.asInstanceOf[JList[TileEntity]].add(te)
-        }
-        mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
-      }
-      mc.renderGlobal.updateRenderers(mc.renderViewEntity, false)
-    }
-  }
 }
 
 trait StripHolder extends TileEntity {
@@ -281,12 +264,44 @@ trait StripHolder extends TileEntity {
     for(s <- strips) s.cycle(worldObj)
     for(s <- strips) s.stopMoving(worldObj)
     for(s <- strips) s.notifyOfChanges(worldObj)
-    for(s <- strips) s.notifyOfRenderChanges(worldObj)
+    notifyOfRenderChanges
     strips = HashSet.empty[StripData]
     renderOffset.x = 0
     renderOffset.y = 0
     renderOffset.z = 0
     counter = 0
+  }
+
+  def notifyOfRenderChanges() {
+    // fix for WorldRenderer filtering TEs out
+    if(worldObj.isClient) {
+      /*val coords = for(s <- strips; i <- 0 to s.size) yield s.pos - dirTo * i
+      val xs = coords.map(_.x)
+      val ys = coords.map(_.y)
+      val zs = coords.map(_.z)*/
+      val teList = mc.renderGlobal.tileEntities.asInstanceOf[JList[TileEntity]]
+      //var t = System.currentTimeMillis
+      for(pass <- 0 to 1) {
+        for {
+          s <- strips
+          i <- 0 to s.size
+          c = s.pos - dirTo * i
+          te = worldObj.getBlockTileEntity(c.x, c.y, c.z)
+        } {
+          //log.info(s"NOTIFY RENDER, pos: $c")
+          if(te != null)  pass match {
+            case 0 => teList.remove(te)
+            case 1 => teList.add(te)
+          }
+          mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
+        }
+        //mc.renderGlobal.markBlocksForUpdate(xs.min - 1, ys.min - 1, zs.min - 1, xs.max + 1, ys.max + 1, zs.max + 1)
+        //println(s"Time1: ${System.currentTimeMillis - t}")
+        //t = System.currentTimeMillis
+        mc.renderGlobal.updateRenderers(mc.renderViewEntity, false)
+        //println(s"Time2: ${System.currentTimeMillis - t}")
+      }
+    }
   }
   abstract override def updateEntity() = if(!strips.isEmpty) {
     super.updateEntity()

@@ -217,6 +217,7 @@ class TileEntityMotor extends TileEntity with StripHolder {
   def dirTo = ForgeDirection.values()(moveDir(orientation)(getBlockMetadata))
   def activate() {
     if(moving != 0) return
+    //var t = System.currentTimeMillis
     moving = 1
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
@@ -260,6 +261,7 @@ class TileEntityMotor extends TileEntity with StripHolder {
       }
       this += StripData(c, dirTo, size)
     }
+    //println(s"Motor activation took: ${System.currentTimeMillis - t}")
       
   }
   def bfs(
