@@ -48,7 +48,7 @@ class Plugin extends IFMLLoadingPlugin with IFMLCallHook {
   override def getSetupClass = "rainwarrior.hooks.Plugin"
   override def injectData(data: JMap[String, AnyRef]) {}
   override def call(): Void = {
-    println("Hello, World! From CoreMod!")
+    //println("Hello, World! From CoreMod!")
     null
   }
 }

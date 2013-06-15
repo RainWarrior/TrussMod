@@ -41,11 +41,13 @@ import net.minecraft._,
   client.renderer.Tessellator.{ instance => tes },
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
+  entity.Entity,
   entity.player.EntityPlayer,
   nbt.{ NBTTagCompound, NBTTagList },
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
+  util.AxisAlignedBB,
   world.{ EnumSkyBlock, World, IBlockAccess, ChunkPosition, chunk },
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
@@ -63,92 +65,102 @@ import rainwarrior.utils._
 import rainwarrior.hooks.MovingRegistry
 
 
-trait BlockMovingStrip extends Block/*Container*/ {
-  setHardness(.5f)
+trait BlockMovingStrip extends BlockContainer {
+  setHardness(-1F)
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockMovingStrip")
   setCreativeTab(CreativeTabs.tabBlock)
-//  setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
+  setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Moving Strip Block")
   GameRegistry.registerBlock(this, "Moving_Strip_Block")
-  //GameRegistry.registerTileEntity(classOf[TileEntityMovingStrip], "Moving_Strip_TileEntity")
+  GameRegistry.registerTileEntity(classOf[TileEntityMovingStrip], "Moving_Strip_TileEntity")
 
-  /*override def createNewTileEntity(world: World): TileEntity = {
-    log.severe("Called createNewTileEntity")
-    //throw new RuntimeException("Called createNewTileEntity")
-    new TileEntityMovingStrip
-  }
-  override def createTileEntity(world: World, meta: Int): TileEntity = meta match {
-    case _ => new TileEntityMovingStrip
-    //case _ => null
-  }*/
+  override def createNewTileEntity(world: World) = new TileEntityMovingStrip
   override def isOpaqueCube = false
   override def renderAsNormalBlock = false
   override def getRenderType = -1
 
-  /*override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
-    val metadata = world.getBlockMetadata(x, y, z)
-    world.getBlockTileEntity(x, y, z).asInstanceOf[TileEntityMovingStrip] match {
-      case te: TileEntityMovingStrip =>
-        val pos = te - te.dirTo
+/*  override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
+    world.getBlockTileEntity(x, y, z) match {
+      case te: TileEntityMovingStrip if te.parent != null =>
+        import te.parent
+        val pos = te - parent.dirTo
         val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
-        if(metadata == 0 || te == null || block == null) {
-          //setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
+        if(parent.counter == 0 || block == null) {
+          setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
         } else {
-          //x1, y1, z1 = world.getBlockId(x + te.
-          //val old List(minX, maxX, minY, maxY, minZ, maxZ
-          val shift: Float = (16 - te.blockMetadata).toFloat / 16F
+          val shift = (16 - parent.counter).toFloat / 16F
           setBlockBounds(
-            (block.getBlockBoundsMinX - te.dirTo.x * shift).toFloat,
-            (block.getBlockBoundsMinY - te.dirTo.y * shift).toFloat,
-            (block.getBlockBoundsMinZ - te.dirTo.z * shift).toFloat,
-            (block.getBlockBoundsMaxX - te.dirTo.x * shift).toFloat,
-            (block.getBlockBoundsMaxY - te.dirTo.y * shift).toFloat,
-            (block.getBlockBoundsMaxZ - te.dirTo.z * shift).toFloat)
+            (block.getBlockBoundsMinX - parent.dirTo.x * shift).toFloat,
+            (block.getBlockBoundsMinY - parent.dirTo.y * shift).toFloat,
+            (block.getBlockBoundsMinZ - parent.dirTo.z * shift).toFloat,
+            (block.getBlockBoundsMaxX - parent.dirTo.x * shift).toFloat,
+            (block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat,
+            (block.getBlockBoundsMaxZ - parent.dirTo.z * shift).toFloat)
         }
       case _ =>
     }
   }*/
 
-  /*override def onBlockActivated(
-      world: World,
-      x: Int,
-      y: Int,
-      z: Int,
-      player: EntityPlayer,
-      side: Int,
-      dx: Float,
-      dy: Float,
-      dz: Float): Boolean  = {
-    //log.info(f"onBlockActivated: ($x,$y,$z), isServer: $isServer")
-    //if(world.isRemote) {
-      //val te = world.getBlockTileEntity(x, y, z).asInstanceOf[TileEntityMovingStrip]
-      //if(te == null)
-        //throw new RuntimeException("no tile entity!")
-//      FMLCommonHandler.instance.showGuiScreen(te.openGui())
-    //}
-    true
-  }*/
-  // should be called server-side
-  /*def create(world: World, parent: StripHolder, x: Int, y: Int, z: Int, dirTo: ForgeDirection, size: Int) {
-    world.setBlock(x, y, z, blockID, 0, 0)
+  override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
     world.getBlockTileEntity(x, y, z) match {
-      case te: TileEntityMovingStrip =>
-        te.parent = Some(parent)
-        //te.setWorldObj(world)
-        //te.xCoord = x
-        //te.yCoord = y
-        //te.zCoord = z
-        te.dirTo = dirTo
-        te.size = size
-      case _ =>
-        log.severe(s"Failed to create tilentity: ($x,$y,$z)")
-        throw new RuntimeException(s"Failed to create tilentity: ($x,$y,$z)")
+      case te: TileEntityMovingStrip if te.parent != null => te.getAabb
+      case _ => null
     }
-  }*/
+  }
 }
+
+class TileEntityMovingStrip extends TileEntity {
+  import rainwarrior.hooks.MovingRegistry
+  lazy val side = EffectiveSide(worldObj)
+  var parent: StripHolder = null
+
+  //log.info(s"new TileEntityMovingStrip, pos: ${WorldPos(this)}")
+
+  def getAabb() = {
+    val pos = this - parent.dirTo
+    val block = Block.blocksList(worldObj.getBlockId(pos.x, pos.y, pos.z))
+    if(parent.counter == 0 || block == null) null
+    else {
+      val shift = (parent.counter + 1).toFloat / 16F
+      block.getCollisionBoundingBoxFromPool(worldObj, pos.x, pos.y, pos.z) match {
+        case aabb: AxisAlignedBB => 
+          aabb.minX += shift * Math.min(0, parent.dirTo.x)
+          aabb.minY += shift * Math.min(0, parent.dirTo.y)
+          aabb.minZ += shift * Math.min(0, parent.dirTo.z)
+          aabb.maxX += shift * Math.max(0, parent.dirTo.x)
+          aabb.maxY += shift * Math.max(0, parent.dirTo.y)
+          aabb.maxZ += shift * Math.max(0, parent.dirTo.z)
+          //log.info(s"AABB: $aabb")
+          aabb
+        case _ => null
+      }
+    }
+  }
+
+  override def updateEntity() {
+    val pos = WorldPos(this)
+    //log.info(s"TileEntityMovingStrip onUpdate, side: $side, pos: $pos")
+    if(parent == null) {
+      worldObj.setBlock(pos.x, pos.y, pos.z, 0, 0, 3)
+    } else {
+      val aabb = getAabb
+      val shift = 2F / 16F
+      if(aabb != null) worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
+        case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
+          e.moveEntity(
+            shift * parent.dirTo.x,
+            shift * parent.dirTo.y,
+            shift * parent.dirTo.z)
+        }
+        case _ =>
+      }
+    }
+  }
+}
+
 
 object StripData {
   def readFromNBT(cmp: NBTTagCompound) = {
@@ -170,22 +182,23 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
     cmp.setInteger("size", size)
   }
   def cycle(world: World) {
-    //val c = pos + dirTo * size
-    /*val strip = world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
+    val c = pos - dirTo * size
+    world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
       case te: TileEntityMovingStrip => te
-      case te => throw new RuntimeException(s"Tried to cycle invalid TE: $te, $pos")
-    }*/
+      case te => //throw new RuntimeException(s"Tried to cycle invalid TE: $te, $pos")
+    }
+    world.removeBlockTileEntity(pos.x, pos.y, pos.z)
     for(i <- 0 to size) {
       val c2 = pos - dirTo * i
       val c1 = if(i != size) (c2 - dirTo) else pos
-      log.info(s"c1: $c1, c2: $c2")
+      //log.info(s"c1: $c1, c2: $c2")
       val (id, m, te) = if(i != size) (
         world.getBlockId(c1.x, c1.y, c1.z),
         world.getBlockMetadata(c1.x, c1.y, c1.z),
         world.getBlockTileEntity(c1.x, c1.y, c1.z))
       else (
-        CommonProxy.blockMovingStripId,
-        16,
+        0,
+        0,
         null)
       val ch1 = world.getChunkFromChunkCoords(c1.x >> 4, c1.z >> 4)
       val ch2 = world.getChunkFromChunkCoords(c2.x >> 4, c2.z >> 4)
@@ -213,8 +226,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       arr2(c2.y >> 4).setExtBlockID(c2.x & 0xF, c2.y & 0xF, c2.z & 0xF, id)
       arr2(c2.y >> 4).setExtBlockMetadata(c2.x & 0xF, c2.y & 0xF, c2.z & 0xF, m)
     }
-    val c = pos - dirTo * size
-    world.setBlock(c.x, c.y, c.z, 0, 0, 0)
+    //world.setBlock(c.x, c.y, c.z, 0, 0, 0)
   }
   def stopMoving(world: World) {
     for(i <- 0 to size) {
@@ -227,7 +239,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       c = pos - dirTo * i
       // id = world.getBlockId(c.x, c.y, c.z)
     } {
-      log.info(s"NOTIFY, pos: $c")
+      //log.info(s"NOTIFY, pos: $c")
       world.notifyBlockOfNeighborChange(c.x, c.y, c.z, 0)
       //world.notifyBlockChange(c.x, c.y, c.z, 0)
     }
@@ -240,7 +252,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
         c = pos - dirTo * i
         te = world.getBlockTileEntity(c.x, c.y, c.z)
       } {
-        log.info(s"NOTIFY RENDER, pos: $c")
+        //log.info(s"NOTIFY RENDER, pos: $c")
         if(te != null) {
           mc.renderGlobal.tileEntities.asInstanceOf[JList[TileEntity]].add(te)
         }
@@ -253,32 +265,24 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
 
 trait StripHolder extends TileEntity {
   private[this] var strips = HashSet.empty[StripData]
-  private[this] var stripsLeft = HashSet.empty[StripData]
   var counter = 0
   val renderOffset = new BlockData(0, 0, 0)
   def dirTo: ForgeDirection
   def +=(s: StripData) {
-    log.info(s"+=strip: $s, client: ${worldObj.isClient}")
+    //log.info(s"+=strip: $s, client: ${worldObj.isClient}")
     strips += s
-    stripsLeft += s
     for(i <- 1 to s.size; c = s.pos - s.dirTo * i) {
       MovingRegistry.addMoving(worldObj, c, renderOffset)
     }
     worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
   }
-  def -=(s: StripData) {
-    log.info(s"-=strip: $s, client: ${worldObj.isClient}")
-    stripsLeft -= s
-    if(stripsLeft.isEmpty && counter >= 16) postMove
-  }
   def postMove() {
-    log.info(s"postMove, strips: ${strips.toString}, side: ${EffectiveSide(worldObj)}")
+    //log.info(s"postMove, strips: ${strips.toString}, side: ${EffectiveSide(worldObj)}")
     for(s <- strips) s.cycle(worldObj)
     for(s <- strips) s.stopMoving(worldObj)
     for(s <- strips) s.notifyOfChanges(worldObj)
     for(s <- strips) s.notifyOfRenderChanges(worldObj)
     strips = HashSet.empty[StripData]
-    stripsLeft = HashSet.empty[StripData]
     renderOffset.x = 0
     renderOffset.y = 0
     renderOffset.z = 0
@@ -286,10 +290,16 @@ trait StripHolder extends TileEntity {
   }
   abstract override def updateEntity() = if(!strips.isEmpty) {
     super.updateEntity()
-    log.info(s"stripHolder onUpdate, counter: $counter, renderOffset: $renderOffset")
+    //log.info(s"stripHolder onUpdate, counter: $counter, renderOffset: $renderOffset")
     if(counter == 0) {
-      for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
-        MovingRegistry.addMoving(worldObj, c, renderOffset)
+      for(s <- strips) {
+        worldObj.getBlockTileEntity(s.pos.x, s.pos.y, s.pos.z) match {
+          case te: TileEntityMovingStrip => te.parent = this
+          case _ =>
+        }
+        for(i <- 1 to s.size; c = s.pos - s.dirTo * i) {
+          MovingRegistry.addMoving(worldObj, c, renderOffset)
+        }
       }
     }
     if(counter < 16) {
@@ -305,12 +315,9 @@ trait StripHolder extends TileEntity {
     super.readFromNBT(cmp)
     strips = HashSet[StripData](
       (for(cmp1 <- cmp.getTagList("strips").tagList.toSeq) yield cmp1 match {
-        case cmp1: NBTTagCompound => StripData.readFromNBT(cmp1)
-        case x => throw new RuntimeException(s"Invalid tag: $x")
-      }): _*)
-    stripsLeft = HashSet[StripData](
-      (for(cmp1 <- cmp.getTagList("stripsLeft").tagList.toSeq) yield cmp1 match {
-        case cmp1: NBTTagCompound => StripData.readFromNBT(cmp1)
+        case cmp1: NBTTagCompound =>
+          val strip = StripData.readFromNBT(cmp1)
+          strip
         case x => throw new RuntimeException(s"Invalid tag: $x")
       }): _*)
     counter = cmp.getInteger("counter")
@@ -325,127 +332,12 @@ trait StripHolder extends TileEntity {
       stripList.appendTag(cmp1)
     }
     cmp.setTag("strips", stripList)
-    val stripLeftList = new NBTTagList
-    for(strip <- stripsLeft) {
-      val cmp1 = new NBTTagCompound
-      strip.writeToNBT(cmp1)
-      stripLeftList.appendTag(cmp1)
-    }
-    cmp.setTag("stripsLeft", stripLeftList)
     cmp.setInteger("counter", counter)
     val cmp1 = new NBTTagCompound
     renderOffset.writeToNBT(cmp1)
     cmp.setTag("renderOffset", cmp1)
   }
 }
-
-/*class TileEntityMovingStrip extends TileEntity {
-  import rainwarrior.hooks.MovingRegistry
-  lazy val side = EffectiveSide(worldObj)
-  var parent: Option[WorldPos] = None
-  var dirTo: ForgeDirection = ForgeDirection.UNKNOWN
-  var size: Int = 0
-
-  log.info(s"new TileEntityMovingStrip, pos: ${WorldPos(this)}")
-
-  override def getDescriptionPacket(): Packet = {
-    log.info(s"TileEntityMovingStrip getPacket, side: $side")
-
-    assert(side.isServer)
-    val cmp = new NBTTagCompound
-    writeToNBT(cmp);
-    new Packet132TileEntityData(xCoord, yCoord, zCoord, 255, cmp)
-  }
-
-  override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
-    log.info(s"TileEntityMovingStrip onPacket, side: $side")
-
-    assert(side.isClient)
-    readFromNBT(packet.customParam1)
-  }
-
-  override def readFromNBT(cmp: NBTTagCompound) {
-    super.readFromNBT(cmp)
-    dirTo = ForgeDirection.values()(cmp.getInteger("dirTo"))
-    size = cmp.getInteger("size")
-    val x = cmp.getInteger("parent.x")
-    val y = cmp.getInteger("parent.y")
-    val z = cmp.getInteger("parent.z")
-    parent = Some((x, y, z))
-    preParent()
-  }
-
-  override def writeToNBT(cmp: NBTTagCompound) {
-    super.writeToNBT(cmp);
-    cmp.setInteger("dirTo", dirTo.ordinal)
-    cmp.setInteger("size", size)
-    parent match {
-      case Some(p) =>
-        cmp.setInteger("parent.x", p.x)
-        cmp.setInteger("parent.y", p.y)
-        cmp.setInteger("parent.z", p.z)
-      case None => throw new RuntimeException(s"writeToNBT with null parent")
-    }
-  }
-
-  override def updateEntity() {
-    val meta = getBlockMetadata + 1
-    val pos = WorldPos(this)
-    log.info(s"TileEntityMovingStrip onUpdate, side: $side, meta: $meta, pos: $pos, dirTo: $dirTo")
-    if(WorldPos(dirTo) == WorldPos(ForgeDirection.UNKNOWN)) {
-      worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
-      invalidate()
-      return
-    }
-    if(meta < 16) {
-      if(!worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, meta, 1)) {
-        log.severe("Cannot set metadata!")
-        throw new RuntimeException("Cannot set metadata!")
-      }
-      blockMetadata = meta
-    }
-    (meta, side) match {
-      case (1, _) =>
-        worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
-      case (16, _) =>
-        invalidate()
-        //worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 0)
-      case (_, _) =>
-    }
-  }
-  override def validate() = if(tileEntityInvalid) {
-    super.validate()
-    log.info(s"TileEntityMovingStrip validate, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
-  }
-  def preParent() {
-    log.info(s"TileEntityMovingStrip preParent, pos: ${WorldPos(this)}")
-    parent match {
-      case Some(p) => worldObj.getBlockTileEntity(p.x, p.y, p.z) match {
-        case te: StripHolder => te += StripData(this, dirTo, size)
-        case te => throw new RuntimeException(s"preParent with invalid parent: $te")
-      }
-      case None => throw new RuntimeException(s"preParent with no parent")
-    }   
-  }
-  override def invalidate() = if(!tileEntityInvalid) {
-    super.invalidate()
-    log.info(s"TileEntityMovingStrip invalidate, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
-    postParent()
-    //worldObj.removeBlockTileEntity(xCoord, yCoord, zCoord)
-    //worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
-  }
-  def postParent() {
-    log.info(s"TileEntityMovingStrip postParent, pos: ${WorldPos(this)}")
-    parent match {
-      case Some(p) => worldObj.getBlockTileEntity(p.x, p.y, p.z) match {
-        case te: StripHolder => te -= StripData(this, dirTo, size)
-        case te => // throw new RuntimeException(s"postParent with invalid parent: $te")
-      }
-      case None => // throw new RuntimeException(s"postParent with no parent")
-    }
-  }
-}*/
-
 
 trait BlockFrame extends Block {
   setHardness(.5f)

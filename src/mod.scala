@@ -57,7 +57,7 @@ object CommonProxy extends LoadLater {
 
   val blockMovingStripId = 503
   object blockMovingStrip
-    extends Block(blockMovingStripId, Material.ground)
+    extends BlockContainer(blockMovingStripId, Material.ground)
     with BlockMovingStrip
   blockMovingStrip
 

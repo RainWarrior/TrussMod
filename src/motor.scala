@@ -163,7 +163,7 @@ class TileEntityMotor extends TileEntity with StripHolder {
     assert(side.isServer)
     val cmp = new NBTTagCompound
     writeToNBT(cmp)
-    log.info("getPacket, world: " + worldObj)
+    //log.info("getPacket, world: " + worldObj)
     new Packet132TileEntityData(xCoord, yCoord, zCoord, 255, cmp)
   }
 
@@ -176,14 +176,14 @@ class TileEntityMotor extends TileEntity with StripHolder {
     super.readFromNBT(cmp)
     orientation = cmp.getInteger("orientation")
     moving = cmp.getInteger("moving")
-    log.info(s"Motor readFromNBT: ($xCoord,$yCoord,$zCoord), " + (if(worldObj != null) side else "NONE"))
+    //log.info(s"Motor readFromNBT: ($xCoord,$yCoord,$zCoord), " + (if(worldObj != null) side else "NONE"))
   }
 
   override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     cmp.setInteger("orientation", orientation)
     cmp.setInteger("moving", moving)
-    log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $side")
+    //log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $side")
   }
 
   override def updateEntity() {
@@ -202,15 +202,15 @@ class TileEntityMotor extends TileEntity with StripHolder {
         case 5 => 0
         case _ => getBlockMetadata() + 1
       }
-      log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
+      //log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
       worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, meta, 1)
-      log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
+      //log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
     } else {
       orientation = orientation match {
         case 3 => 0
         case o => o + 1
       }
-      log.info(s"rotated2, m: $getBlockMetadata, o: $orientation")
+      //log.info(s"rotated2, m: $getBlockMetadata, o: $orientation")
     }
   }
 
@@ -221,7 +221,7 @@ class TileEntityMotor extends TileEntity with StripHolder {
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
     if(worldObj.getBlockId(pos.x, pos.y, pos.z) == 0) return
-    log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo")
+    //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo")
     val blocks = bfs(Queue(pos))
     val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
     for (c <- blocks) {
@@ -238,22 +238,26 @@ class TileEntityMotor extends TileEntity with StripHolder {
       (basis, size) <- splitLine(sline, shift)
       c = WorldPos(dirTo, normal, basis + shift)
     } yield {
-      log.info(s"xyz: $c, basis: $basis, size: $size, shift: $shift")
+      //log.info(s"xyz: $c, basis: $basis, size: $size, shift: $shift")
       (c, size)
     }
     val canMove = !strips.exists { (pair) =>
       val c = pair._1
       val id = worldObj.getBlockId(c.x, c.y, c.z)
       val block = Block.blocksList(id)
-      log.info(s"block: $block")
+      //log.info(s"block: $block")
       if(block == null) false
       else
         !block.isBlockReplaceable(worldObj, c.x, c.y, c.z)
     }
     if (canMove) for ((c, size) <- strips) {
-      log.info(s"c: $c")
+      //log.info(s"c: $c")
       //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
       worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
+      worldObj.getBlockTileEntity(c.x, c.y, c.z) match {
+        case te: TileEntityMovingStrip => te.parent = this
+        case _ =>
+      }
       this += StripData(c, dirTo, size)
     }
       
@@ -279,17 +283,17 @@ class TileEntityMotor extends TileEntity with StripHolder {
               c == next - ForgeDirection.values()(meta)
             })
           } yield c
-          List("111",
+          /*List("111",
             s"next: $next",
             s"rest: $rest",
             s"blocks: $blackBlocks",
-            s"toCheck: $toCheck").map(log.info(_))
+            s"toCheck: $toCheck").map(log.info(_))*/
           bfs(rest ++ toCheck, blackBlocks + next)
         case _ =>
-          List("222",
+          /*List("222",
             s"next: $next",
             s"rest: $rest",
-            s"blocks: $blackBlocks").map(log.info(_))
+            s"blocks: $blackBlocks").map(log.info(_))*/
           bfs(rest, blackBlocks + next)
       }
     }
