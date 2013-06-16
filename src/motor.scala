@@ -141,12 +141,13 @@ trait BlockMotor extends BlockContainer {
     true
   }
   override def onNeighborBlockChange(world: World, x: Int, y: Int, z: Int, id: Int) {
-    if(world.isBlockIndirectlyGettingPowered(x, y, z)) {
-      world.getBlockTileEntity(x, y, z) match {
-        case te: TileEntityMotor =>
-          te.activate()
-          world.markBlockForUpdate(x, y, z)
-        case _ =>
+    if(world.isServer) {
+      if(world.isBlockIndirectlyGettingPowered(x, y, z)) {
+        world.getBlockTileEntity(x, y, z) match {
+          case te: TileEntityMotor if(te.moving == 0) =>
+            te.activate()
+          case _ =>
+        }
       }
     }
   }
@@ -222,7 +223,7 @@ class TileEntityMotor extends TileEntity with StripHolder {
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
     if(worldObj.getBlockId(pos.x, pos.y, pos.z) == 0) return
-    //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo")
+    //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(worldObj)}")
     val blocks = bfs(Queue(pos))
     val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
     for (c <- blocks) {
@@ -262,6 +263,7 @@ class TileEntityMotor extends TileEntity with StripHolder {
       this += StripData(c, dirTo, size)
     }
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
+    worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
       
   }
   def bfs(

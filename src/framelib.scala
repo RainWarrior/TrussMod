@@ -48,7 +48,7 @@ import net.minecraft._,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
   util.AxisAlignedBB,
-  world.{ EnumSkyBlock, World, IBlockAccess, ChunkPosition, chunk },
+  world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, World, WorldServer },
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
@@ -181,50 +181,51 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
     cmp.setInteger("dirTo", dirTo.ordinal)
     cmp.setInteger("size", size)
   }
+  def uncheckedSetBlockWithMetadata(world: World, x: Int, y: Int, z: Int, id: Int, meta: Int) {
+    val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
+    val arr = ch.getBlockStorageArray()
+    if(arr(y >> 4) == null)
+      arr(y >> 4) = new ExtendedBlockStorage(y & (~0xF), !world.provider.hasNoSky)
+    arr(y >> 4).setExtBlockID(x & 0xF, y & 0xF, z & 0xF, id)
+    arr(y >> 4).setExtBlockMetadata(x & 0xF, y & 0xF, z & 0xF, meta)
+  }
   def cycle(world: World) {
     val c = pos - dirTo * size
     world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
       case te: TileEntityMovingStrip => te
-      case te => //throw new RuntimeException(s"Tried to cycle invalid TE: $te, $pos")
+      case te => log.severe(s"Tried to cycle invalid TE: $te, $pos, ${EffectiveSide(world)}, id: ${world.getBlockId(pos.x, pos.y, pos.z)}")
     }
     world.removeBlockTileEntity(pos.x, pos.y, pos.z)
-    for(i <- 0 to size) {
+    uncheckedSetBlockWithMetadata(world, pos.x, pos.y, pos.z, 0, 0)
+    //world.setBlock(pos.x, pos.y, pos.z, 0, 0, 0)
+    for(i <- 0 until size) {
       val c2 = pos - dirTo * i
       val c1 = if(i != size) (c2 - dirTo) else pos
       //log.info(s"c1: $c1, c2: $c2")
-      val (id, m, te) = if(i != size) (
+      val (id, m, te) = (
         world.getBlockId(c1.x, c1.y, c1.z),
         world.getBlockMetadata(c1.x, c1.y, c1.z),
         world.getBlockTileEntity(c1.x, c1.y, c1.z))
-      else (
-        0,
-        0,
-        null)
-      val ch1 = world.getChunkFromChunkCoords(c1.x >> 4, c1.z >> 4)
-      val ch2 = world.getChunkFromChunkCoords(c2.x >> 4, c2.z >> 4)
-      val arr1 = ch1.getBlockStorageArray()
-      var arr2 = ch2.getBlockStorageArray()
       if(te != null) {
         //te.invalidate()
-        if(i != size) {
-          ch1.chunkTileEntityMap.remove(new ChunkPosition(c1.x & 0xF, c1.y, c1.z & 0xF))
+        val ch1 = world.getChunkFromChunkCoords(c1.x >> 4, c1.z >> 4)
+        ch1.chunkTileEntityMap.remove(new ChunkPosition(c1.x & 0xF, c1.y, c1.z & 0xF))
+      }
           
-          if(arr1(c1.y >> 4) == null)
-            arr1(c1.y >> 4) = new ExtendedBlockStorage(c1.y & (~0xF), !world.provider.hasNoSky)
-          arr1(c1.y >> 4).setExtBlockID(c1.x & 0xF, c1.y & 0xF, c1.z & 0xF, 0)
-          arr1(c1.y >> 4).setExtBlockMetadata(c1.x & 0xF, c1.y & 0xF, c1.z & 0xF, 0)
-        }
+      uncheckedSetBlockWithMetadata(world, c1.x, c1.y, c1.z, 0, 0)
+      //world.setBlock(c1.x, c1.y, c1.z, 0, 0, 1)
+      uncheckedSetBlockWithMetadata(world, c2.x, c2.y, c2.z, id, m)
+      //world.setBlock(c2.x, c2.y, c2.z, id, m, 1)
+      if(te != null) {
         te.xCoord = c2.x
         te.yCoord = c2.y
         te.zCoord = c2.z
+        val ch2 = world.getChunkFromChunkCoords(c2.x >> 4, c2.z >> 4)
         ch2.chunkTileEntityMap.asInstanceOf[java.util.Map[ChunkPosition, TileEntity]].
           put(new ChunkPosition(c2.x & 0xF, c2.y, c2.z & 0xF), te)
         //te.validate()
       }
-      if(arr2(c2.y >> 4) == null)
-        arr2(c2.y >> 4) = new ExtendedBlockStorage(c2.y & (~0xF), !world.provider.hasNoSky)
-      arr2(c2.y >> 4).setExtBlockID(c2.x & 0xF, c2.y & 0xF, c2.z & 0xF, id)
-      arr2(c2.y >> 4).setExtBlockMetadata(c2.x & 0xF, c2.y & 0xF, c2.z & 0xF, m)
+      //world.notifyBlockChange(c2.x, c2.y, c2.z, 0)
     }
     //world.setBlock(c.x, c.y, c.z, 0, 0, 0)
   }
@@ -249,6 +250,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
 trait StripHolder extends TileEntity {
   private[this] var strips = HashSet.empty[StripData]
   var counter = 0
+  var shouldUpdate = true
   val renderOffset = new BlockData(0, 0, 0)
   def dirTo: ForgeDirection
   def +=(s: StripData) {
@@ -260,7 +262,13 @@ trait StripHolder extends TileEntity {
     worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
   }
   def postMove() {
-    //log.info(s"postMove, strips: ${strips.toString}, side: ${EffectiveSide(worldObj)}")
+    //log.info(s"postMove, strips: ${strips.toString}, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
+    if(worldObj.isServer) {
+      val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)
+      if(players != null) {
+        players.sendToAllPlayersWatchingChunk(getDescriptionPacket)
+      }
+    }
     for(s <- strips) s.cycle(worldObj)
     for(s <- strips) s.stopMoving(worldObj)
     for(s <- strips) s.notifyOfChanges(worldObj)
@@ -270,6 +278,7 @@ trait StripHolder extends TileEntity {
     renderOffset.y = 0
     renderOffset.z = 0
     counter = 0
+    shouldUpdate = true
   }
 
   def notifyOfRenderChanges() {
@@ -305,25 +314,30 @@ trait StripHolder extends TileEntity {
   }
   abstract override def updateEntity() = if(!strips.isEmpty) {
     super.updateEntity()
-    //log.info(s"stripHolder onUpdate, counter: $counter, renderOffset: $renderOffset")
-    if(counter == 0) {
+    //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, c: $counter, sd: ${EffectiveSide(worldObj)}")
+    if(counter == 0 || shouldUpdate) {
       for(s <- strips) {
         worldObj.getBlockTileEntity(s.pos.x, s.pos.y, s.pos.z) match {
           case te: TileEntityMovingStrip => te.parent = this
           case _ =>
         }
-        for(i <- 1 to s.size; c = s.pos - s.dirTo * i) {
-          MovingRegistry.addMoving(worldObj, c, renderOffset)
-        }
       }
     }
-    if(counter < 16) {
+    if(counter < 15 || (counter == 15 && worldObj.isServer)) {
       counter += 1
       val shift = (counter / 16F).toFloat
       renderOffset.x = dirTo.x * shift
       renderOffset.y = dirTo.y * shift
       renderOffset.z = dirTo.z * shift
+      if(shouldUpdate) {
+        //log.info(s"stripHolder marking, p: ${WorldPos(this)}, sd: ${EffectiveSide(worldObj)}")
+        for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
+          MovingRegistry.addMoving(worldObj, c, renderOffset)
+          //mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
+        }
+      }
     }
+    shouldUpdate = false
     if(counter >= 16) postMove
   }
   abstract override def readFromNBT(cmp: NBTTagCompound) {
@@ -337,6 +351,7 @@ trait StripHolder extends TileEntity {
       }): _*)
     counter = cmp.getInteger("counter")
     renderOffset.readFromNBT(cmp.getCompoundTag("renderOffset"))
+    //log.info(s"StripHolder readFromNBT, pos: ${WorldPos(this)}, counter: $counter, side:" + FMLCommonHandler.instance.getEffectiveSide)
   }
   abstract override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
