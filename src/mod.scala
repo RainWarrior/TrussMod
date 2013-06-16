@@ -115,7 +115,7 @@ class ClientProxy extends CommonProxy {
   modid = modId,
   name = modName,
   version = "alpha",
-  dependencies = "required-after:Forge@[7.8.0.701,);required-after:FML@[5.2.10,)"
+  dependencies = "required-after:Forge@[7.8.0.701,);required-after:FML@[5.2.6.701,)"
 )
 @NetworkMod(
 //  channels = Array(modId),

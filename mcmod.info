@@ -9,6 +9,5 @@
     "authors": [ "RainWarrior" ],
     "credits": "Authored by RainWarrior, based on an original idea by Eloraam and Ecu",
     "requiredMods": [ "Forge" ],
-    "useDependencyInformation": "true"
   }]
 }
