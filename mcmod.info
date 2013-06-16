@@ -1,0 +1,14 @@
+{
+  "modinfoversion": 2,
+  "modlist": [{
+    "modid": "TrussMod",
+    "name": "Truss Mod",
+    "description": "A mod that adds RP2-style frames",
+    "version": "alpha",
+    "mcversion": "1.5.2",
+    "authors": [ "RainWarrior" ],
+    "credits": "Authored by RainWarrior, based on an original idea by Eloraam and Ecu",
+    "requiredMods": [ "Forge" ],
+    "useDependencyInformation": "true"
+  }]
+}
