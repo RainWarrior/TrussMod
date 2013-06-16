@@ -108,7 +108,8 @@ class ClientProxy extends CommonProxy {
   modLanguage = "scala",
   modid = modId,
   name = modName,
-  version = "0.01"
+  version = "0.01",
+  dependencies = "required-after:Forge@[7.8.0.701,);required-after:FML@[5.2.10,)"
 )
 @NetworkMod(
 //  channels = Array(modId),
