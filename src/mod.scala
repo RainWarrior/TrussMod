@@ -30,10 +30,12 @@ package rainwarrior.trussmod
 
 import scala.collection.mutable.ListBuffer
 import java.util.logging.Logger
+import java.io.File
 import cpw.mods.fml.{ common, relauncher }
-import common.{ Mod, event, network, FMLCommonHandler, SidedProxy }
+import common.{ Mod, event, Loader, network, FMLCommonHandler, SidedProxy }
 import relauncher.{ FMLRelaunchLog, Side }
 import network.NetworkMod
+import net.minecraftforge.common.Configuration
 import TrussMod._
 
 trait LoadLater extends DelayedInit {
@@ -65,29 +67,33 @@ object CommonProxy extends LoadLater {
     material.Material
   import cpw.mods.fml.common.registry._
 
-  val debugItemId = 5000
+  config.load()
+  
+  val debugItemId = config.getItem("debugItem", 5000).getInt()
   object debugItem
     extends Item(debugItemId)
     with DebugItem
   debugItem
 
-  val blockFrameId = 501
+  val blockFrameId = config.getBlock("frame", 501).getInt()
   object blockFrame
     extends Block(blockFrameId, Material.ground)
     with BlockFrame
   blockFrame
 
-  val blockMotorId = 502
+  val blockMotorId = config.getBlock("motor", 502).getInt()
   object blockMotor
     extends BlockContainer(blockMotorId, Material.ground)
     with BlockMotor
   blockMotor
 
-  val blockMovingStripId = 503
+  val blockMovingStripId = config.getBlock("movingStrip", 503, "Util block, shouldn't be used in the normal game").getInt()
   object blockMovingStrip
     extends BlockContainer(blockMovingStripId, Material.ground)
     with BlockMovingStrip
   blockMovingStrip
+
+  config.save()
 
   TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
 }
@@ -123,6 +129,7 @@ object TrussMod {
   val log = Logger.getLogger(modId)
   log.setParent(FMLRelaunchLog.log.getLogger)
 
+  lazy val config = new Configuration(new File(Loader.instance.getConfigDir, modId + ".cfg"))
   def isServer() = FMLCommonHandler.instance.getEffectiveSide.isServer
 
   @SidedProxy(
@@ -131,7 +138,10 @@ object TrussMod {
   var proxy: CommonProxy = null
 
   CommonProxy.delayedInit {
-    println("Hello, World from TrussMod AND FRIENDS!")
+    log.info("Copyright (C) 2013 RainWarrior")
+    log.info("See included LICENSE file for the license (GPLv3+ with additional terms)")
+    log.info("TrussMod is free software: you are free to change and redistribute it.")
+    log.info("There is NO WARRANTY, to the extent permitted by law.")
   }
 
   @Mod.PreInit def preinit(e: event.FMLPreInitializationEvent) {}
