@@ -207,7 +207,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
         world.getBlockMetadata(c1.x, c1.y, c1.z),
         world.getBlockTileEntity(c1.x, c1.y, c1.z))
       if(te != null) {
-        //te.invalidate()
+        te.invalidate()
         val ch1 = world.getChunkFromChunkCoords(c1.x >> 4, c1.z >> 4)
         ch1.chunkTileEntityMap.remove(new ChunkPosition(c1.x & 0xF, c1.y, c1.z & 0xF))
       }
@@ -223,7 +223,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
         val ch2 = world.getChunkFromChunkCoords(c2.x >> 4, c2.z >> 4)
         ch2.chunkTileEntityMap.asInstanceOf[java.util.Map[ChunkPosition, TileEntity]].
           put(new ChunkPosition(c2.x & 0xF, c2.y, c2.z & 0xF), te)
-        //te.validate()
+        te.validate()
       }
       //world.notifyBlockChange(c2.x, c2.y, c2.z, 0)
     }
