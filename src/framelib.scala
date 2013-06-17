@@ -381,8 +381,9 @@ trait StripHolder extends TileEntity {
   }
   abstract override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
+    val list = cmp.getTagList("strips")
     strips = HashSet[StripData](
-      (for(cmp1 <- cmp.getTagList("strips").tagList.toSeq) yield cmp1 match {
+      (for(i <- 0 until list.tagCount) yield list.tagAt(i) match {
         case cmp1: NBTTagCompound =>
           val strip = StripData.readFromNBT(cmp1)
           strip
