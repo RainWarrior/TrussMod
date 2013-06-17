@@ -153,6 +153,34 @@ class Transformer extends IClassTransformer {
       //node.accept(checker)
       writer.toByteArray
       //data
+    } else if(tName == "net.minecraft.world.WorldServer") {
+      println(s"transforming: $tName")
+      val node = new ClassNode
+      val reader = new ClassReader(data)
+      reader.accept(node, 0)
+
+      for(f <- node.fields) {
+        if(f.name == "field_73064_N"
+        || mapper.mapFieldName(name, f.name, "Ljava/util/Set;") == "field_73064_N") {
+          println("FOUND field_73064_N")
+          f.access &= ~ACC_PRIVATE
+          f.access &= ~ACC_PROTECTED
+          f.access |= ACC_PUBLIC
+        } else if(f.name == "pendingTickListEntries"
+        || mapper.mapFieldName(name, f.name, "Ljava/util/TreeSet;") == "field_73065_O") {
+          println("FOUND pendingTickListEntries")
+          f.access &= ~ACC_PRIVATE
+          f.access &= ~ACC_PROTECTED
+          f.access |= ACC_PUBLIC
+        }
+      }
+      
+      val writer = new ClassWriter(ClassWriter.COMPUTE_MAXS)
+      node.accept(writer)
+      //val checker = new TraceClassVisitor(writer, new ASMifier, new PrintWriter(System.out))
+      //node.accept(checker)
+      writer.toByteArray
+      //data
     } else data
   }
 }

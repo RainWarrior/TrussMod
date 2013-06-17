@@ -29,7 +29,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
-import java.util.{ List => JList }
+import java.util.{ List => JList, ArrayList, Set => JSet, TreeSet => JTreeSet }
 import collection.immutable.{ HashSet, Queue }
 import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet, HashSet => MHashSet }
 import collection.JavaConversions._
@@ -48,7 +48,7 @@ import net.minecraft._,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
   util.AxisAlignedBB,
-  world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, World, WorldServer },
+  world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
@@ -234,14 +234,14 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       MovingRegistry.delMoving(world, pos - dirTo * i)
     }
   }
-  def notifyOfChanges(world: World) {
+  def notifyOfChanges(world: World) { // TODO: Optimise this
     for {
       i <- 0 to size
       c = pos - dirTo * i
       // id = world.getBlockId(c.x, c.y, c.z)
     } {
       //log.info(s"NOTIFY, pos: $c")
-      //world.notifyBlockOfNeighborChange(c.x, c.y, c.z, 0)
+      world.notifyBlockOfNeighborChange(c.x, c.y, c.z, 0)
       world.notifyBlockChange(c.x, c.y, c.z, 0)
     }
   }
@@ -261,6 +261,8 @@ trait StripHolder extends TileEntity {
     }
     worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
   }
+  def blocks() = { val d = dirTo; for(s <- strips; i <- 1 to s.size) yield s.pos - d * i }
+  def allBlocks() = { val d = dirTo; for(s <- strips; i <- 0 to s.size) yield s.pos - d * i }
   def postMove() {
     //log.info(s"postMove, strips: ${strips.toString}, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
     if(worldObj.isServer) {
@@ -271,8 +273,9 @@ trait StripHolder extends TileEntity {
     }
     for(s <- strips) s.cycle(worldObj)
     for(s <- strips) s.stopMoving(worldObj)
+    fixScheduledTicks()
     for(s <- strips) s.notifyOfChanges(worldObj)
-    notifyOfRenderChanges
+    notifyOfRenderChanges()
     strips = HashSet.empty[StripData]
     renderOffset.x = 0
     renderOffset.y = 0
@@ -281,6 +284,44 @@ trait StripHolder extends TileEntity {
     shouldUpdate = true
   }
 
+  def fixScheduledTicks() {
+    worldObj match {
+      case world: WorldServer =>
+        val blocks = this.blocks().toSet
+        val allBlocks = this.allBlocks()
+        val chunkCoords =
+          for(b <- allBlocks; x = b.x >> 4; z = b.z >> 4)
+            yield (x, z)
+        val chunks = (
+          for {
+            (x, z) <- chunkCoords
+            ch = world.getChunkFromChunkCoords(x, z)
+            if ch != null
+          } yield ((x, z) -> world.getChunkFromChunkCoords(x, z))).toMap
+        val scheduledTicks = (
+          for {
+            ch <- chunks.valuesIterator
+            list = world.getPendingBlockUpdates(ch, true).asInstanceOf[ArrayList[NextTickListEntry]]
+            if list != null
+            tick <- list
+          } yield tick).toIterable
+        //log.info(s"chunks: ${chunks.mkString}")
+        //log.info(s"ticks: ${scheduledTicks.mkString}")
+        for(tick <- scheduledTicks if blocks((tick.xCoord, tick.yCoord, tick.zCoord))) {
+          tick.xCoord += dirTo.x
+          tick.yCoord += dirTo.y
+          tick.zCoord += dirTo.z
+        }
+        //log.info(s"ticks: ${scheduledTicks.mkString}")
+        for(tick <- scheduledTicks) {
+          if(!world.field_73064_N.contains(tick)) {
+            world.field_73064_N.asInstanceOf[JSet[NextTickListEntry]].add(tick)
+            world.pendingTickListEntries.asInstanceOf[JTreeSet[NextTickListEntry]].add(tick)
+          }
+        }
+      case _ =>
+    }
+  }
   def notifyOfRenderChanges() {
     // fix for WorldRenderer filtering TEs out
     if(worldObj.isClient) {
@@ -292,9 +333,7 @@ trait StripHolder extends TileEntity {
       //var t = System.currentTimeMillis
       for(pass <- 0 to 1) {
         for {
-          s <- strips
-          i <- 0 to s.size
-          c = s.pos - dirTo * i
+          c <- allBlocks
           te = worldObj.getBlockTileEntity(c.x, c.y, c.z)
         } {
           //log.info(s"NOTIFY RENDER, pos: $c")
