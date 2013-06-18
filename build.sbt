@@ -33,9 +33,13 @@ outputStrategy := Some(StdoutOutput)
 
 javaOptions in run ++= Seq(
   "-Djava.library.path=../jars/bin/natives",
-  "-Dfml.coreMods.load=rainwarrior.hooks.Plugin")
+  "-Dfml.coreMods.load="
+  + "rainwarrior.hooks.Plugin,"
+  //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
+  + "codechicken.core.asm.CodeChickenCorePlugin,"
+  + "codechicken.nei.asm.NEICorePlugin")
 
-//mainClass in Compile := Some("Start")
+mainClass in Compile := Some("Start")
 
 autoCompilerPlugins := true
 

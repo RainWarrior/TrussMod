@@ -43,6 +43,7 @@ import net.minecraft._,
   creativetab.CreativeTabs,
   entity.Entity,
   entity.player.EntityPlayer,
+  item.{ Item, ItemStack },
   nbt.{ NBTTagCompound, NBTTagList },
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
@@ -69,7 +70,7 @@ trait BlockMovingStrip extends BlockContainer {
   setHardness(-1F)
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockMovingStrip")
-  setCreativeTab(CreativeTabs.tabBlock)
+  setCreativeTab(null)
   setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
 
   import cpw.mods.fml.common.registry._
@@ -417,7 +418,21 @@ trait BlockFrame extends Block {
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Frame Block")
-  GameRegistry.registerBlock(this, "Frame_Block")
+  GameRegistry.registerBlock(this, "Frame_Block");
+  {
+    val frame = new ItemStack(this, 8)
+    val iron = new ItemStack(Block.blockIron)
+    val redstone = new ItemStack(Item.redstone)
+    val slime = new ItemStack(Item.slimeBall)
+    GameRegistry.addRecipe(
+      frame,
+      "rsr",
+      "sis",
+      "rsr",
+      Char.box('i'), iron,
+      Char.box('r'), redstone,
+      Char.box('s'), slime)
+  }
 
   //override def createNewTileEntity(world: World): TileEntity = null // new TileEntityFrame
   override def isOpaqueCube = false
@@ -470,7 +485,13 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       metadata: Int,
       modelId: Int,
       rb: RenderBlocks) {
-    rainwarrior.utils.renderInventoryBlock(rb, block, metadata)
+    //rainwarrior.utils.renderInventoryBlock(rb, block, metadata)
+    RenderHelper.disableStandardItemLighting()
+    tes.startDrawingQuads()
+    tes.setColorOpaque_F(1, 1, 1)
+    model.render()
+    tes.draw()
+    RenderHelper.enableStandardItemLighting()
   }
   override def renderWorldBlock(
       world: IBlockAccess,
@@ -480,8 +501,14 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       block: Block,
       modelId: Int,
       rb: RenderBlocks) = {
-    rb.setRenderBoundsFromBlock(block)
-    rb.renderStandardBlock(block, x, y, z)
+    //rb.setRenderBoundsFromBlock(block)
+    //rb.renderStandardBlock(block, x, y, z)
+    tes.setBrightness(CommonProxy.blockFrame.getMixedBrightnessForBlock(world, x, y, z))
+    tes.setColorOpaque_F(1, 1, 1)
+    tes.addTranslation(x + .5F, y + .5F, z + .5F)
+    model.render()
+    tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
+    true
   }
   override val shouldRender3DInInventory = true
   override lazy val getRenderId = RenderingRegistry.getNextAvailableRenderId()

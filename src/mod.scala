@@ -96,6 +96,7 @@ object CommonProxy extends LoadLater {
   config.save()
 
   TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
+  model
 }
 object ClientProxy extends LoadLater {
   import cpw.mods.fml.client.registry._
@@ -123,8 +124,8 @@ class ClientProxy extends CommonProxy {
   serverSideRequired = false
 )
 object TrussMod {
-  final val modId = "TrussMod"
-  final val modName = "Truss Mod"
+  @inline final val modId = "TrussMod"
+  @inline final val modName = modId
 
   val log = Logger.getLogger(modId)
   log.setParent(FMLRelaunchLog.log.getLogger)

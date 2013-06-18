@@ -40,6 +40,7 @@ import net.minecraft._,
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
+  item.{ Item, ItemStack },
   nbt.NBTTagCompound,
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
@@ -65,7 +66,21 @@ trait BlockMotor extends BlockContainer {
   LanguageRegistry.addName(this, "Motor Block")
   net.minecraftforge.common.MinecraftForge.setBlockHarvestLevel(this, "shovel", 0)
   GameRegistry.registerBlock(this, "Motor_Block")
-  GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity")
+  GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity");
+  {
+    val motor = new ItemStack(this)
+    val frame = new ItemStack(CommonProxy.blockFrame)
+    val redstone = new ItemStack(Block.blockRedstone)
+    val iron = new ItemStack(Item.ingotIron)
+    GameRegistry.addRecipe(
+      motor,
+      "fif",
+      "iri",
+      "fif",
+      Char.box('r'), redstone,
+      Char.box('i'), iron,
+      Char.box('f'), frame)
+  }
 
   val iconNames = Array(List("Bottom", "Top", "Front", "Back", "Left", "Right").map(s"$modId:Motor_" + _): _*)
   val iconMap = Array(0, 1, 2, 3, 4, 5)
@@ -389,7 +404,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       case 5 => rb.uvRotateNorth  = 0; rb.uvRotateSouth = 0
     }*/
     //tes.draw()
-    glTranslatef(pos.x, pos.y, pos.z)
+    //glTranslatef(pos.x, pos.y, pos.z)
     RenderHelper.enableStandardItemLighting()
     /*glScaled(-1D/16D, -1D/16D, -1D/16D)
     glTranslatef(-15, -14, 0)
