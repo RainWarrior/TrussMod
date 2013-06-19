@@ -288,6 +288,10 @@ trait StripHolder extends TileEntity {
   def fixScheduledTicks() {
     worldObj match {
       case world: WorldServer =>
+        val hash = world.field_73064_N.asInstanceOf[JSet[NextTickListEntry]]
+        val tree = world.pendingTickListEntries.asInstanceOf[JTreeSet[NextTickListEntry]]
+        val list = world.field_94579_S.asInstanceOf[ArrayList[NextTickListEntry]]
+        val isOptifine = world.getClass.getName == "WorldServerOF"
         val blocks = this.blocks().toSet
         val allBlocks = this.allBlocks()
         val chunkCoords =
@@ -302,12 +306,20 @@ trait StripHolder extends TileEntity {
         val scheduledTicks = (
           for {
             ch <- chunks.valuesIterator
-            list = world.getPendingBlockUpdates(ch, true).asInstanceOf[ArrayList[NextTickListEntry]]
+            list = world.getPendingBlockUpdates(ch, !isOptifine).asInstanceOf[ArrayList[NextTickListEntry]]
             if list != null
             tick <- list
           } yield tick).toIterable
         //log.info(s"chunks: ${chunks.mkString}")
         //log.info(s"ticks: ${scheduledTicks.mkString}")
+        if(isOptifine) {
+          //log.info("Found Optifine")
+          for (tick <- scheduledTicks) { // fix your hacks, Optifine! :P
+            tree.remove(tick)
+            hash.remove(tick)
+            list.remove(tick)
+          }
+        }
         for(tick <- scheduledTicks if blocks((tick.xCoord, tick.yCoord, tick.zCoord))) {
           tick.xCoord += dirTo.x
           tick.yCoord += dirTo.y
@@ -315,9 +327,9 @@ trait StripHolder extends TileEntity {
         }
         //log.info(s"ticks: ${scheduledTicks.mkString}")
         for(tick <- scheduledTicks) {
-          if(!world.field_73064_N.contains(tick)) {
-            world.field_73064_N.asInstanceOf[JSet[NextTickListEntry]].add(tick)
-            world.pendingTickListEntries.asInstanceOf[JTreeSet[NextTickListEntry]].add(tick)
+          if(!hash.contains(tick)) {
+            hash.add(tick)
+            tree.add(tick)
           }
         }
       case _ =>

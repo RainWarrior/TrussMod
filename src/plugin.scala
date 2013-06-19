@@ -172,6 +172,12 @@ class Transformer extends IClassTransformer {
           f.access &= ~ACC_PRIVATE
           f.access &= ~ACC_PROTECTED
           f.access |= ACC_PUBLIC
+        } else if(f.name == "field_94579_S"
+        || mapper.mapFieldName(name, f.name, "Ljava/util/ArrayList;") == "field_94579_S") {
+          println("FOUND field_94579_S")
+          f.access &= ~ACC_PRIVATE
+          f.access &= ~ACC_PROTECTED
+          f.access |= ACC_PUBLIC
         }
       }
       
