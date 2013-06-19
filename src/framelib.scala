@@ -63,7 +63,7 @@ import relauncher.{ FMLRelaunchLog, Side }
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
-import rainwarrior.hooks.MovingRegistry
+import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 
 trait BlockMovingStrip extends BlockContainer {
@@ -182,14 +182,6 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
     cmp.setInteger("dirTo", dirTo.ordinal)
     cmp.setInteger("size", size)
   }
-  def uncheckedSetBlockWithMetadata(world: World, x: Int, y: Int, z: Int, id: Int, meta: Int) {
-    val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
-    val arr = ch.getBlockStorageArray()
-    if(arr(y >> 4) == null)
-      arr(y >> 4) = new ExtendedBlockStorage(y & (~0xF), !world.provider.hasNoSky)
-    arr(y >> 4).setExtBlockID(x & 0xF, y & 0xF, z & 0xF, id)
-    arr(y >> 4).setExtBlockMetadata(x & 0xF, y & 0xF, z & 0xF, meta)
-  }
   def cycle(world: World) {
     val c = pos - dirTo * size
     world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
@@ -197,38 +189,13 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       case te => log.severe(s"Tried to cycle invalid TE: $te, $pos, ${EffectiveSide(world)}, id: ${world.getBlockId(pos.x, pos.y, pos.z)}")
     }
     world.removeBlockTileEntity(pos.x, pos.y, pos.z)
-    uncheckedSetBlockWithMetadata(world, pos.x, pos.y, pos.z, 0, 0)
+    uncheckedSetBlock(world, pos.x, pos.y, pos.z, 0, 0)
     //world.setBlock(pos.x, pos.y, pos.z, 0, 0, 0)
-    for(i <- 0 until size) {
-      val c2 = pos - dirTo * i
-      val c1 = if(i != size) (c2 - dirTo) else pos
-      //log.info(s"c1: $c1, c2: $c2")
-      val (id, m, te) = (
-        world.getBlockId(c1.x, c1.y, c1.z),
-        world.getBlockMetadata(c1.x, c1.y, c1.z),
-        world.getBlockTileEntity(c1.x, c1.y, c1.z))
-      if(te != null) {
-        te.invalidate()
-        val ch1 = world.getChunkFromChunkCoords(c1.x >> 4, c1.z >> 4)
-        ch1.chunkTileEntityMap.remove(new ChunkPosition(c1.x & 0xF, c1.y, c1.z & 0xF))
-      }
-          
-      uncheckedSetBlockWithMetadata(world, c1.x, c1.y, c1.z, 0, 0)
-      //world.setBlock(c1.x, c1.y, c1.z, 0, 0, 1)
-      uncheckedSetBlockWithMetadata(world, c2.x, c2.y, c2.z, id, m)
-      //world.setBlock(c2.x, c2.y, c2.z, id, m, 1)
-      if(te != null) {
-        te.xCoord = c2.x
-        te.yCoord = c2.y
-        te.zCoord = c2.z
-        val ch2 = world.getChunkFromChunkCoords(c2.x >> 4, c2.z >> 4)
-        ch2.chunkTileEntityMap.asInstanceOf[java.util.Map[ChunkPosition, TileEntity]].
-          put(new ChunkPosition(c2.x & 0xF, c2.y, c2.z & 0xF), te)
-        te.validate()
-      }
-      //world.notifyBlockChange(c2.x, c2.y, c2.z, 0)
+    for(i <- 1 to size) {
+      val c = pos - dirTo * i
+      //log.info(s"c: $c")
+      MovingTileRegistry.move(world, c.x, c.y, c.z, dirTo)
     }
-    //world.setBlock(c.x, c.y, c.z, 0, 0, 0)
   }
   def stopMoving(world: World) {
     for(i <- 0 to size) {
@@ -272,11 +239,21 @@ trait StripHolder extends TileEntity {
         players.sendToAllPlayersWatchingChunk(getDescriptionPacket)
       }
     }
+    //var t = System.currentTimeMillis
     for(s <- strips) s.cycle(worldObj)
+    //println(s"1: ${System.currentTimeMillis - t}")
+    //t = System.currentTimeMillis
     for(s <- strips) s.stopMoving(worldObj)
+    //println(s"2: ${System.currentTimeMillis - t}")
+    //t = System.currentTimeMillis
     fixScheduledTicks()
+    //println(s"3: ${System.currentTimeMillis - t}")
+    //t = System.currentTimeMillis
     for(s <- strips) s.notifyOfChanges(worldObj)
+    //println(s"4: ${System.currentTimeMillis - t}")
+    //t = System.currentTimeMillis
     notifyOfRenderChanges()
+    //println(s"5: ${System.currentTimeMillis - t}")
     strips = HashSet.empty[StripData]
     renderOffset.x = 0
     renderOffset.y = 0

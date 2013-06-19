@@ -30,11 +30,13 @@ of this Program grant you additional permission to convey the resulting work.
 package rainwarrior
 
 import language.implicitConversions
-import net.minecraft.tileentity.TileEntity
-import net.minecraft.block.Block
-import net.minecraft.world.World
-import net.minecraft.client.renderer.RenderBlocks
-import net.minecraft.nbt.NBTTagCompound
+import net.minecraft._,
+  block.Block,
+  client.renderer.RenderBlocks,
+  nbt.NBTTagCompound,
+  tileentity.TileEntity,
+  world.{ ChunkPosition, chunk, World },
+  chunk.storage.ExtendedBlockStorage
 import net.minecraftforge.common.ForgeDirection
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
@@ -221,6 +223,31 @@ object utils {
     }
   }
   
+  def uncheckedSetBlock(world: World, x: Int, y: Int, z: Int, id: Int, meta: Int) {
+    val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
+    val arr = ch.getBlockStorageArray()
+    if(arr(y >> 4) == null)
+      arr(y >> 4) = new ExtendedBlockStorage(y & (~0xF), !world.provider.hasNoSky)
+    arr(y >> 4).setExtBlockID(x & 0xF, y & 0xF, z & 0xF, id)
+    arr(y >> 4).setExtBlockMetadata(x & 0xF, y & 0xF, z & 0xF, meta)
+  }
+
+  def uncheckedRemoveTileEntity(world: World, x: Int, y: Int, z: Int) = {
+    val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
+    ch.chunkTileEntityMap.remove(new ChunkPosition(x & 0xF, y, z & 0xF))
+  }
+
+  def uncheckedAddTileEntity(world: World, x: Int, y: Int, z: Int, te: TileEntity) = {
+    val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
+    ch.chunkTileEntityMap.asInstanceOf[java.util.Map[ChunkPosition, TileEntity]].
+      put(new ChunkPosition(x & 0xF, y, z & 0xF), te)
+  }
+
+  def getBlockInfo(world: World, x: Int, y: Int, z: Int) = (
+    world.getBlockId(x, y, z),
+    world.getBlockMetadata(x, y, z),
+    world.getBlockTileEntity(x, y, z))
+
   /*object Util {
     object SmallCoords {
       final val shift = 10

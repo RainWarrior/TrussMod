@@ -53,7 +53,7 @@ import cpw.mods.fml.common.FMLCommonHandler
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
-import rainwarrior.hooks.MovingRegistry
+import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 
 trait BlockMotor extends BlockContainer {
@@ -234,10 +234,15 @@ class TileEntityMotor extends TileEntity with StripHolder {
   def activate() {
     if(moving != 0) return
     //var t = System.currentTimeMillis
+
     moving = 1
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
-    if(worldObj.getBlockId(pos.x, pos.y, pos.z) == 0) return
+    val id = worldObj.getBlockId(pos.x, pos.y, pos.z)
+    if ( id == 0
+      || MovingRegistry.isMoving(this.worldObj, pos.x, pos.y, pos.z)
+      || !MovingTileRegistry.canMove(this.worldObj, pos.x, pos.y, pos.z)
+    ) return
     //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(worldObj)}")
     val blocks = bfs(Queue(pos))
     val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
@@ -291,12 +296,13 @@ class TileEntityMotor extends TileEntity with StripHolder {
           val toCheck = for {
             dir <- ForgeDirection.VALID_DIRECTIONS.toList
             c = next + dir
-            if !(MovingRegistry.isMoving(this.worldObj, c.x, c.y, c.z))
             if !(c == WorldPos(this))
             if !blackBlocks(c)
             if !greyBlocks.contains(c)
+            if !(MovingRegistry.isMoving(this.worldObj, c.x, c.y, c.z))
             id = worldObj.getBlockId(c.x, c.y, c.z)
             if id != 0
+            if MovingTileRegistry.canMove(this.worldObj, c.x, c.y, c.z)
             /*if !(id == CommonProxy.blockMotorId && {
               val meta = worldObj.getBlockMetadata(c.x, c.y, c.z)
               c == next - ForgeDirection.values()(meta)
