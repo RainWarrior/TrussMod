@@ -217,7 +217,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
   }
 }
 
-trait StripHolder extends TileEntity {
+abstract class StripHolder extends TileEntity {
   private[this] var strips = HashSet.empty[StripData]
   var counter = 0
   var shouldUpdate = true
@@ -352,7 +352,7 @@ trait StripHolder extends TileEntity {
     }
   }
 
-  abstract override def updateEntity() = if(!strips.isEmpty) {
+  override def updateEntity() = if(!strips.isEmpty) {
     super.updateEntity()
     //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, c: $counter, sd: ${EffectiveSide(worldObj)}")
     if(counter == 0 || shouldUpdate) {
@@ -381,7 +381,7 @@ trait StripHolder extends TileEntity {
     if(counter >= 16) postMove
   }
 
-  abstract override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
+  override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
     //log.info(s"Holder onDatapacket, type: ${packet.actionType}")
     packet.actionType match {
       case 3 =>
@@ -391,7 +391,7 @@ trait StripHolder extends TileEntity {
     }
   }
 
-  abstract override def readFromNBT(cmp: NBTTagCompound) {
+  override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
     val list = cmp.getTagList("strips")
     strips = HashSet[StripData](
@@ -406,7 +406,7 @@ trait StripHolder extends TileEntity {
     //log.info(s"StripHolder readFromNBT, pos: ${WorldPos(this)}, counter: $counter, side:" + FMLCommonHandler.instance.getEffectiveSide)
   }
 
-  abstract override def writeToNBT(cmp: NBTTagCompound) {
+  override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     val stripList = new NBTTagList
     for(strip <- strips) {

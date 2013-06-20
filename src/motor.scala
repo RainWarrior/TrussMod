@@ -174,7 +174,7 @@ trait BlockMotor extends BlockContainer {
   }
 }
 
-class TileEntityMotor extends TileEntity with StripHolder {
+class TileEntityMotor extends StripHolder {
   lazy val side = EffectiveSide(worldObj)
   var orientation = 0
   var moving = 0
