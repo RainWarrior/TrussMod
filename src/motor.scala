@@ -45,7 +45,7 @@ import net.minecraft._,
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
-  world.{ World, IBlockAccess }
+  world.{ IBlockAccess, World, WorldServer }
 import net.minecraft.util.Icon
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side}
@@ -137,6 +137,7 @@ trait BlockMotor extends BlockContainer {
     super.breakBlock(world, x, y, z, id, metadata)
     //world.notifyBlocksOfNeighborChange(x, y, z, this.blockID)
   }
+
   override def onBlockActivated(
       world: World,
       x: Int,
@@ -155,15 +156,20 @@ trait BlockMotor extends BlockContainer {
       if(te.counter == 0) te.rotate(player.isSneaking())
     true
   }
+
   override def onNeighborBlockChange(world: World, x: Int, y: Int, z: Int, id: Int) {
     if(world.isServer) {
       if(world.isBlockIndirectlyGettingPowered(x, y, z)) {
-        world.getBlockTileEntity(x, y, z) match {
-          case te: TileEntityMotor if(te.moving == 0) =>
-            te.activate()
-          case _ =>
-        }
+        world.scheduleBlockUpdate(x, y, z, this.blockID, 1)
       }
+    }
+  }
+
+  override def updateTick(world: World, x: Int, y: Int, z: Int, random: java.util.Random) {
+    world.getBlockTileEntity(x, y, z) match {
+      case te: TileEntityMotor if(te.moving == 0) =>
+        te.activate()
+      case _ =>
     }
   }
 }
@@ -180,12 +186,16 @@ class TileEntityMotor extends TileEntity with StripHolder {
     val cmp = new NBTTagCompound
     writeToNBT(cmp)
     //log.info("getPacket, world: " + worldObj)
-    new Packet132TileEntityData(xCoord, yCoord, zCoord, 255, cmp)
+    new Packet132TileEntityData(xCoord, yCoord, zCoord, 1, cmp)
   }
 
   override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
     assert(side.isClient)
-    readFromNBT(packet.customParam1)
+    packet.actionType match {
+      case 1 => readFromNBT(packet.customParam1)
+      case 2 => activate()
+      case _ => super.onDataPacket(netManager, packet)
+    }
   }
 
   override def readFromNBT(cmp: NBTTagCompound) {
@@ -272,19 +282,28 @@ class TileEntityMotor extends TileEntity with StripHolder {
       else
         !block.isBlockReplaceable(worldObj, c.x, c.y, c.z)
     }
-    if (canMove) for ((c, size) <- strips) {
-      //log.info(s"c: $c")
-      //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
-      worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
-      worldObj.getBlockTileEntity(c.x, c.y, c.z) match {
-        case te: TileEntityMovingStrip => te.parent = this
-        case _ =>
+    if (canMove) {
+      if(worldObj.isServer) {
+        val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)
+        if(players != null) {
+        // activation packet
+          val packet = new Packet132TileEntityData(xCoord, yCoord, zCoord, 2, null)
+          players.sendToAllPlayersWatchingChunk(packet)
+        }
       }
-      this += StripData(c, dirTo, size)
+      for ((c, size) <- strips) {
+        //log.info(s"c: $c")
+        //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
+        worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
+        worldObj.getBlockTileEntity(c.x, c.y, c.z) match {
+          case te: TileEntityMovingStrip => te.parent = this
+          case _ =>
+        }
+        this += StripData(c, dirTo, size)
+      }
     }
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
-    worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
-      
+    //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord) 
   }
   def bfs(
       greyBlocks: Seq[WorldPos], // fames to visit

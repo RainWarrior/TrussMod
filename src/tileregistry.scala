@@ -73,7 +73,7 @@ object MovingTileRegistry extends ITileHandler {
     handlerMap.getOrElse(blockMap.get(block), DefaultModTileHandler)
 
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
-    //log.info(s"canMove: ($x, $y, $z)")
+    //log.info(s"canMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     val id = world.getBlockId(x, y, z)
     Block.blocksList(id) match {
       case block: Block =>
@@ -83,6 +83,7 @@ object MovingTileRegistry extends ITileHandler {
   }
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
+    //log.info(s"move: ($x, $y, $z), side: ${EffectiveSide(world)}")
     val id = world.getBlockId(x, y, z)
     Block.blocksList(id) match {
       case block: Block =>

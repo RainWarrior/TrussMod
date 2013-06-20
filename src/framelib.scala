@@ -223,6 +223,7 @@ trait StripHolder extends TileEntity {
   var shouldUpdate = true
   val renderOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
   def dirTo: ForgeDirection
+
   def +=(s: StripData) {
     //log.info(s"+=strip: $s, client: ${worldObj.isClient}")
     strips += s
@@ -232,14 +233,18 @@ trait StripHolder extends TileEntity {
     }
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
   }
+
   def blocks() = { val d = dirTo; for(s <- strips; i <- 1 to s.size) yield s.pos - d * i }
   def allBlocks() = { val d = dirTo; for(s <- strips; i <- 0 to s.size) yield s.pos - d * i }
+
   def postMove() {
     //log.info(s"postMove, strips: ${strips.toString}, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
     if(worldObj.isServer) {
       val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)
       if(players != null) {
-        players.sendToAllPlayersWatchingChunk(getDescriptionPacket)
+        // can update from 15 to 16
+        val packet = new Packet132TileEntityData(xCoord, yCoord, zCoord, 3, null)
+        players.sendToAllPlayersWatchingChunk(packet)
       }
     }
     //var t = System.currentTimeMillis
@@ -316,6 +321,7 @@ trait StripHolder extends TileEntity {
       case _ =>
     }
   }
+
   def notifyOfRenderChanges() {
     // fix for WorldRenderer filtering TEs out
     if(worldObj.isClient) {
@@ -345,6 +351,7 @@ trait StripHolder extends TileEntity {
       }
     }
   }
+
   abstract override def updateEntity() = if(!strips.isEmpty) {
     super.updateEntity()
     //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, c: $counter, sd: ${EffectiveSide(worldObj)}")
@@ -373,6 +380,17 @@ trait StripHolder extends TileEntity {
     shouldUpdate = false
     if(counter >= 16) postMove
   }
+
+  abstract override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
+    //log.info(s"Holder onDatapacket, type: ${packet.actionType}")
+    packet.actionType match {
+      case 3 =>
+        counter = 16
+        updateEntity()
+      case _ => super.onDataPacket(netManager, packet)
+    }
+  }
+
   abstract override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
     val list = cmp.getTagList("strips")
@@ -387,6 +405,7 @@ trait StripHolder extends TileEntity {
     renderOffset.readFromNBT(cmp.getCompoundTag("renderOffset"))
     //log.info(s"StripHolder readFromNBT, pos: ${WorldPos(this)}, counter: $counter, side:" + FMLCommonHandler.instance.getEffectiveSide)
   }
+
   abstract override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     val stripList = new NBTTagList
