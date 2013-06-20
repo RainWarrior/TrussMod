@@ -430,7 +430,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     }*/
     //tes.draw()
     //glTranslatef(pos.x, pos.y, pos.z)
-    RenderHelper.enableStandardItemLighting()
+    //RenderHelper.enableStandardItemLighting()
     /*glScaled(-1D/16D, -1D/16D, -1D/16D)
     glTranslatef(-15, -14, 0)
     RenderHelper.disableStandardItemLighting()
@@ -467,9 +467,9 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
 
     tes.draw()
 
-    glEnable(GL_TEXTURE_2D)
-    RenderHelper.enableStandardItemLighting()*/
+    glEnable(GL_TEXTURE_2D)*/
     glPopMatrix()
+    RenderHelper.enableStandardItemLighting()
   }
 }
 

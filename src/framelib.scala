@@ -188,7 +188,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       case te: TileEntityMovingStrip => te
       case te => 
         log.severe(s"Tried to cycle invalid TE: $te, $pos, ${EffectiveSide(world)}, id: ${world.getBlockId(pos.x, pos.y, pos.z)}")
-        Thread.dumpStack()
+        //Thread.dumpStack()
     }
     world.removeBlockTileEntity(pos.x, pos.y, pos.z)
     uncheckedSetBlock(world, pos.x, pos.y, pos.z, 0, 0)
