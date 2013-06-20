@@ -186,7 +186,9 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
     val c = pos - dirTo * size
     world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
       case te: TileEntityMovingStrip => te
-      case te => log.severe(s"Tried to cycle invalid TE: $te, $pos, ${EffectiveSide(world)}, id: ${world.getBlockId(pos.x, pos.y, pos.z)}")
+      case te => 
+        log.severe(s"Tried to cycle invalid TE: $te, $pos, ${EffectiveSide(world)}, id: ${world.getBlockId(pos.x, pos.y, pos.z)}")
+        Thread.dumpStack()
     }
     world.removeBlockTileEntity(pos.x, pos.y, pos.z)
     uncheckedSetBlock(world, pos.x, pos.y, pos.z, 0, 0)
@@ -219,15 +221,16 @@ trait StripHolder extends TileEntity {
   private[this] var strips = HashSet.empty[StripData]
   var counter = 0
   var shouldUpdate = true
-  val renderOffset = new BlockData(0, 0, 0)
+  val renderOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
   def dirTo: ForgeDirection
   def +=(s: StripData) {
     //log.info(s"+=strip: $s, client: ${worldObj.isClient}")
     strips += s
+    renderOffset.dirTo = dirTo
     for(i <- 1 to s.size; c = s.pos - s.dirTo * i) {
       MovingRegistry.addMoving(worldObj, c, renderOffset)
     }
-    worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
+    //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
   }
   def blocks() = { val d = dirTo; for(s <- strips; i <- 1 to s.size) yield s.pos - d * i }
   def allBlocks() = { val d = dirTo; for(s <- strips; i <- 0 to s.size) yield s.pos - d * i }
@@ -258,6 +261,7 @@ trait StripHolder extends TileEntity {
     renderOffset.x = 0
     renderOffset.y = 0
     renderOffset.z = 0
+    renderOffset.dirTo = ForgeDirection.UNKNOWN
     counter = 0
     shouldUpdate = true
   }
@@ -396,6 +400,7 @@ trait StripHolder extends TileEntity {
     val cmp1 = new NBTTagCompound
     renderOffset.writeToNBT(cmp1)
     cmp.setTag("renderOffset", cmp1)
+    //log.info(s"StripHolder writeToNBT, pos: ${WorldPos(this)}, counter: $counter, side:" + FMLCommonHandler.instance.getEffectiveSide)
   }
 }
 

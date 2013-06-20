@@ -105,18 +105,20 @@ object utils {
     glPopMatrix()
   }
 
-  class BlockData(var x: Float, var y: Float, var z: Float) {
+  class BlockData(var x: Float, var y: Float, var z: Float, var dirTo: ForgeDirection) {
     def writeToNBT(cmp: NBTTagCompound) {
       cmp.setFloat("x", x)
       cmp.setFloat("y", y)
       cmp.setFloat("z", z)
+      cmp.setInteger("dirTo", dirTo.ordinal)
     }
     def readFromNBT(cmp: NBTTagCompound) {
       x = cmp.getFloat("x")
       y = cmp.getFloat("y")
       z = cmp.getFloat("z")
+      dirTo = ForgeDirection.values()(cmp.getInteger("dirTo"))
     }
-    override def toString = s"BlockData($x,$y,$z)"
+    override def toString = s"BlockData($x,$y,$z:$dirTo)"
   }
 
   object EffectiveSide {

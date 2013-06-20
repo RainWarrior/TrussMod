@@ -55,7 +55,7 @@ object HelperRenderer {
   //val eps = 1F / 0x10000
   //var x1, x2, y1, y2, z1, z2 = 0F;
 
-  def render(c: WorldPos, d: BlockData) {
+  def render(c: WorldPos, d: BlockData, tick: Float) {
     if(oldWorld != world) {
       oldWorld = world
       renderBlocks = new MovingRenderBlocks(new MovingWorldProxy(world))
@@ -81,9 +81,9 @@ object HelperRenderer {
 
     tes.startDrawingQuads()
     tes.setTranslation(
-      -TileEntityRenderer.staticPlayerX + d.x,
-      -TileEntityRenderer.staticPlayerY + d.y,
-      -TileEntityRenderer.staticPlayerZ + d.z)
+      -TileEntityRenderer.staticPlayerX + d.x + d.dirTo.x * tick / 16F,
+      -TileEntityRenderer.staticPlayerY + d.y + d.dirTo.y * tick / 16F,
+      -TileEntityRenderer.staticPlayerZ + d.z + d.dirTo.z * tick / 16F)
     tes.setColorOpaque(1, 1, 1)
 
     //x1 = block.getBlockBoundsMinX.toFloat
@@ -116,7 +116,7 @@ object MovingRegistry {
   case class Key(world: World, pos: WorldPos)
   final val eps = 1.0 / 0x10000
   var moving = Map.empty[Key, BlockData]
-  val debugOffset = new BlockData(0, 0, 0)
+  val debugOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
   var isRendering = false
   var partialTickTime: Float = 0
   var check = true
@@ -129,9 +129,6 @@ object MovingRegistry {
   def getData(world: World, c: WorldPos): BlockData = {
     moving(Key(world, c))
   }
-  def xOffset(world: World, x: Int, y: Int, z: Int): Float = getData(world, WorldPos(x, y, z)).x
-  def yOffset(world: World, x: Int, y: Int, z: Int): Float = getData(world, WorldPos(x, y, z)).y
-  def zOffset(world: World, x: Int, y: Int, z: Int): Float = getData(world, WorldPos(x, y, z)).z
 
   def onPreRenderTick(time: Float) {
     isRendering = true
@@ -145,7 +142,7 @@ object MovingRegistry {
     //mc.gameSettings.showDebugInfo = false
     debugOffset.y = Math.sin(System.nanoTime / 0x4000000).toFloat / 2 + .5F
     for((Key(world, coords), data) <- moving; if(world.isClient)) {
-      HelperRenderer.render(coords, data)
+      HelperRenderer.render(coords, data, partialTickTime)
     }
   }
   def addMoving(world: World, pos: WorldPos, offset: BlockData) {
@@ -189,22 +186,28 @@ object MovingTileEntityRenderer extends TileEntityRenderer {
     tesr.setTileEntityRenderer(this)
   }
   TileEntityRenderer.instance = this
-  override def renderTileEntity(te: TileEntity, parTick: Float) {
+  override def renderTileEntity(te: TileEntity, tick: Float) {
     if (te.getDistanceFrom(this.playerX, this.playerY, this.playerZ) < te.getMaxRenderDistanceSquared()) {
-        val i = this.worldObj.getLightBrightnessForSkyBlocks(te.xCoord, te.yCoord, te.zCoord, 0)
-        val j = i % 0x10000
-        val k = i / 0x10000
-        OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, j / 1.0F, k / 1.0F)
-        glColor4f(1.0F, 1.0F, 1.0F, 1.0F)
-        if(MovingRegistry.isMoving(te.worldObj, te.xCoord, te.yCoord, te.zCoord)) {
-          this.renderTileEntityAt(
-            te,
-            te.xCoord.toDouble - staticPlayerX + MovingRegistry.xOffset(te.worldObj, te.xCoord, te.yCoord, te.zCoord),
-            te.yCoord.toDouble - staticPlayerY + MovingRegistry.yOffset(te.worldObj, te.xCoord, te.yCoord, te.zCoord),
-            te.zCoord.toDouble - staticPlayerZ + MovingRegistry.zOffset(te.worldObj, te.xCoord, te.yCoord, te.zCoord),
-            parTick)
+      val i = this.worldObj.getLightBrightnessForSkyBlocks(te.xCoord, te.yCoord, te.zCoord, 0)
+      val j = i % 0x10000
+      val k = i / 0x10000
+      OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, j / 1.0F, k / 1.0F)
+      glColor4f(1.0F, 1.0F, 1.0F, 1.0F)
+      if(MovingRegistry.isMoving(te.worldObj, te.xCoord, te.yCoord, te.zCoord)) {
+        val o = MovingRegistry.getData(te.worldObj, (te.xCoord, te.yCoord, te.zCoord))
+        this.renderTileEntityAt(
+          te,
+          te.xCoord.toDouble - staticPlayerX + o.x + o.dirTo.x * tick / 16F,
+          te.yCoord.toDouble - staticPlayerY + o.y + o.dirTo.y * tick / 16F,
+          te.zCoord.toDouble - staticPlayerZ + o.z + o.dirTo.z * tick / 16F,
+          tick)
       } else {
-        this.renderTileEntityAt(te, te.xCoord.toDouble - staticPlayerX, te.yCoord.toDouble - staticPlayerY, te.zCoord.toDouble - staticPlayerZ, parTick)
+        this.renderTileEntityAt(
+          te,
+          te.xCoord.toDouble - staticPlayerX,
+          te.yCoord.toDouble - staticPlayerY,
+          te.zCoord.toDouble - staticPlayerZ,
+          tick)
       }
     }
   }
