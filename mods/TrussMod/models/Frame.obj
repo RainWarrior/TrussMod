@@ -27,7 +27,7 @@
 # Blender v2.63 (sub 0) OBJ File: 'Frame2.blend'
 # www.blender.org
 mtllib Frame2.mtl
-o Cube
+o Frame
 v 0.500000 -0.500000 0.000000
 v 0.000000 -0.500000 -0.500000
 v 0.500000 -0.000000 -0.500000

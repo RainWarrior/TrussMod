@@ -29,6 +29,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
+import annotation.tailrec
 import collection.immutable.Queue
 import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet }
 import net.minecraft._,
@@ -238,6 +239,7 @@ class TileEntityMotor extends StripHolder {
       }
       //log.info(s"rotated2, m: $getBlockMetadata, o: $orientation")
     }
+    worldObj.markBlockForRenderUpdate(xCoord, yCoord, zCoord)
   }
 
   def dirTo = ForgeDirection.values()(moveDir(orientation)(getBlockMetadata))
@@ -305,7 +307,7 @@ class TileEntityMotor extends StripHolder {
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord) 
   }
-  def bfs(
+  @tailrec private def bfs(
       greyBlocks: Seq[WorldPos], // fames to visit
       blackBlocks: Set[WorldPos] = Set.empty): Set[WorldPos] = { // all blocks to move
     greyBlocks match {
@@ -410,11 +412,12 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     val angle = if(te.counter == 0) 0
       else (te.counter - 1 + partialTick) * astep
 
-    tes.startDrawingQuads()
+    /*tes.startDrawingQuads()
     tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
     tes.setColorOpaque_F(1, 1, 1)
-    model.renderMotor()
-    tes.draw()
+    model.render("Motor", "Base")
+    model.render("Motor", "Frame")
+    tes.draw()*/
 
     glTranslatef(0, 3F/14F, 0)
     if(angle != 0) {
@@ -423,7 +426,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     tes.startDrawingQuads()
     tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
     tes.setColorOpaque_F(1, 1, 1)
-    model.renderGear()
+    model.render("Motor", "Gear", block.getIcon(1, 0))
     tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
@@ -431,6 +434,8 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
 }
 
 object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
+  model.loadModel("Motor")
+
   override def renderInventoryBlock(
       block: Block,
       metadata: Int,
@@ -440,16 +445,18 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
     RenderHelper.disableStandardItemLighting()
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
-    model.renderMotor()
+    model.render("Motor", "Base", block.getIcon(0, 0))
+    model.render("Motor", "Frame", block.getIcon(2, 0))
     tes.draw()
     glTranslatef(0, 3F/14F, 0)
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
-    model.renderGear()
+    model.render("Motor", "Gear", block.getIcon(1, 0))
     tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
   }
+
   override def renderWorldBlock(
       world: IBlockAccess,
       x: Int,
@@ -458,11 +465,12 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
       block: Block,
       modelId: Int,
       rb: RenderBlocks) = {
-    /*tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(world, x, y, z))
+    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(world, x, y, z))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.renderMotor()
-    tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)*/
+    model.render("Motor", "Base", block.getIcon(0, 0))
+    model.render("Motor", "Frame", block.getIcon(2, 0))
+    tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
     false
   }
   override val shouldRender3DInInventory = true

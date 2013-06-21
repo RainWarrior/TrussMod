@@ -32,45 +32,28 @@ package rainwarrior.trussmod
 import collection.JavaConversions._
 import net.minecraftforge.client.model.{ AdvancedModelLoader, obj }
 import net.minecraft.client.renderer.Tessellator.{ instance => tes }
+import net.minecraft.util.Icon
 import TrussMod._
 
-object model { // TODO: refactor
-  val frameModel = AdvancedModelLoader.loadModel(s"/mods/$modId/models/Frame.obj").asInstanceOf[obj.WavefrontObject]
-  val motorModel = AdvancedModelLoader.loadModel(s"/mods/$modId/models/Motor.obj").asInstanceOf[obj.WavefrontObject]
-  val frame: Seq[obj.Face] = frameModel.groupObjects.get(0).faces
-  val motor: Seq[Seq[obj.Face]] = for(i <- Seq(0, 2))
-    yield motorModel.groupObjects.get(i).faces.toSeq
-  val gear: Seq[obj.Face] =  motorModel.groupObjects.get(1).faces
+object model {
+  var models = Map.empty[String, obj.WavefrontObject]
 
-  @inline def shift(x: Double): Double = (x - .5) * (1D - 1D/65536D) + .5
-
-  def renderFrame() {
-    val icon = CommonProxy.blockFrame.getIcon(0, 0)
-    for(f <- frame; (v, t) <- f.vertices zip f.textureCoordinates) {
-      tes.addVertexWithUV(v.x, v.y, v.z, 
-        icon.getInterpolatedU(t.u * 16),
-        icon.getInterpolatedV(t.v * 16))
-    }
+  def loadModel(name: String) {
+    val model = AdvancedModelLoader.loadModel(s"/mods/$modId/models/$name.obj").asInstanceOf[obj.WavefrontObject]
+    val partNames = for(p <- model.groupObjects) yield p.name
+    log.info(s"Loaded model $model with parts ${partNames.mkString}")
+    models += name -> model
   }
 
-  def renderMotor() {
-    val icons = for(i <- Seq(0, 2))
-      yield CommonProxy.blockMotor.iconArray(i)
-    for {
-      (m, i) <- motor zip icons
-      f <- m
-      (v, t) <- f.vertices zip f.textureCoordinates
-    } {
-      tes.addVertexWithUV(v.x, v.y, v.z, 
-        i.getInterpolatedU(t.u * 16),
-        i.getInterpolatedV(t.v * 16))
-    }
-  }
+  def render(modelName: String, partName: String, icon: Icon) {
+    val model = models(modelName)
+    val part = (for {
+      part <- model.groupObjects
+      if part.name == partName
+    } yield part).head
 
-  def renderGear() {
-    val icon = CommonProxy.blockMotor.iconArray(1)
-    for(f <- gear; (v, t) <- f.vertices zip f.textureCoordinates) {
-      tes.addVertexWithUV(v.x, v.y, v.z, 
+    for(f <- part.faces; (v, t) <- f.vertices zip f.textureCoordinates) {
+      tes.addVertexWithUV(v.x, v.y, v.z,
         icon.getInterpolatedU(t.u * 16),
         icon.getInterpolatedV(t.v * 16))
     }
