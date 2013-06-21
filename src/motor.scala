@@ -465,13 +465,19 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
       block: Block,
       modelId: Int,
       rb: RenderBlocks) = {
-    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(world, x, y, z))
-    tes.setColorOpaque_F(1, 1, 1)
-    tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.render("Motor", "Base", block.getIcon(0, 0))
-    model.render("Motor", "Frame", block.getIcon(2, 0))
-    tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
-    false
+    world.getBlockTileEntity(x, y, z) match {
+      case te: TileEntityMotor =>
+        val meta = te.getBlockMetadata
+        val or = te.orientation
+        tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
+        tes.setColorOpaque_F(1, 1, 1)
+        tes.addTranslation(x + .5F, y + .5F, z + .5F)
+        model.renderTransformed("Motor", "Base", block.getIcon(0, 0), rotator2(meta, or))
+        model.renderTransformed("Motor", "Frame", block.getIcon(2, 0), rotator2(meta, or))
+        tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
+        true
+      case _ => false
+    }
   }
   override val shouldRender3DInInventory = true
   override lazy val getRenderId = RenderingRegistry.getNextAvailableRenderId()

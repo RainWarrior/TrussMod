@@ -38,6 +38,7 @@ import net.minecraft._,
   world.{ ChunkPosition, chunk, World },
   chunk.storage.ExtendedBlockStorage
 import net.minecraftforge.common.ForgeDirection
+import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
 object utils {
@@ -162,13 +163,6 @@ object utils {
 
   object WorldPos {
   
-    import ForgeDirection._
-    val downStep  = DOWN
-    val upStep    = UP
-    val northStep = NORTH
-    val southStep = SOUTH
-    val westStep  = WEST
-    val eastStep  = EAST
     def apply(te: TileEntity): WorldPos = apply(te.xCoord, te.yCoord, te.zCoord)
     def apply(tup: Product3[Int, Int, Int]): WorldPos = apply(tup._1, tup._2, tup._3)
     def apply(dir: ForgeDirection): WorldPos = apply(dir.offsetX, dir.offsetY, dir.offsetZ)
@@ -184,7 +178,6 @@ object utils {
   }
   
   case class WorldPos(_1: Int, _2: Int, _3: Int) extends Product3[Int, Int, Int] {
-    import ForgeDirection._
 
     @inline def x = _1
     @inline def y = _2
@@ -271,4 +264,26 @@ object utils {
       }
     }
   }*/
+
+  @inline def rotator(meta: Int)(x: Float, y: Float, z: Float) = ForgeDirection.values()(meta) match {
+    case DOWN  => ( x, -y, -z)
+    case UP    => ( x,  y,  z)
+    case NORTH => ( x,  z, -y)
+    case SOUTH => ( x, -z,  y)
+    case WEST  => (-y,  x,  z)
+    case EAST  => ( y, -x,  z)
+    case _ => throw new RuntimeException("rotate to UNKNOWN direction")
+  }
+
+  @inline def rotHelper(or: Int)(x: Float, y: Float, z: Float) = (or & 3) match {
+    case 0 => ( x,  y,  z)
+    case 1 => ( z,  y, -x)
+    case 2 => (-x,  y, -z)
+    case 3 => (-z,  y,  x)
+  }
+
+  @inline def rotator2(meta: Int, or: Int)(x: Float, y: Float, z: Float) = {
+    val (nx, ny, nz) = rotHelper(or)(x, y, z)
+    rotator(meta)(nx, ny, nz)
+  }
 }

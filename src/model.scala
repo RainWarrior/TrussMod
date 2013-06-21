@@ -58,4 +58,26 @@ object model {
         icon.getInterpolatedV(t.v * 16))
     }
   }
+
+  def renderTransformed(
+      modelName: String,
+      partName: String,
+      icon: Icon,
+      rotator: (Float, Float, Float) => (Float, Float, Float)) {
+    val model = models(modelName)
+    val part = (for {
+      part <- model.groupObjects
+      if part.name == partName
+    } yield part).head
+
+    for {
+      f <- part.faces
+      (v, t) <- f.vertices zip f.textureCoordinates
+      (x, y, z) = rotator(v.x, v.y, v.z)
+    } {
+      tes.addVertexWithUV(x, y, z,
+        icon.getInterpolatedU(t.u * 16),
+        icon.getInterpolatedV(t.v * 16))
+    }
+  }
 }
