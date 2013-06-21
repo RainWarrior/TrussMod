@@ -502,7 +502,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     RenderHelper.disableStandardItemLighting()
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
-    model.render()
+    model.renderFrame()
     tes.draw()
     RenderHelper.enableStandardItemLighting()
   }
@@ -519,7 +519,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     tes.setBrightness(CommonProxy.blockFrame.getMixedBrightnessForBlock(world, x, y, z))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.render()
+    model.renderFrame()
     tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
     true
   }

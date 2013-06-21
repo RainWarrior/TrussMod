@@ -50,6 +50,7 @@ import net.minecraft.util.Icon
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side}
 import cpw.mods.fml.common.FMLCommonHandler
+import cpw.mods.fml.client.registry.{ RenderingRegistry, ISimpleBlockRenderingHandler }
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
@@ -82,8 +83,7 @@ trait BlockMotor extends BlockContainer {
       Char.box('f'), frame)
   }
 
-  val iconNames = Array(List("Bottom", "Top", "Front", "Back", "Left", "Right").map(s"$modId:Motor_" + _): _*)
-  val iconMap = Array(0, 1, 2, 3, 4, 5)
+  val iconNames = Array(List("Base", "Gear", "Frame").map(s"$modId:Motor" + _): _*)
 
   var iconArray: Array[Icon] = null
 
@@ -97,14 +97,14 @@ trait BlockMotor extends BlockContainer {
     side.ordinal != world.getBlockMetadata(x, y, z)
   }
   override def renderAsNormalBlock = false
-  override def getRenderType = -1
+  override def getRenderType = BlockMotorRenderer.getRenderId
 
   def rotate(vec: Int, dir: Int, count: Int): Int = count match {
     case 0 => vec
     case _ => rotate(ForgeDirection.ROTATION_MATRIX(dir)(vec), dir, count - 1)
   }
 
-  @SideOnly(Side.CLIENT)
+  /*@SideOnly(Side.CLIENT)
   override def getBlockTexture(world: IBlockAccess, x: Int, y: Int, z: Int, side: Int) = {
     world.getBlockTileEntity(x, y, z) match {
       case te: TileEntityMotor =>
@@ -117,9 +117,9 @@ trait BlockMotor extends BlockContainer {
         iconArray(iconMap(side))
       case _ => iconArray(0)
     }
-  }
+  }*/
   override def getIcon(side: Int, metadata: Int) = {
-    iconArray(side)
+    iconArray(side % 3)
   }
 
   override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
@@ -406,70 +406,65 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       case 4 => glRotatef(90, 0, 0, 1)
       case 5 => glRotatef(90, 0, 0, -1)
     }
-    //glTranslatef(-.5F, -.5F, -.5F)
-    //glTranslatef(-pos.x, -pos.y, -pos.z)
-    //tes.startDrawingQuads()
-    rb.renderAllFaces = true
-/*    tile.getBlockMetadata match {
-      case 0 => rb.uvRotateBottom = or;     rb.uvRotateTop   = or
-      case 1 => rb.uvRotateBottom = 3 - or; rb.uvRotateTop   = 3 - or
-      case 2 => rb.uvRotateWest   = or;     rb.uvRotateEast  = or
-      case 3 => rb.uvRotateWest   = 3 - or; rb.uvRotateEast  = 3 - or
-      case 4 => rb.uvRotateNorth  = or;     rb.uvRotateSouth = or
-      case 5 => rb.uvRotateNorth  = 3 - or; rb.uvRotateSouth = 3 - or
-    }*/
-    rb.setRenderBoundsFromBlock(block)
-    rb.renderBlockSandFalling(block, tile.worldObj, pos.x, pos.y, pos.z, meta)
-/*    tile.getBlockMetadata match {
-      case 0 => rb.uvRotateBottom = 0; rb.uvRotateTop   = 0
-      case 1 => rb.uvRotateBottom = 0; rb.uvRotateTop   = 0
-      case 2 => rb.uvRotateWest   = 0; rb.uvRotateEast  = 0
-      case 3 => rb.uvRotateWest   = 0; rb.uvRotateEast  = 0
-      case 4 => rb.uvRotateNorth  = 0; rb.uvRotateSouth = 0
-      case 5 => rb.uvRotateNorth  = 0; rb.uvRotateSouth = 0
-    }*/
-    //tes.draw()
-    //glTranslatef(pos.x, pos.y, pos.z)
-    //RenderHelper.enableStandardItemLighting()
-    /*glScaled(-1D/16D, -1D/16D, -1D/16D)
-    glTranslatef(-15, -14, 0)
-    RenderHelper.disableStandardItemLighting()
-    glTranslatef(7, 6, -8)
-    glDisable(GL_TEXTURE_2D)
+    val astep = 360F / 64F
+    val angle = if(te.counter == 0) 0
+      else (te.counter - 1 + partialTick) * astep
 
     tes.startDrawingQuads()
-    tes.setTranslation(0, 0, 0)
-    tes.setColorRGBA(0xB4, 0x8E, 0x4F, 0xFF)
-    val w1 = 6
-    val w2 = 3
-
-    addSquareZ(-7, 8, 8, 6, 8)
-    addSquareZ(7, 8, 6, -8, 8)
-    addSquareZ(-8, 7, -6, -8, 8)
-    addSquareZ(-8, -7, 8, -6, 8)
-
-    addSquareZ(-w1, 8, w1, 8, w2)
-    addSquareZ(w1, 8, -8, w1, w2)
-    addSquareZ(-8, w1, -8, -w1, w2)
-    addSquareZ(-8, -w1, -w1, 8, w2)
-
-    addSquareZ(-w1, w1, -w1, w1, -8)
-
-    addSquareX(-8, -8, 8, w2, 8)
-    addSquareX(8, 8, -8, w2, 8)
-    addSquareY(-8, 8, -8, w2, 8)
-    addSquareY(8, -8, 8, w2, 8)
-
-    addSquareX(-w1, -w1, w1, -8, w2)
-    addSquareX(w1, w1, -w1, -8, w2)
-    addSquareY(-w1, w1, -w1, -8, w2)
-    addSquareY(w1, -w1, w1, -8, w2)
-
+    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
+    tes.setColorOpaque_F(1, 1, 1)
+    model.renderMotor()
     tes.draw()
 
-    glEnable(GL_TEXTURE_2D)*/
+    glTranslatef(0, 3F/14F, 0)
+    if(angle != 0) {
+      glRotatef(angle, -1, 0, 0)
+    }
+    tes.startDrawingQuads()
+    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
+    tes.setColorOpaque_F(1, 1, 1)
+    model.renderGear()
+    tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
   }
 }
 
+object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
+  override def renderInventoryBlock(
+      block: Block,
+      metadata: Int,
+      modelId: Int,
+      rb: RenderBlocks) {
+    glPushMatrix()
+    RenderHelper.disableStandardItemLighting()
+    tes.startDrawingQuads()
+    tes.setColorOpaque_F(1, 1, 1)
+    model.renderMotor()
+    tes.draw()
+    glTranslatef(0, 3F/14F, 0)
+    tes.startDrawingQuads()
+    tes.setColorOpaque_F(1, 1, 1)
+    model.renderGear()
+    tes.draw()
+    glPopMatrix()
+    RenderHelper.enableStandardItemLighting()
+  }
+  override def renderWorldBlock(
+      world: IBlockAccess,
+      x: Int,
+      y: Int,
+      z: Int,
+      block: Block,
+      modelId: Int,
+      rb: RenderBlocks) = {
+    /*tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(world, x, y, z))
+    tes.setColorOpaque_F(1, 1, 1)
+    tes.addTranslation(x + .5F, y + .5F, z + .5F)
+    model.renderMotor()
+    tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)*/
+    false
+  }
+  override val shouldRender3DInInventory = true
+  override lazy val getRenderId = RenderingRegistry.getNextAvailableRenderId()
+}

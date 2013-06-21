@@ -105,6 +105,7 @@ object ClientProxy extends LoadLater {
   import cpw.mods.fml.client.registry._
   rainwarrior.hooks.MovingTileEntityRenderer
   ClientRegistry.bindTileEntitySpecialRenderer(classOf[TileEntityMotor], TileEntityMotorRenderer)
+  RenderingRegistry.registerBlockHandler(BlockMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockFrameRenderer)
   net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(MovingRegistry)
 }
