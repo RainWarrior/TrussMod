@@ -49,7 +49,11 @@ import rainwarrior.utils._
 
 object HelperRenderer {
   import org.lwjgl.opengl.GL11._
-  def world = mc.theWorld
+  var partialTickTime: Float = 0
+  var isRendering = false
+  var check = true
+
+  def world: World = mc.theWorld
   var oldWorld: World = null
   var renderBlocks: RenderBlocks = null // mc.renderGlobal.globalRenderBlocks
   //val eps = 1F / 0x10000
@@ -67,7 +71,7 @@ object HelperRenderer {
 
     val engine = TileEntityRenderer.instance.renderEngine
     if(engine != null) engine.bindTexture("/terrain.png")
-    mc.entityRenderer.enableLightmap(MovingRegistry.partialTickTime)
+    mc.entityRenderer.enableLightmap(partialTickTime)
     val light = world.getLightBrightnessForSkyBlocks(c.x, c.y, c.z, 0)
     val l1 = light % 65536
     val l2 = light / 65536
@@ -96,9 +100,9 @@ object HelperRenderer {
     //renderBlocks.overrideBlockBounds(x1 + eps, y1 + eps, z1 + eps, x2 - eps, y2 - eps, z2 - eps)
     val oldOcclusion = mc.gameSettings.ambientOcclusion
     mc.gameSettings.ambientOcclusion = 0
-    MovingRegistry.check = false
+    check = false
     renderBlocks.renderBlockByRenderType(block, c.x, c.y, c.z)
-    MovingRegistry.check = true
+    check = true
     mc.gameSettings.ambientOcclusion = oldOcclusion
 
     //renderBlocks.unlockBlockBounds()
@@ -108,7 +112,26 @@ object HelperRenderer {
     tes.draw()
 
     //RenderHelper.enableStandardItemLighting()
-    mc.entityRenderer.disableLightmap(MovingRegistry.partialTickTime)
+    mc.entityRenderer.disableLightmap(partialTickTime)
+  }
+  @ForgeSubscribe
+  def onRenderWorld(e: RenderWorldLastEvent) {
+    //mc.gameSettings.showDebugInfo = false
+    //MovingRegistry.debugOffset.y = Math.sin(System.nanoTime / 0x4000000).toFloat / 2 + .5F
+    for((MovingRegistry.Key(world, coords), data) <- MovingRegistry.moving; if(world.isClient)) {
+      render(coords, data, partialTickTime)
+    }
+  }
+  def onPreRenderTick(time: Float) {
+    isRendering = true
+    partialTickTime = time
+  }
+  def onPostRenderTick() {
+    isRendering = false
+  }
+  def getRenderType(block: Block, x: Int, y: Int, z: Int): Int = {
+    if(check && MovingRegistry.isMoving(mc.theWorld, x, y, z)) -1
+    else block.getRenderType
   }
 }
 
@@ -117,34 +140,12 @@ object MovingRegistry {
   final val eps = 1.0 / 0x10000
   var moving = Map.empty[Key, BlockData]
   val debugOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
-  var isRendering = false
-  var partialTickTime: Float = 0
-  var check = true
 
-  def getRenderType(block: Block, x: Int, y: Int, z: Int) = {
-    if(check && isMoving(mc.theWorld, x, y, z)) -1
-    else block.getRenderType
-  }
   def isMoving(world: World, x: Int, y: Int, z: Int): Boolean = moving isDefinedAt Key(world, (x, y, z))
   def getData(world: World, c: WorldPos): BlockData = {
     moving(Key(world, c))
   }
 
-  def onPreRenderTick(time: Float) {
-    isRendering = true
-    partialTickTime = time
-  }
-  def onPostRenderTick() {
-    isRendering = false
-  }
-  @ForgeSubscribe
-  def onRenderWorld(e: RenderWorldLastEvent) {
-    //mc.gameSettings.showDebugInfo = false
-    debugOffset.y = Math.sin(System.nanoTime / 0x4000000).toFloat / 2 + .5F
-    for((Key(world, coords), data) <- moving; if(world.isClient)) {
-      HelperRenderer.render(coords, data, partialTickTime)
-    }
-  }
   def addMoving(world: World, pos: WorldPos, offset: BlockData) {
     moving += ((Key(world, pos), offset))
     val (x, y, z) = pos.toTuple
@@ -168,10 +169,10 @@ object RenderTickHandler extends ITickHandler {
   override def ticks = EnumSet.of(TickType.RENDER)
   override def getLabel = "MovingRegistry Render Handler"
   override def tickStart(tp: EnumSet[TickType], tickData: AnyRef*) {
-    if(tp contains TickType.RENDER) MovingRegistry.onPreRenderTick(tickData(0).asInstanceOf[Float])
+    if(tp contains TickType.RENDER) HelperRenderer.onPreRenderTick(tickData(0).asInstanceOf[Float])
   }
   override def tickEnd(tp: EnumSet[TickType], tickData: AnyRef*) {
-    if(tp contains TickType.RENDER) MovingRegistry.onPostRenderTick()
+    if(tp contains TickType.RENDER) HelperRenderer.onPostRenderTick()
   }
 }
 

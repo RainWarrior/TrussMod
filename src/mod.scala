@@ -36,7 +36,7 @@ import common.{ Mod, event, Loader, network, FMLCommonHandler, SidedProxy }
 import relauncher.{ FMLRelaunchLog, Side }
 import network.NetworkMod
 import net.minecraftforge.common.Configuration
-import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
+import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry, HelperRenderer }
 import TrussMod._
 
 trait LoadLater extends DelayedInit {
@@ -96,17 +96,17 @@ object CommonProxy extends LoadLater {
 
   config.save()
 
-  TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
-  
   MovingTileRegistry
 }
 object ClientProxy extends LoadLater {
+  import cpw.mods.fml.common.registry._
   import cpw.mods.fml.client.registry._
   rainwarrior.hooks.MovingTileEntityRenderer
+  TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
   ClientRegistry.bindTileEntitySpecialRenderer(classOf[TileEntityMotor], TileEntityMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockFrameRenderer)
-  net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(MovingRegistry)
+  net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(HelperRenderer)
   model
 }
 

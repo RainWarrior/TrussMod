@@ -96,7 +96,7 @@ class Transformer extends IClassTransformer {
     list.add(new VarInsnNode(ILOAD, 4))
     list.add(new MethodInsnNode(
       INVOKESTATIC,
-      "rainwarrior/hooks/MovingRegistry",
+      "rainwarrior/hooks/HelperRenderer",
       "getRenderType",
       "(Lnet/minecraft/block/Block;III)I"))
     m.instructions.insert(old, list)
