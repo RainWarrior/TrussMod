@@ -97,7 +97,6 @@ object CommonProxy extends LoadLater {
   config.save()
 
   TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
-  model
   
   MovingTileRegistry
 }
@@ -108,6 +107,7 @@ object ClientProxy extends LoadLater {
   RenderingRegistry.registerBlockHandler(BlockMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockFrameRenderer)
   net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(MovingRegistry)
+  model
 }
 
 sealed class CommonProxy
