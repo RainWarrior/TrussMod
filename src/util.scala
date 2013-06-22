@@ -30,6 +30,7 @@ of this Program grant you additional permission to convey the resulting work.
 package rainwarrior
 
 import language.implicitConversions
+import scala.collection.mutable.ListBuffer
 import net.minecraft._,
   block.Block,
   client.renderer.RenderBlocks,
@@ -42,6 +43,29 @@ import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
 object utils {
+  trait LoadLater extends DelayedInit {
+    var stuff = new ListBuffer[() => Unit]
+    var fired = false
+  
+    def delayedInit(code: => Unit) {
+      println(f"onInit: ${getClass.getName}")
+      //Thread.dumpStack
+      if(!fired) {
+        stuff += (() => code)
+      } else {
+        code
+      }
+    }
+  
+    def init() {
+      println(f"doInit: ${getClass.getName}")
+      fired = true
+      stuff.toList.foreach(_())
+    }
+  }
+
+  val eps = 1F/4096F
+  
   val moveDir = Array(
     Array(3, 2, 0, 1, 2, 2),
     Array(4, 4, 4, 4, 0, 1),

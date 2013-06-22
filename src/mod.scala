@@ -37,28 +37,8 @@ import relauncher.{ FMLRelaunchLog, Side }
 import network.NetworkMod
 import net.minecraftforge.common.Configuration
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry, HelperRenderer }
+import rainwarrior.utils._
 import TrussMod._
-
-trait LoadLater extends DelayedInit {
-  var stuff = new ListBuffer[() => Unit]
-  var fired = false
-
-  def delayedInit(code: => Unit) {
-    println(f"onInit: ${getClass.getName}")
-    //Thread.dumpStack
-    if(!fired) {
-      stuff += (() => code)
-    } else {
-      code
-    }
-  }
-
-  def init() {
-    println(f"doInit: ${getClass.getName}")
-    fired = true
-    stuff.toList.foreach(_())
-  }
-}
 
 object CommonProxy extends LoadLater {
   import net.minecraft.{ block, item },
@@ -67,6 +47,21 @@ object CommonProxy extends LoadLater {
     item.Item,
     material.Material
   import cpw.mods.fml.common.registry._
+
+  val hasImmibis = try {
+    Class.forName("mods.immibis.core.api.multipart.util.BlockMultipartBase")
+    Class.forName("mods.immibis.microblocks.api.util.TileCoverableBase")
+    log.info("Found immibis")
+    true
+  } catch {
+    case e: ClassNotFoundException =>
+      false
+  }
+
+  val frameProxy = hasImmibis match {
+    case true => Class.forName("rainwarrior.trussmod.ImmibisProxy").newInstance.asInstanceOf[FrameProxy]
+    case false => new FrameProxy
+  }
 
   config.load()
   
@@ -77,10 +72,7 @@ object CommonProxy extends LoadLater {
   debugItem
 
   val blockFrameId = config.getBlock("frame", 501).getInt()
-  object blockFrame
-    extends Block(blockFrameId, Material.ground)
-    with BlockFrame
-  blockFrame
+  val blockFrame = frameProxy.init()
 
   val blockMotorId = config.getBlock("motor", 502).getInt()
   object blockMotor

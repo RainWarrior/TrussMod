@@ -312,10 +312,11 @@ class TileEntityMotor extends StripHolder {
       blackBlocks: Set[WorldPos] = Set.empty): Set[WorldPos] = { // all blocks to move
     greyBlocks match {
       case Seq() => blackBlocks
-      case Seq(next, rest@ _*) => worldObj.getBlockId(next.x, next.y, next.z) match {
-        case CommonProxy.blockFrameId =>
+      case Seq(next, rest@ _*) => Block.blocksList(worldObj.getBlockId(next.x, next.y, next.z)) match {
+        case block: Frame =>
           val toCheck = for {
             dir <- ForgeDirection.VALID_DIRECTIONS.toList
+            if block.isSideSticky(worldObj, next.x, next.y, next.z, dir)
             c = next + dir
             if !(c == WorldPos(this))
             if !blackBlocks(c)

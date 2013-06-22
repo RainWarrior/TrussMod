@@ -35,7 +35,7 @@ javaOptions in run ++= Seq(
   "-Djava.library.path=../jars/bin/natives",
   "-Dfml.coreMods.load="
   + "rainwarrior.hooks.Plugin,"
-  //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
+  + "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
   + "codechicken.core.asm.CodeChickenCorePlugin,"
   + "codechicken.nei.asm.NEICorePlugin")
 

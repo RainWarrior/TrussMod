@@ -422,4 +422,3 @@ abstract class StripHolder extends TileEntity {
     //log.info(s"StripHolder writeToNBT, pos: ${WorldPos(this)}, counter: $counter, side:" + FMLCommonHandler.instance.getEffectiveSide)
   }
 }
-

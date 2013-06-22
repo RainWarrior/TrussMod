@@ -48,7 +48,7 @@ import net.minecraft._,
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
-  util.AxisAlignedBB,
+  util.{ AxisAlignedBB, MovingObjectPosition },
   world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
@@ -65,28 +65,29 @@ import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
-trait Frame extends Block {
-  def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = true
-}
+import mods.immibis.core.api.multipart.util.BlockMultipartBase
+import mods.immibis.microblocks.api.util.TileCoverableBase
+import mods.immibis.microblocks.api.{ EnumPosition, EnumPositionClass, IMicroblockCoverSystem, PartType }
 
-class FrameProxy {
-  def init(): Block with Frame = {
-    object blockFrame
-      extends Block(CommonProxy.blockFrameId, Material.ground)
-      with BlockFrame
-    blockFrame
+class ImmibisProxy extends FrameProxy {
+  override def init() = {
+    object blockImmibisFrame
+      extends BlockMultipartBase(CommonProxy.blockFrameId, Material.ground)
+      with BlockImmibisFrame
+    blockImmibisFrame
   }
 }
 
-trait BlockFrame extends Frame {
-  setHardness(.5f)
+trait BlockImmibisFrame extends BlockMultipartBase with Frame {
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
+  setBlockBounds(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Frame Block")
-  GameRegistry.registerBlock(this, "Frame_Block");
+  GameRegistry.registerBlock(this, "Frame_Block")
+  GameRegistry.registerTileEntity(classOf[TileEntityImmibisFrame], "Frame_TileEntity");
   {
     val frame = new ItemStack(this, 8)
     val iron = new ItemStack(Block.blockIron)
@@ -94,22 +95,16 @@ trait BlockFrame extends Frame {
     val slime = new ItemStack(Item.slimeBall)
     GameRegistry.addRecipe(
       frame,
-      "rsr",
-      "sis",
-      "rsr",
+      "srs",
+      "rir",
+      "srs",
       Char.box('i'), iron,
       Char.box('r'), redstone,
       Char.box('s'), slime)
   }
 
-  //override def createNewTileEntity(world: World): TileEntity = null // new TileEntityFrame
-  override def isOpaqueCube = false
-  override def isBlockSolidOnSide(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
-    true
-  }
-  override def renderAsNormalBlock = false
-  //override def renderAsNormalBlock = false
-  override def getRenderType = BlockFrameRenderer.getRenderId
+  override def createNewTileEntity(world: World): TileEntity =  new TileEntityImmibisFrame
+  override def wrappedGetRenderType = BlockFrameRenderer.getRenderId
 
   override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
     super.onBlockAdded(world, x, y, z)
@@ -145,41 +140,76 @@ trait BlockFrame extends Frame {
     }*/
     false
   }
+
+  override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
+    world.getBlockTileEntity(x, y, z) match {
+      case te: TileEntityImmibisFrame =>
+        te.getCoverSystem match {
+          case cs: IMicroblockCoverSystem =>
+            (for {
+              p <- cs.getAllParts
+              if p.pos == EnumPosition.getFacePosition(side.ordinal)
+              if p.`type`.getSize == 1D/8D
+            } yield p).headOption match {
+              case Some(part) =>
+                false
+              case none => true
+            }
+          case _ => true
+        }
+      case _ => true
+    }
+  }
 }
 
-object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
-  model.loadModel("Frame")
+class TileEntityImmibisFrame extends TileCoverableBase {
+  import EnumPosition._
+  import EnumPositionClass.{ Centre => CCentre, _ }
 
-  override def renderInventoryBlock(
-      block: Block,
-      metadata: Int,
-      modelId: Int,
-      rb: RenderBlocks) {
-    //rainwarrior.utils.renderInventoryBlock(rb, block, metadata)
-    RenderHelper.disableStandardItemLighting()
-    tes.startDrawingQuads()
-    tes.setColorOpaque_F(1, 1, 1)
-    model.render("Frame", "Frame", block.getIcon(0, 0))
-    tes.draw()
-    RenderHelper.enableStandardItemLighting()
+  override def getPartPosition(subHit: Int) = Centre
+
+  override def isPlacementBlockedByTile(tpe: PartType[_], pos: EnumPosition) = 
+    tpe.getSize > 1F/4F || pos.clazz == EnumPositionClass.Post
+
+  override def isPositionOccupiedByTile(pos: EnumPosition) = pos == Centre
+
+  override def getPlayerRelativePartHardness(player: EntityPlayer, part: Int) =
+    player.getCurrentPlayerStrVsBlock(getBlockType, false, getBlockMetadata) / 3F / 30F
+
+  override def pickPart(rayTrace: MovingObjectPosition, part: Int) = 
+    new ItemStack(getBlockType)
+
+  override def isSolidOnSide(side: ForgeDirection) = false
+
+  @SideOnly(Side.CLIENT)
+  override def render(rb: RenderBlocks) {
+    renderPart(rb, 0)
   }
-  override def renderWorldBlock(
-      world: IBlockAccess,
-      x: Int,
-      y: Int,
-      z: Int,
-      block: Block,
-      modelId: Int,
-      rb: RenderBlocks) = {
-    //rb.setRenderBoundsFromBlock(block)
-    //rb.renderStandardBlock(block, x, y, z)
-    tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
-    tes.setColorOpaque_F(1, 1, 1)
-    tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.render("Frame", "Frame", block.getIcon(0, 0))
-    tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
-    true
+
+  @SideOnly(Side.CLIENT)
+  override def renderPart(rb: RenderBlocks, part: Int) {
+    BlockFrameRenderer.renderWorldBlock(
+      worldObj,
+      xCoord, yCoord, zCoord,
+      getBlockType,
+      BlockFrameRenderer.getRenderId,
+      rb)
   }
-  override val shouldRender3DInInventory = true
-  override lazy val getRenderId = RenderingRegistry.getNextAvailableRenderId()
+
+  override def removePartByPlayer(player: EntityPlayer, part: Int): JList[ItemStack] = {
+    val drops = List(new ItemStack(getBlockType))
+    getCoverSystem match {
+      case cs: IMicroblockCoverSystem =>
+        cs.convertToContainerBlock()
+      case _ =>
+        worldObj.setBlockToAir(xCoord, yCoord, zCoord)
+    }
+    drops
+  }
+
+  override def getPartAABBFromPool(part: Int) =
+    AxisAlignedBB.getAABBPool.getAABB(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
+
+  override def getNumTileOwnedParts() = 1
 }
+
