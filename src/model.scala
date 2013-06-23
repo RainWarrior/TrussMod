@@ -52,7 +52,7 @@ object model {
       if part.name == partName
     } yield part).head
 
-    for(f <- part.faces; (v, t) <- f.vertices zip f.textureCoordinates) {
+    for(f <- part.faces; i <- 0 until f.vertices.length; v = f.vertices(i); t = f.textureCoordinates(i)) {
       tes.addVertexWithUV(v.x, v.y, v.z,
         icon.getInterpolatedU(t.u * 16),
         icon.getInterpolatedV(t.v * 16))
