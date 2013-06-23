@@ -52,10 +52,20 @@ object model {
       if part.name == partName
     } yield part).head
 
-    for(f <- part.faces; i <- 0 until f.vertices.length; v = f.vertices(i); t = f.textureCoordinates(i)) {
-      tes.addVertexWithUV(v.x, v.y, v.z,
-        icon.getInterpolatedU(t.u * 16),
-        icon.getInterpolatedV(t.v * 16))
+    for {
+      f <- part.faces
+      n = f.faceNormal
+    } {
+      tes.setNormal(n.x, n.y, n.z)
+      for {
+        i <- 0 until f.vertices.length
+        v = f.vertices(i)
+        t = f.textureCoordinates(i)
+      } {
+        tes.addVertexWithUV(v.x, v.y, v.z,
+          icon.getInterpolatedU(t.u * 16),
+          icon.getInterpolatedV(t.v * 16))
+      }
     }
   }
 
@@ -72,12 +82,20 @@ object model {
 
     for {
       f <- part.faces
-      (v, t) <- f.vertices zip f.textureCoordinates
-      (x, y, z) = rotator(v.x, v.y, v.z)
+      n = f.faceNormal
+      (nx, ny, nz) = rotator(n.x, n.y, n.z)
     } {
-      tes.addVertexWithUV(x, y, z,
-        icon.getInterpolatedU(t.u * 16),
-        icon.getInterpolatedV(t.v * 16))
+      tes.setNormal(nx, ny, nz)
+      for {
+        i <- 0 until f.vertices.length
+        v = f.vertices(i)
+        t = f.textureCoordinates(i)
+        (x, y, z) = rotator(v.x, v.y, v.z)
+      } {
+        tes.addVertexWithUV(x, y, z,
+          icon.getInterpolatedU(t.u * 16),
+          icon.getInterpolatedV(t.v * 16))
+      }
     }
   }
 }
