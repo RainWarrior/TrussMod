@@ -48,20 +48,20 @@ object CommonProxy extends LoadLater {
     material.Material
   import cpw.mods.fml.common.registry._
 
-  val hasImmibis = try {
+  /*val hasImmibis = try {
     Class.forName("mods.immibis.core.api.multipart.util.BlockMultipartBase")
     Class.forName("mods.immibis.microblocks.api.util.TileCoverableBase")
-    log.info("Found immibis")
+    log.info("Found immibis's microblocks")
     true
   } catch {
     case e: ClassNotFoundException =>
       false
-  }
+  }*/
 
-  val frameProxy = hasImmibis match {
+  val frameProxy = /*hasImmibis match {
     case true => Class.forName("rainwarrior.trussmod.ImmibisProxy").newInstance.asInstanceOf[FrameProxy]
-    case false => new FrameProxy
-  }
+    case false =>*/ new FrameProxy
+  //}
 
   config.load()
   

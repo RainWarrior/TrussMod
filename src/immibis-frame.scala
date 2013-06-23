@@ -48,7 +48,7 @@ import net.minecraft._,
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
-  util.{ AxisAlignedBB, MovingObjectPosition },
+  util.{ AxisAlignedBB, MovingObjectPosition, Vec3 },
   world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
@@ -83,6 +83,7 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
   setUnlocalizedName(modId + ":BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
   setBlockBounds(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
+  setBlockBounds(0, 0, 0, 1, 1, 1)
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Frame Block")
@@ -106,40 +107,9 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
   override def createNewTileEntity(world: World): TileEntity =  new TileEntityImmibisFrame
   override def wrappedGetRenderType = BlockFrameRenderer.getRenderId
 
-  override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
-    super.onBlockAdded(world, x, y, z)
-    //onNeighborBlockChange(world, x, y, z, this.blockID)
-    //world.setBlockMetadata(x, y, z, 13)
-  }
-
-  override def breakBlock(world: World, x: Int, y: Int, z: Int, id: Int, metadata: Int) {
-    //TileEntity t = world.getBlockTileEntity(x, y, z)
-    //if(t instanceof TileEntityProxy)
-    //{
-      //((TileEntityProxy)t).invalidate
-    //}
-    super.breakBlock(world, x, y, z, id, metadata)
-    //world.notifyBlocksOfNeighborChange(x, y, z, this.blockID)
-  }
-  override def onBlockActivated(
-      world: World,
-      x: Int,
-      y: Int,
-      z: Int,
-      player: EntityPlayer,
-      side: Int,
-      dx: Float,
-      dy: Float,
-      dz: Float): Boolean  = {
-    /*log.info(f"onBlockActivated: ($x,$y,$z), isServer: $isServer")
-    //if(world.isRemote) {
-      val te = world.getBlockTileEntity(x, y, z).asInstanceOf[TileEntityFrame]
-      if(te == null)
-        throw new RuntimeException("no tile entity!")
-        FMLCommonHandler.instance.showGuiScreen(te.openGui())
-    }*/
-    false
-  }
+  /*override def wrappedCollisionRayTrace(world: World, x: Int, y: Int, z: Int, src: Vec3, dst: Vec3) = {
+    Block.blocksList(4).collisionRayTrace(world, x, y, z, src, dst) // Hmm
+  }*/
 
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
     world.getBlockTileEntity(x, y, z) match {
@@ -208,7 +178,8 @@ class TileEntityImmibisFrame extends TileCoverableBase {
   }
 
   override def getPartAABBFromPool(part: Int) =
-    AxisAlignedBB.getAABBPool.getAABB(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
+    //AxisAlignedBB.getAABBPool.getAABB(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
+    AxisAlignedBB.getAABBPool.getAABB(0, 0, 0, 1, 1, 1)
 
   override def getNumTileOwnedParts() = 1
 }

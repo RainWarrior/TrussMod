@@ -50,3 +50,5 @@ scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation")
 libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.1"
 
 libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.10.1"
+
+libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.4" // for SpecialSource
