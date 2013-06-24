@@ -29,6 +29,17 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.hooks
 
+import gnu.trove.map.hash.{
+  TIntObjectHashMap,
+  TLongObjectHashMap
+}
+import gnu.trove.set.hash.TLongHashSet
+import gnu.trove.impl.sync.{
+  TSynchronizedIntObjectMap,
+  TSynchronizedLongObjectMap,
+  TSynchronizedLongSet
+}
+//import gnu.trove.set.TLongHashSet
 import scala.collection.mutable.OpenHashMap
 import net.minecraftforge.event.ForgeSubscribe
 import net.minecraftforge.client.event.RenderWorldLastEvent
@@ -59,20 +70,15 @@ object HelperRenderer {
   //val eps = 1F / 0x10000
   //var x1, x2, y1, y2, z1, z2 = 0F;
 
-  def render(c: WorldPos, d: BlockData, tick: Float) {
-    if(oldWorld != world) {
-      oldWorld = world
-      renderBlocks = new MovingRenderBlocks(new MovingWorldProxy(world))
-      renderBlocks.renderAllFaces = true
-    }
+  def render(x: Int, y: Int, z: Int, d: BlockData, tick: Float) {
 
-    val block = Block.blocksList(world.getBlockId(c.x, c.y, c.z))
+    val block = Block.blocksList(world.getBlockId(x, y, z))
     if(block == null) return
 
     val engine = TileEntityRenderer.instance.renderEngine
     if(engine != null) engine.bindTexture("/terrain.png")
     mc.entityRenderer.enableLightmap(partialTickTime)
-    val light = world.getLightBrightnessForSkyBlocks(c.x, c.y, c.z, 0)
+    val light = world.getLightBrightnessForSkyBlocks(x, y, z, 0)
     val l1 = light % 65536
     val l2 = light / 65536
     OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, l1, l2)
@@ -101,7 +107,7 @@ object HelperRenderer {
     val oldOcclusion = mc.gameSettings.ambientOcclusion
     mc.gameSettings.ambientOcclusion = 0
     check = false
-    renderBlocks.renderBlockByRenderType(block, c.x, c.y, c.z)
+    renderBlocks.renderBlockByRenderType(block, x, y, z)
     check = true
     mc.gameSettings.ambientOcclusion = oldOcclusion
 
@@ -114,21 +120,37 @@ object HelperRenderer {
     //RenderHelper.enableStandardItemLighting()
     mc.entityRenderer.disableLightmap(partialTickTime)
   }
+
   @ForgeSubscribe
   def onRenderWorld(e: RenderWorldLastEvent) {
     //mc.gameSettings.showDebugInfo = false
     //MovingRegistry.debugOffset.y = Math.sin(System.nanoTime / 0x4000000).toFloat / 2 + .5F
-    for((MovingRegistry.Key(world, coords), data) <- MovingRegistry.moving; if(world.isClient)) {
-      render(coords, data, partialTickTime)
+    if(oldWorld != world) {
+      oldWorld = world
+      renderBlocks = new MovingRenderBlocks(new MovingWorldProxy(world))
+      renderBlocks.renderAllFaces = true
+      MovingRegistry.clientMap.clear() // TODO probably should change to FML events
+    }
+    MovingRegistry.clientMap.synchronized {
+      val it = MovingRegistry.clientMap.iterator
+      while(it.hasNext) {
+        it.advance()
+        val k = it.key
+        val v = it.value
+        render(unpackX(k), unpackY(k), unpackZ(k), v, partialTickTime)
+      }
     }
   }
+
   def onPreRenderTick(time: Float) {
     isRendering = true
     partialTickTime = time
   }
+
   def onPostRenderTick() {
     isRendering = false
   }
+
   def getRenderType(block: Block, x: Int, y: Int, z: Int): Int = {
     if(check && MovingRegistry.isMoving(mc.theWorld, x, y, z)) -1
     else block.getRenderType
@@ -136,31 +158,62 @@ object HelperRenderer {
 }
 
 object MovingRegistry {
-  case class Key(world: World, pos: WorldPos)
+  //case class Key(world: World, pos: WorldPos)
   final val eps = 1.0 / 0x10000
-  var moving = Map.empty[Key, BlockData]
+  //var moving = Map.empty[Key, BlockData]
+  val clientMap = new TSynchronizedLongObjectMap(new TLongObjectHashMap[BlockData])
+  val serverMap = new TSynchronizedIntObjectMap(new TIntObjectHashMap[TSynchronizedLongSet])
   val debugOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
 
-  def isMoving(world: World, x: Int, y: Int, z: Int): Boolean = moving isDefinedAt Key(world, (x, y, z))
-  def getData(world: World, c: WorldPos): BlockData = {
-    moving(Key(world, c))
+  def isMoving(world: World, x: Int, y: Int, z: Int): Boolean = if(world.isRemote) {
+    //moving isDefinedAt Key(world, (x, y, z))
+    clientMap.containsKey(packCoords(x, y, z))
+  } else {
+    val dim = world.provider.dimensionId
+    if(serverMap.containsKey(dim)) {
+      val worldSet = serverMap.get(dim)
+      worldSet.contains(packCoords(x, y, z))
+    } else false
   }
 
-  def addMoving(world: World, pos: WorldPos, offset: BlockData) {
-    moving += ((Key(world, pos), offset))
-    val (x, y, z) = pos.toTuple
-    world.updateAllLightTypes(x, y, z)
-    for(d <- ForgeDirection.values) {
-      world.markBlockForRenderUpdate(x + d.offsetX, y + d.offsetY, z + d.offsetZ)
-      //println(f"Update: (${x + d.offsetX}, ${y + d.offsetY}, ${z + d.offsetZ})")
+  def getData(world: World, c: WorldPos): BlockData = if(world.isRemote) {
+    //moving(Key(world, c))
+    clientMap.get(packCoords(c.x, c.y, c.z))
+  } else null
+
+  def addMoving(world: World, c: WorldPos, offset: BlockData) = this.synchronized {
+    if(world.isRemote) {
+      //moving += ((Key(world, pos), offset))
+      clientMap.put(packCoords(c.x, c.y, c.z), offset)
+      world.updateAllLightTypes(c.x, c.y, c.z)
+      for(d <- ForgeDirection.values) {
+        world.markBlockForRenderUpdate(c.x + d.offsetX, c.y + d.offsetY, c.z + d.offsetZ)
+        //println(f"Update: (${c.x + d.offsetX}, ${c.y + d.offsetY}, ${c.z + d.offsetZ})")
+      }
+    } else {
+      val dim = world.provider.dimensionId
+      if(!serverMap.containsKey(dim)) {
+        serverMap.put(dim, new TSynchronizedLongSet(new TLongHashSet))
+      }
+      val worldSet = serverMap.get(dim)
+      worldSet.add(packCoords(c.x, c.y, c.z))
     }
   }
-  def delMoving(world: World, pos: WorldPos) = {
-    moving -= Key(world, pos)
-    val (x, y, z) = pos.toTuple
-    world.updateAllLightTypes(x, y, z)
-    for(d <- ForgeDirection.values) {
-      world.markBlockForRenderUpdate(x + d.offsetX, y + d.offsetY, z + d.offsetZ)
+
+  def delMoving(world: World, c: WorldPos) = this.synchronized {
+    if(world.isRemote) {
+      //moving -= Key(world, pos)
+      clientMap.remove(packCoords(c.x, c.y, c.z))
+      world.updateAllLightTypes(c.x, c.y, c.z)
+      for(d <- ForgeDirection.values) {
+        world.markBlockForRenderUpdate(c.x + d.offsetX, c.y + d.offsetY, c.z + d.offsetZ)
+      }
+    } else {
+      val dim = world.provider.dimensionId
+      if(serverMap.containsKey(dim)) {
+        val worldSet = serverMap.get(dim)
+        worldSet.remove(packCoords(c.x, c.y, c.z))
+      }
     }
   }
 }

@@ -242,6 +242,18 @@ object utils {
     }
   }
   
+  @inline def packCoords(x: Int, y: Int, z: Int): Long =
+    (x + 30000000).toLong | (z + 30000000).toLong << 26 | y.toLong << 52
+
+  @inline def unpackX(c: Long): Int =
+    (c & ((1 << 26) - 1)).toInt - 30000000
+
+  @inline def unpackZ(c: Long): Int =
+    ((c >> 26) & ((1 << 26) - 1)).toInt - 30000000
+
+  @inline def unpackY(c: Long): Int =
+    ((c >> 52) & ((1 << 12) - 1)).toInt
+
   def uncheckedSetBlock(world: World, x: Int, y: Int, z: Int, id: Int, meta: Int) {
     val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
     val arr = ch.getBlockStorageArray()
