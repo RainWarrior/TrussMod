@@ -107,7 +107,10 @@ Default values:
 Default keys:
   "default" - Default handler, if no other found
   "vanilla" - Handler for vanilla blocks
-Other keys are ID strings of mods
+Other keys can be:
+  ID strings of mods
+  block IDs
+  ID-metadata pairs in form of IDmMETA (example: 35m1 - orange wool)
 """)
 
   val defaulthandlers = List(

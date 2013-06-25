@@ -59,7 +59,9 @@ object MovingTileRegistry extends ITileHandler {
       (v.asInstanceOf[Block], k.getModId)
     }).toMap
 
-  var handlerMap = Map.empty[Option[String], ITileHandler]
+  var idMap = Map.empty[Int, ITileHandler]
+  var idMetaMap = Map.empty[Tuple2[Int, Int], ITileHandler]
+  var modMap = Map.empty[Option[String], ITileHandler]
 
   var handlerNameMap = Map(
     "default-soft" -> new DefaultTileHandler,
@@ -73,7 +75,7 @@ object MovingTileRegistry extends ITileHandler {
 
   /*try {
     Class.forName("buildcraft.transport.PipeTransportItems")
-    handlerMap += (Some("BuildCraft|Transport") -> BuildCraftTileHandler)
+    modMap += (Some("BuildCraft|Transport") -> BuildCraftTileHandler)
   } catch {
     case e: ClassNotFoundException =>
   }*/
@@ -82,24 +84,39 @@ object MovingTileRegistry extends ITileHandler {
     defaultHandler = resolveHandler(handler)
   }
 
+  val rId = raw"(\d+)".r
+  val rIdMeta = raw"(\d+)m(\d+)".r
   def setHandler(mod: String, handler: String) {
     val h = resolveHandler(handler)
     mod match {
-      case "default" => defaultHandler = h
-      case "vanilla" => handlerMap += None -> h
-      case mod => handlerMap += Some(mod) -> h
+      case rId(id) =>
+        idMap += id.toInt -> h
+      case rIdMeta(id, meta) =>
+        idMetaMap += (id.toInt, meta.toInt) -> h
+      case "default" =>
+        defaultHandler = h
+      case "vanilla" =>
+        modMap += None -> h
+      case mod =>
+        modMap += Some(mod) -> h
     }
   }
 
-  def getHandler(block: Block) = 
-    handlerMap.getOrElse(blockMap.get(block), defaultHandler)
+  def getHandler(id: Int, meta: Int) = 
+    idMetaMap.getOrElse((id, meta),
+      idMap.getOrElse(id, {
+        val block = Block.blocksList(id)
+        modMap.getOrElse(blockMap.get(block), defaultHandler)
+      })
+    )
 
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
     //log.info(s"canMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     val id = world.getBlockId(x, y, z)
+    val meta = world.getBlockMetadata(x, y, z)
     Block.blocksList(id) match {
       case block: Block =>
-        getHandler(block).canMove(world, x, y, z)
+        getHandler(id, meta).canMove(world, x, y, z)
       case block => log.severe(s"canMove: invalid block: $block"); false
     }
   }
@@ -107,9 +124,10 @@ object MovingTileRegistry extends ITileHandler {
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
     //log.info(s"move: ($x, $y, $z), side: ${EffectiveSide(world)}")
     val id = world.getBlockId(x, y, z)
+    val meta = world.getBlockMetadata(x, y, z)
     Block.blocksList(id) match {
       case block: Block =>
-        getHandler(block).move(world, x, y, z, dirTo)
+        getHandler(id, meta).move(world, x, y, z, dirTo)
       case block => log.severe(s"move: invalid block: $block")
     }
   }
