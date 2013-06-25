@@ -29,6 +29,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.hooks
 
+import java.security.InvalidKeyException
 import collection.JavaConversions._
 import net.minecraftforge.common.ForgeDirection
 import net.minecraft.tileentity.TileEntity
@@ -60,8 +61,16 @@ object MovingTileRegistry extends ITileHandler {
 
   var handlerMap = Map.empty[Option[String], ITileHandler]
 
-  handlerMap += None -> DefaultTileHandler
-  handlerMap += Some("TrussMod") -> DefaultTileHandler
+  var handlerNameMap = Map(
+    "default-soft" -> new DefaultTileHandler,
+    "default-hard" -> new DefaultModTileHandler,
+    "immovable" -> new ImmovableTileHandler)
+
+  var defaultHandler = resolveHandler("default-hard")
+
+  def resolveHandler(handler: String) =
+    handlerNameMap.getOrElse(handler, throw new InvalidKeyException(s"No mod handler named '$handler'"))
+
   /*try {
     Class.forName("buildcraft.transport.PipeTransportItems")
     handlerMap += (Some("BuildCraft|Transport") -> BuildCraftTileHandler)
@@ -69,8 +78,21 @@ object MovingTileRegistry extends ITileHandler {
     case e: ClassNotFoundException =>
   }*/
 
+  def setDefaultHandler(handler: String) {
+    defaultHandler = resolveHandler(handler)
+  }
+
+  def setHandler(mod: String, handler: String) {
+    val h = resolveHandler(handler)
+    mod match {
+      case "default" => defaultHandler = h
+      case "vanilla" => handlerMap += None -> h
+      case mod => handlerMap += Some(mod) -> h
+    }
+  }
+
   def getHandler(block: Block) = 
-    handlerMap.getOrElse(blockMap.get(block), DefaultModTileHandler)
+    handlerMap.getOrElse(blockMap.get(block), defaultHandler)
 
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
     //log.info(s"canMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
@@ -93,7 +115,7 @@ object MovingTileRegistry extends ITileHandler {
   }
 }
 
-object DefaultTileHandler extends ITileHandler {
+class DefaultTileHandler extends ITileHandler {
   override def canMove(world: World, x: Int, y: Int, z: Int) = true
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
@@ -115,7 +137,7 @@ object DefaultTileHandler extends ITileHandler {
   }
 }
 
-object DefaultModTileHandler extends ITileHandler {
+class DefaultModTileHandler extends ITileHandler {
   override def canMove(world: World, x: Int, y: Int, z: Int) = true
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
@@ -146,6 +168,11 @@ object DefaultModTileHandler extends ITileHandler {
   }
 }
 
+class ImmovableTileHandler extends ITileHandler {
+  override def canMove(world: World, x: Int, y: Int, z: Int) = false
+
+  override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {}
+}
 /*object BuildCraftTileHandler extends ITileHandler {
   import buildcraft.api.transport.{ IPipeTile }
   import buildcraft.transport.{ Pipe, PipeTransportItems }

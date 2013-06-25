@@ -28,14 +28,15 @@ of this Program grant you additional permission to convey the resulting work.
 */
 package rainwarrior.trussmod
 
-import scala.collection.mutable.ListBuffer
+import collection.mutable.ListBuffer
+import collection.JavaConversions._
 import java.util.logging.Logger
 import java.io.File
 import cpw.mods.fml.{ common, relauncher }
 import common.{ Mod, event, Loader, network, FMLCommonHandler, SidedProxy }
 import relauncher.{ FMLRelaunchLog, Side }
 import network.NetworkMod
-import net.minecraftforge.common.Configuration
+import net.minecraftforge.common.{ Configuration, Property }
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry, HelperRenderer }
 import rainwarrior.utils._
 import TrussMod._
@@ -63,13 +64,23 @@ object CommonProxy extends LoadLater {
     case false =>*/ new FrameProxy
   //}
 
+  /*import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
+  MultipartGenerator.registerTrait("rainwarrior.trussmod.FrameMarker", "rainwarrior.trussmod.FrameTile")
+  MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")*/
+
   config.load()
   
-  val debugItemId = config.getItem("debugItem", 5000).getInt()
+  /*val debugItemId = config.getItem("debugItem", 5000).getInt()
   object debugItem
     extends Item(debugItemId)
     with DebugItem
-  debugItem
+  debugItem*/
+
+  /*val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
+  object cbFrameItem
+    extends Item(cbFrameItemId)
+    with ChickenBonesFrameItem
+  cbFrameItem*/
 
   val blockFrameId = config.getBlock("frame", 501).getInt()
   val blockFrame = frameProxy.init()
@@ -86,9 +97,36 @@ object CommonProxy extends LoadLater {
     with BlockMovingStrip
   blockMovingStrip
 
+  val handlers = config.getCategory("Mod Handlers")
+  handlers.setComment("""
+Per-mod moving handlers configuration
+Default values:
+  "default-hard" - Performs NBT read-write combo. Robust but expensive, known to cause time bugs.
+  "default-soft" - Performs invalidate-move-validate combo. Works well for mods that access TileEntity coords only via *Coods fields, and don't cache them elsewhere. Also works fine for vanilla blocks.
+  "immovable" - For mods that shouldn't move their blocks for some reason
+Default keys:
+  "default" - Default handler, if no other found
+  "vanilla" - Handler for vanilla blocks
+Other keys are ID strings of mods
+""")
+
+  val defaulthandlers = List(
+    ("default", "default-hard"),
+    ("vanilla", "default-soft"),
+    ("TrussMod", "default-soft"),
+    ("ComputerCraft", "default-soft"))
+
+  if(!handlers.containsKey("default")) {
+    for((k, v) <- defaulthandlers if(!handlers.containsKey(k)))
+      handlers.put(k, new Property(k, v, Property.Type.STRING))
+  }
+
+  for(k <- handlers.keySet) {
+    val v = handlers.get(k).getString
+    MovingTileRegistry.setHandler(k, v)
+  }
   config.save()
 
-  MovingTileRegistry
 }
 object ClientProxy extends LoadLater {
   import cpw.mods.fml.common.registry._
