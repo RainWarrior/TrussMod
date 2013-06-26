@@ -65,7 +65,7 @@ import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
-trait Frame extends Block {
+trait Frame {
   def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = true
 }
 
@@ -78,7 +78,7 @@ class FrameProxy {
   }
 }
 
-trait BlockFrame extends Frame {
+trait BlockFrame extends Block with Frame {
   setHardness(.5f)
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockFrame")
@@ -163,6 +163,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     tes.draw()
     RenderHelper.enableStandardItemLighting()
   }
+
   override def renderWorldBlock(
       world: IBlockAccess,
       x: Int,
@@ -180,6 +181,26 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
     true
   }
+
+  def renderWithSides(
+      world: World,
+      x: Int,
+      y: Int,
+      z: Int,
+      block: Block,
+      rb: RenderBlocks,
+      sideSticky: Array[Boolean]) {
+    val sideOffsets = for(s <- sideSticky) yield s match {
+      case true => 1
+      case false => -1
+    }
+    tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
+    tes.setColorOpaque_F(1, 1, 1)
+    tes.addTranslation(x + .5F, y + .5F, z + .5F)
+    model.renderTransformed("Frame", "Frame", block.getIcon(0, 0), sideFixer(sideOffsets))
+    tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
+  }
+
   override val shouldRender3DInInventory = true
   override lazy val getRenderId = RenderingRegistry.getNextAvailableRenderId()
 }

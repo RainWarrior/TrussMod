@@ -322,4 +322,24 @@ object utils {
     val (nx, ny, nz) = rotHelper(or)(x, y, z)
     rotator(meta)(nx, ny, nz)
   }
+
+  final val offset = 1F/256F
+
+  @inline def sideFixer(sideOffsets: Array[Int])(x: Float, y: Float, z: Float) = {
+    (x match {
+      case x if (x + .5).abs < eps => x - sideOffsets(4) * offset
+      case x if (x - .5).abs < eps => x + sideOffsets(5) * offset
+      case _ => x
+    },
+    y match {
+      case y if (y + .5).abs < eps => y - sideOffsets(0) * offset
+      case y if (y - .5).abs < eps => y + sideOffsets(1) * offset
+      case _ => y
+    },
+    z match {
+      case z if (z + .5).abs < eps => z - sideOffsets(2) * offset
+      case z if (z - .5).abs < eps => z + sideOffsets(3) * offset
+      case _ => z
+    })
+  }
 }

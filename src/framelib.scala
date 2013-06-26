@@ -148,7 +148,7 @@ class TileEntityMovingStrip extends TileEntity {
       worldObj.setBlock(pos.x, pos.y, pos.z, 0, 0, 3)
     } else {
       val aabb = getAabb
-      val shift = 2F / 16F
+      val shift = 1.05F / 16F
       if(aabb != null) worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
         case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
           e.moveEntity(

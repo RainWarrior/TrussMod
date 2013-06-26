@@ -107,26 +107,10 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
   override def createNewTileEntity(world: World): TileEntity =  new TileEntityImmibisFrame
   override def wrappedGetRenderType = BlockFrameRenderer.getRenderId
 
-  /*override def wrappedCollisionRayTrace(world: World, x: Int, y: Int, z: Int, src: Vec3, dst: Vec3) = {
-    Block.blocksList(4).collisionRayTrace(world, x, y, z, src, dst) // Hmm
-  }*/
-
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
     world.getBlockTileEntity(x, y, z) match {
       case te: TileEntityImmibisFrame =>
-        te.getCoverSystem match {
-          case cs: IMicroblockCoverSystem =>
-            (for {
-              p <- cs.getAllParts
-              if p.pos == EnumPosition.getFacePosition(side.ordinal)
-              if p.`type`.getSize == 1D/8D
-            } yield p).headOption match {
-              case Some(part) =>
-                false
-              case none => true
-            }
-          case _ => true
-        }
+        te.isSideSticky(side)
       case _ => true
     }
   }
@@ -135,6 +119,23 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
 class TileEntityImmibisFrame extends TileCoverableBase {
   import EnumPosition._
   import EnumPositionClass.{ Centre => CCentre, _ }
+
+  def isSideSticky(side: ForgeDirection) = {
+    getCoverSystem match {
+      case cs: IMicroblockCoverSystem =>
+        val pos = EnumPosition.getFacePosition(side.ordinal)
+        (for {
+          p <- cs.getAllParts
+          if p.pos == pos
+          if p.`type`.getSize == 1D/8D
+        } yield p).headOption match {
+          case Some(part) =>
+            false
+          case none => true
+        }
+      case _ => true
+    }
+  }
 
   override def getPartPosition(subHit: Int) = Centre
 
@@ -158,12 +159,12 @@ class TileEntityImmibisFrame extends TileCoverableBase {
 
   @SideOnly(Side.CLIENT)
   override def renderPart(rb: RenderBlocks, part: Int) {
-    BlockFrameRenderer.renderWorldBlock(
+    BlockFrameRenderer.renderWithSides(
       worldObj,
       xCoord, yCoord, zCoord,
       getBlockType,
-      BlockFrameRenderer.getRenderId,
-      rb)
+      rb,
+      for(s <- ForgeDirection.VALID_DIRECTIONS) yield isSideSticky(s))
   }
 
   override def removePartByPlayer(player: EntityPlayer, part: Int): JList[ItemStack] = {
@@ -178,9 +179,13 @@ class TileEntityImmibisFrame extends TileCoverableBase {
   }
 
   override def getPartAABBFromPool(part: Int) =
-    //AxisAlignedBB.getAABBPool.getAABB(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
-    AxisAlignedBB.getAABBPool.getAABB(0, 0, 0, 1, 1, 1)
+    AxisAlignedBB.getAABBPool.getAABB(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
 
+  override def getCollidingBoundingBoxes(mask: AxisAlignedBB, list: JList[AxisAlignedBB]) {
+    val hit = AxisAlignedBB.getAABBPool.getAABB(0, 0, 0, 1, 1, 1).offset(xCoord, yCoord, zCoord)
+    if(hit.intersectsWith(mask))
+      list.add(hit)
+  }
   override def getNumTileOwnedParts() = 1
 }
 
