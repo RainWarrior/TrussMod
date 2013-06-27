@@ -64,9 +64,9 @@ object CommonProxy extends LoadLater {
     case false => new FrameProxy
   }
 
-  /*import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
+  import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
   MultipartGenerator.registerTrait("rainwarrior.trussmod.FrameMarker", "rainwarrior.trussmod.FrameTile")
-  MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")*/
+  MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")
 
   config.load()
   
@@ -76,11 +76,11 @@ object CommonProxy extends LoadLater {
     with DebugItem
   debugItem*/
 
-  /*val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
+  val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
   object cbFrameItem
     extends Item(cbFrameItemId)
     with ChickenBonesFrameItem
-  cbFrameItem*/
+  cbFrameItem
 
   val blockFrameId = config.getBlock("frame", 501).getInt()
   val blockFrame = frameProxy.init()
@@ -131,6 +131,7 @@ Other keys can be:
   config.save()
 
 }
+
 object ClientProxy extends LoadLater {
   import cpw.mods.fml.common.registry._
   import cpw.mods.fml.client.registry._
@@ -152,7 +153,7 @@ class ClientProxy extends CommonProxy {
   modLanguage = "scala",
   modid = modId,
   name = modName,
-  version = "alpha",
+  version = "beta",
   dependencies = "required-after:Forge@[7.8.0.701,);required-after:FML@[5.2.6.701,)"
 )
 @NetworkMod(

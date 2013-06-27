@@ -66,7 +66,7 @@ import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 trait Frame {
-  def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = true
+  def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection): Boolean
 }
 
 class FrameProxy {
@@ -126,6 +126,7 @@ trait BlockFrame extends Block with Frame {
     super.breakBlock(world, x, y, z, id, metadata)
     //world.notifyBlocksOfNeighborChange(x, y, z, this.blockID)
   }
+
   override def onBlockActivated(
       world: World,
       x: Int,
@@ -145,6 +146,8 @@ trait BlockFrame extends Block with Frame {
     }*/
     false
   }
+
+  override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = true
 }
 
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
