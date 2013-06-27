@@ -316,7 +316,8 @@ class TileEntityMotor extends StripHolder {
         case block: Frame =>
           val toCheck = for {
             dir <- ForgeDirection.VALID_DIRECTIONS.toList
-            if block.isSideSticky(worldObj, next.x, next.y, next.z, dir)
+            if (block.isSideSticky(worldObj, next.x, next.y, next.z, dir)
+            || MovingTileRegistry.stickyHook(worldObj, next.x, next.y, next.z, dir))
             c = next + dir
             if !(c == WorldPos(this))
             if !blackBlocks(c)

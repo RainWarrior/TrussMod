@@ -342,4 +342,7 @@ object utils {
       case _ => z
     })
   }
+
+  def packIdMeta(id: Int, meta: Int): Int = id | (meta << 12)
+  def unpackIdMeta(pair: Int) = (pair & ((1 << 12) - 1), pair << 12)
 }

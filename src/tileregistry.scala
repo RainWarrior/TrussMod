@@ -54,6 +54,22 @@ object MovingTileRegistry extends ITileHandler {
     field.get(null).asInstanceOf[Multimap[ModContainer, BlockProxy]]
   }
 
+  var stickyMap = Map.empty[Int, Set[Int]]
+
+  def addStickySet(set: Set[Int]) {
+    for(i <- set) stickyMap += i -> set
+  }
+
+  def stickyHook(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) = {
+    val c = (x, y, z) + dirTo
+    val id1 = packIdMeta(world.getBlockId(x, y, z), world.getBlockMetadata(x, y, z))
+    val id2 = packIdMeta(world.getBlockId(c.x, c.y, c.z), world.getBlockMetadata(c.x, c.y, c.z))
+    stickyMap.get(id1) match {
+      case Some(set) => set(id2)
+      case None => false
+    }
+  }
+
   lazy val blockMap = 
     (for(e <- blockRegistry.entries; k = e.getKey; v = e.getValue) yield {
       (v.asInstanceOf[Block], k.getModId)
