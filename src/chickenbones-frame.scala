@@ -29,6 +29,8 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
+import java.lang.{ Iterable => JIterable }
+import collection.JavaConversions._
 import net.minecraft._,
   block.{ Block, BlockContainer },
   block.material.Material,
@@ -44,10 +46,10 @@ import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import TrussMod._
 import rainwarrior.utils._
 
-import codechicken.core.vec.{ BlockCoord, Vector3 }
+import codechicken.core.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
 import codechicken.core.lighting.LazyLightMatrix
-import codechicken.core.raytracer.RayTracer
-import codechicken.multipart.{ TileMultipart, TileMultipartObj, TMultiPart }
+import codechicken.core.raytracer.{ RayTracer, IndexedCuboid6 }
+import codechicken.multipart.{ TileMultipart, TMultiPart, TItemMultiPart }
 import codechicken.microblock.MicroblockClass
 
 trait FrameTile extends TileMultipart with Frame {
@@ -63,7 +65,16 @@ trait FrameMarker
 class ChickenBonesFramePart extends TMultiPart with FrameMarker {
   lazy val icon = CommonProxy.blockFrame.getIcon(0, 0)
 
-  override def getType = "Frame"
+  override val getType = "Frame"
+
+  override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
+
+  override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(0, 0, 0, 1, 1, 1))
+
+  override def occlusionTest(part: TMultiPart) = part match {
+    case part: ChickenBonesFramePart => false
+    case _ => true
+  }
 
   @SideOnly(Side.CLIENT)
   override def renderStatic(pos: Vector3, olm: LazyLightMatrix, pass: Int) {
@@ -85,18 +96,10 @@ trait ChickenBonesFrameItem extends Item {
   LanguageRegistry.addName(this, "FrameItem")
 
   override def registerIcons(reg: IconRegister) {}
-    
-  override def onItemUseFirst(
-    stack: ItemStack,
-    player: EntityPlayer,
-    world: World,
-    x: Int, y: Int, z: Int,
-    side: Int, hitX: Float, hitY: Float, hitZ: Float
-  ) = player.isSneaking match {
-    case false => useItem(stack, player, world, x, y, z) && !world.isRemote
-    case true => false
-  }
-    
+
+  def getHitDepth(vhit: Vector3, side: Int) =
+    vhit.copy.scalarProject(Rotation.axes(side)) + (side % 2 ^ 1)
+
   override def onItemUse(
     stack: ItemStack,
     player: EntityPlayer,
@@ -104,23 +107,28 @@ trait ChickenBonesFrameItem extends Item {
     x: Int, y: Int, z: Int,
     side: Int,
     hitX: Float, hitY:Float, hitZ:Float
-  ) = player.isSneaking match {
-    case false => useItem(stack, player, world, x, y, z)
-    case true => false
-  }
-    
-  def useItem(
-    stack: ItemStack,
-    player: EntityPlayer,
-    world: World,
-    x: Int, y: Int, z: Int
-  ) = {
+  ) = if(!world.isClient) {
     val newPart = new ChickenBonesFramePart
     val pos = new BlockCoord(x, y, z)
-    if(!world.isClient && TileMultipartObj.canAddPart(world, pos, newPart)) {
-      TileMultipartObj.addPart(world, pos, newPart)
-      stack.stackSize -= 1
+    val d = getHitDepth(new Vector3(hitX, hitY, hitZ), side)
+
+    if(d > 1 || !TileMultipart.canPlacePart(world, pos, newPart))
+      pos.offset(side)
+
+    if(TileMultipart.canPlacePart(world, pos, newPart)) {
+      TileMultipart.addPart(world, pos, newPart)
+      if(!player.capabilities.isCreativeMode)
+        stack.stackSize -= 1
       true
     } else false
-  }
+  } else true
+
+  /*override def newPart(
+    stack: ItemStack,
+    player:EntityPlayer,
+    world:World,
+    pos:BlockCoord,
+    side:Int,
+    vhit:Vector3
+  ) = new ChickenBonesFramePart*/
 }
