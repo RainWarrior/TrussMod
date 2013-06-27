@@ -72,6 +72,9 @@ object HelperRenderer {
 
   def render(x: Int, y: Int, z: Int, d: BlockData, tick: Float) {
 
+    val oldOcclusion = mc.gameSettings.ambientOcclusion
+    mc.gameSettings.ambientOcclusion = 0
+
     val block = Block.blocksList(world.getBlockId(x, y, z))
     if(block == null) return
 
@@ -89,36 +92,29 @@ object HelperRenderer {
     glDisable(GL_CULL_FACE)
     glShadeModel(if(Minecraft.isAmbientOcclusionEnabled) GL_SMOOTH else GL_FLAT)
 
-    tes.startDrawingQuads()
-    tes.setTranslation(
-      -TileEntityRenderer.staticPlayerX + d.x + d.dirTo.x * tick / 16F,
-      -TileEntityRenderer.staticPlayerY + d.y + d.dirTo.y * tick / 16F,
-      -TileEntityRenderer.staticPlayerZ + d.z + d.dirTo.z * tick / 16F)
-    tes.setColorOpaque(1, 1, 1)
+    for(pass <- 0 to 1) {
+      tes.startDrawingQuads()
+      tes.setTranslation(
+        -TileEntityRenderer.staticPlayerX + d.x + d.dirTo.x * tick / 16F,
+        -TileEntityRenderer.staticPlayerY + d.y + d.dirTo.y * tick / 16F,
+        -TileEntityRenderer.staticPlayerZ + d.z + d.dirTo.z * tick / 16F)
+      tes.setColorOpaque(1, 1, 1)
 
-    //x1 = block.getBlockBoundsMinX.toFloat
-    //x2 = block.getBlockBoundsMaxX.toFloat
-    //y1 = block.getBlockBoundsMinY.toFloat
-    //y2 = block.getBlockBoundsMaxY.toFloat
-    //z1 = block.getBlockBoundsMinZ.toFloat
-    //z2 = block.getBlockBoundsMaxZ.toFloat
-    //block.setBlockBounds(x1 + eps, y1 + eps, z1 + eps, x2 - eps, y2 - eps, z2 - eps)
-    //renderBlocks.overrideBlockBounds(x1 + eps, y1 + eps, z1 + eps, x2 - eps, y2 - eps, z2 - eps)
-    val oldOcclusion = mc.gameSettings.ambientOcclusion
-    mc.gameSettings.ambientOcclusion = 0
-    check = false
-    renderBlocks.renderBlockByRenderType(block, x, y, z)
-    check = true
-    mc.gameSettings.ambientOcclusion = oldOcclusion
+      block.getRenderBlockPass()
+      if(block.canRenderInPass(pass)) {
+        check = false
+        renderBlocks.renderBlockByRenderType(block, x, y, z)
+        check = true
+      }
 
-    //renderBlocks.unlockBlockBounds()
-    //block.setBlockBounds(x1, y1, z1, x2, y2, z2)
+      tes.setTranslation(0, 0, 0)
+      tes.draw()
 
-    tes.setTranslation(0, 0, 0)
-    tes.draw()
-
+    }
     //RenderHelper.enableStandardItemLighting()
     mc.entityRenderer.disableLightmap(partialTickTime)
+
+    mc.gameSettings.ambientOcclusion = oldOcclusion
   }
 
   @ForgeSubscribe
