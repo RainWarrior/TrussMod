@@ -184,6 +184,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
   }
   def cycle(world: World) {
     val c = pos - dirTo * size
+    if(pos.y < 0 || pos.y >= 256) return
     world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
       case te: TileEntityMovingStrip => te
       case te => 

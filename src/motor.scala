@@ -279,12 +279,15 @@ class TileEntityMotor extends StripHolder {
     }
     val canMove = !strips.exists { (pair) =>
       val c = pair._1
-      val id = worldObj.getBlockId(c.x, c.y, c.z)
-      val block = Block.blocksList(id)
-      //log.info(s"block: $block")
-      if(block == null) false
-      else
-        !block.isBlockReplaceable(worldObj, c.x, c.y, c.z)
+      if(c.y < 0 || c.y >= 256) true
+      else {
+        val id = worldObj.getBlockId(c.x, c.y, c.z)
+        val block = Block.blocksList(id)
+        //log.info(s"block: $block")
+        if(block == null) false
+        else
+          !block.isBlockReplaceable(worldObj, c.x, c.y, c.z)
+      }
     }
     if (canMove) {
       if(worldObj.isServer) {
