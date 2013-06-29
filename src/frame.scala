@@ -109,6 +109,8 @@ trait BlockFrame extends Block with Frame {
   }
   override def renderAsNormalBlock = false
   //override def renderAsNormalBlock = false
+
+  @SideOnly(Side.CLIENT)
   override def getRenderType = BlockFrameRenderer.getRenderId
 
   override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
@@ -191,7 +193,6 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       y: Int,
       z: Int,
       block: Block,
-      rb: RenderBlocks,
       sideSticky: Array[Boolean]) {
     val sideOffsets = for(s <- sideSticky) yield s match {
       case true => 1

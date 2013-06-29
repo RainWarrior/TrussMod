@@ -45,6 +45,11 @@ trait ITileHandler {
 }
 
 object MovingTileRegistry extends ITileHandler {
+
+  val rId = raw"(\d+)".r
+  val rIdMeta = raw"(\d+):(\d+)".r
+  val rIdMetaM = raw"(\d+)m(\d+)".r
+
   lazy val blockRegistry = {
     import cpw.mods.fml.common.{ ModContainer, registry } 
     import registry.{ BlockProxy, GameRegistry }
@@ -58,6 +63,25 @@ object MovingTileRegistry extends ITileHandler {
 
   def addStickySet(set: Set[Int]) {
     for(i <- set) stickyMap += i -> set
+  }
+
+  def addStickySet(string: String) {
+    addStickySet(parseStickyString(string))
+  }
+
+  def parseStickyString(string: String) = {
+    var set = Set.empty[Int]
+    for(s <- string.stripPrefix("\"").stripSuffix("\"").split(',')) s match {
+      case rId(ids) =>
+        val id = ids.toInt
+        for(m <- 0 until 16) set += packIdMeta(id, m)
+      case rIdMeta(ids, ms) =>
+        set += packIdMeta(ids.toInt, ms.toInt)
+      case s =>
+        throw new MatchError(s"Illegal set part: $s")
+    }
+    //println((set map unpackIdMeta).mkString)
+    set
   }
 
   def stickyHook(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) = {
@@ -100,14 +124,12 @@ object MovingTileRegistry extends ITileHandler {
     defaultHandler = resolveHandler(handler)
   }
 
-  val rId = raw"(\d+)".r
-  val rIdMeta = raw"(\d+)m(\d+)".r
   def setHandler(mod: String, handler: String) {
     val h = resolveHandler(handler)
     mod match {
       case rId(id) =>
         idMap += id.toInt -> h
-      case rIdMeta(id, meta) =>
+      case rIdMetaM(id, meta) =>
         idMetaMap += (id.toInt, meta.toInt) -> h
       case "default" =>
         defaultHandler = h

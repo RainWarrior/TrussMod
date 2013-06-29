@@ -98,6 +98,8 @@ trait BlockMotor extends BlockContainer {
     side.ordinal != world.getBlockMetadata(x, y, z)
   }
   override def renderAsNormalBlock = false
+
+  @SideOnly(Side.CLIENT)
   override def getRenderType = BlockMotorRenderer.getRenderId
 
   def rotate(vec: Int, dir: Int, count: Int): Int = count match {
@@ -313,11 +315,13 @@ class TileEntityMotor extends StripHolder {
     greyBlocks match {
       case Seq() => blackBlocks
       case Seq(next, rest@ _*) => Block.blocksList(worldObj.getBlockId(next.x, next.y, next.z)) match {
-        case block: Frame =>
-          val toCheck = for {
+        case block: Block =>
+          val toCheck = for { // TODO: prettify
             dir <- ForgeDirection.VALID_DIRECTIONS.toList
-            if (block.isSideSticky(worldObj, next.x, next.y, next.z, dir)
-            || MovingTileRegistry.stickyHook(worldObj, next.x, next.y, next.z, dir))
+            if (
+              (block.isInstanceOf[Frame]
+                && block.asInstanceOf[Frame].isSideSticky(worldObj, next.x, next.y, next.z, dir))
+              || MovingTileRegistry.stickyHook(worldObj, next.x, next.y, next.z, dir))
             c = next + dir
             if !(c == WorldPos(this))
             if !blackBlocks(c)

@@ -344,5 +344,5 @@ object utils {
   }
 
   def packIdMeta(id: Int, meta: Int): Int = id | (meta << 12)
-  def unpackIdMeta(pair: Int) = (pair & ((1 << 12) - 1), pair << 12)
+  def unpackIdMeta(pair: Int) = (pair & ((1 << 12) - 1), pair >> 12)
 }

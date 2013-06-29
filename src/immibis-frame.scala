@@ -82,7 +82,7 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
-  setBlockBounds(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
+  //setBlockBounds(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
   setBlockBounds(0, 0, 0, 1, 1, 1)
 
   import cpw.mods.fml.common.registry._
@@ -140,7 +140,7 @@ class TileEntityImmibisFrame extends TileCoverableBase {
   override def getPartPosition(subHit: Int) = Centre
 
   override def isPlacementBlockedByTile(tpe: PartType[_], pos: EnumPosition) = 
-    tpe.getSize > 1F/4F || pos.clazz == EnumPositionClass.Post
+    tpe.getSize > 3F/8F || pos.clazz == EnumPositionClass.Post
 
   override def isPositionOccupiedByTile(pos: EnumPosition) = pos == Centre
 
@@ -163,7 +163,6 @@ class TileEntityImmibisFrame extends TileCoverableBase {
       worldObj,
       xCoord, yCoord, zCoord,
       getBlockType,
-      rb,
       for(s <- ForgeDirection.VALID_DIRECTIONS) yield isSideSticky(s))
   }
 

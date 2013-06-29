@@ -64,9 +64,9 @@ object CommonProxy extends LoadLater {
     case false => new FrameProxy
   }
 
-  import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
-  MultipartGenerator.registerTrait("rainwarrior.trussmod.FrameMarker", "rainwarrior.trussmod.FrameTile")
-  MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")
+  /*import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
+  MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
+  MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")*/
 
   config.load()
   
@@ -76,11 +76,11 @@ object CommonProxy extends LoadLater {
     with DebugItem
   debugItem*/
 
-  val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
+  /*val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
   object cbFrameItem
     extends Item(cbFrameItemId)
     with ChickenBonesFrameItem
-  cbFrameItem
+  cbFrameItem*/
 
   val blockFrameId = config.getBlock("frame", 501).getInt()
   val blockFrame = frameProxy.init()
@@ -99,7 +99,7 @@ object CommonProxy extends LoadLater {
 
   val handlers = config.getCategory("Mod Handlers")
   handlers.setComment("""
-Per-mod moving handlers configuration
+Per-mod moving handlers configuration (ADVANCED)
 Default values:
   "default-hard" - Performs NBT read-write combo. Robust but expensive, known to cause time bugs.
   "default-soft" - Performs invalidate-move-validate combo. Works well for mods that access TileEntity coords only via *Coods fields, and don't cache them elsewhere. Also works fine for vanilla blocks.
@@ -120,7 +120,7 @@ Other keys can be:
     ("ComputerCraft", "default-soft"))
 
   if(!handlers.containsKey("default")) {
-    for((k, v) <- defaulthandlers if(!handlers.containsKey(k)))
+    for((k, v) <- defaulthandlers if !handlers.containsKey(k))
       handlers.put(k, new Property(k, v, Property.Type.STRING))
   }
 
@@ -128,6 +128,26 @@ Other keys can be:
     val v = handlers.get(k).getString
     MovingTileRegistry.setHandler(k, v)
   }
+
+  val sets = config.getCategory("Sticky Sets")
+  sets.setComment("""
+Sets of blocks that move together (multiblock structures) (ADVANCED)
+""")
+
+  val defaultSets = List(
+    ("bed", "26"),
+    ("wooden_door", "64"),
+    ("iron_door", "71"))
+
+  for((k, v) <- defaultSets  if !sets.containsKey(k))
+    sets.put(k, new Property(k, v, Property.Type.STRING))
+
+  for(k <- sets.keySet) {
+    val v = sets.get(k).getString
+    //println(s"$k, $v")
+    MovingTileRegistry.addStickySet(v)
+  }
+
   config.save()
 
 }
