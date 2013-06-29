@@ -79,6 +79,8 @@ class FrameProxy {
 }
 
 trait BlockFrame extends Block with Frame {
+  var renderType = -1
+
   setHardness(.5f)
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockFrame")
@@ -110,8 +112,7 @@ trait BlockFrame extends Block with Frame {
   override def renderAsNormalBlock = false
   //override def renderAsNormalBlock = false
 
-  @SideOnly(Side.CLIENT)
-  override def getRenderType = BlockFrameRenderer.getRenderId
+  override def getRenderType = renderType
 
   override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
     super.onBlockAdded(world, x, y, z)
@@ -152,8 +153,13 @@ trait BlockFrame extends Block with Frame {
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = true
 }
 
+@SideOnly(Side.CLIENT)
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
   model.loadModel("Frame")
+  CommonProxy.blockFrame match {
+    case block: BlockFrame => block.renderType = getRenderId
+    case _ =>
+  }
 
   override def renderInventoryBlock(
       block: Block,

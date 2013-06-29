@@ -64,6 +64,7 @@ trait BlockMotor extends BlockContainer {
   setUnlocalizedName(s"$modId:BlockMotor")
   setCreativeTab(CreativeTabs.tabBlock)
 
+  var renderType = -1
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Motor Block")
   net.minecraftforge.common.MinecraftForge.setBlockHarvestLevel(this, "shovel", 0)
@@ -99,8 +100,7 @@ trait BlockMotor extends BlockContainer {
   }
   override def renderAsNormalBlock = false
 
-  @SideOnly(Side.CLIENT)
-  override def getRenderType = BlockMotorRenderer.getRenderId
+  override def getRenderType = renderType
 
   def rotate(vec: Int, dir: Int, count: Int): Int = count match {
     case 0 => vec
@@ -355,7 +355,7 @@ class TileEntityMotor extends StripHolder {
   }
 }
 
-
+@SideOnly(Side.CLIENT)
 object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
   var rb: RenderBlocks = null
   override def onWorldChange(world: World) {
@@ -444,6 +444,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
 
 object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
   model.loadModel("Motor")
+  CommonProxy.blockMotor.renderType = getRenderId
 
   override def renderInventoryBlock(
       block: Block,
