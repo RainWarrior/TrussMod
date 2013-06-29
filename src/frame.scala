@@ -71,11 +71,11 @@ trait Frame {
 }
 
 class FrameProxy {
-  def init(): Block with Frame = {
+  def init() = {
     object blockFrame
       extends Block(CommonProxy.blockFrameId, Material.ground)
       with BlockFrame
-    blockFrame
+    new ItemStack(blockFrame)
   }
 }
 
@@ -160,7 +160,7 @@ trait BlockFrame extends Block with Frame {
 @SideOnly(Side.CLIENT)
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
   model.loadModel("Frame")
-  CommonProxy.blockFrame match {
+  Block.blocksList(CommonProxy.frameStack.itemID) match {
     case block: BlockFrame => block.renderType = getRenderId
     case _ =>
   }

@@ -72,7 +72,7 @@ class ChickenBonesFramePart extends TMultiPart with Frame {
     BlockFrameRenderer.renderWithSides(
       tile.worldObj,
       x, y, z,
-      CommonProxy.blockFrame,
+      tile.blockType,
       for(s <- ForgeDirection.VALID_DIRECTIONS) yield isSideSticky(s))
   }
 

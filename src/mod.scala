@@ -83,7 +83,7 @@ object CommonProxy extends LoadLater {
   cbFrameItem*/
 
   val blockFrameId = config.getBlock("frame", 501).getInt()
-  val blockFrame = frameProxy.init()
+  val frameStack = frameProxy.init()
 
   val blockMotorId = config.getBlock("motor", 502).getInt()
   object blockMotor

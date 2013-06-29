@@ -74,7 +74,7 @@ class ImmibisProxy extends FrameProxy {
     object blockImmibisFrame
       extends BlockMultipartBase(CommonProxy.blockFrameId, Material.ground)
       with BlockImmibisFrame
-    blockImmibisFrame
+    new ItemStack(blockImmibisFrame)
   }
 }
 
