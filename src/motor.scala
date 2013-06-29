@@ -85,14 +85,9 @@ trait BlockMotor extends BlockContainer {
       Char.box('f'), frame)
   }
 
-  val iconNames = Array(List("Base", "Gear", "Frame").map(s"$modId:Motor" + _): _*)
-
-  var iconArray: Array[Icon] = null
-
   @SideOnly(Side.CLIENT)
-  override def registerIcons(registry: IconRegister) {
-    iconArray = Array(iconNames.map(registry.registerIcon(_)): _*)
-  }
+  override def registerIcons(registry: IconRegister) {}
+
   override def createNewTileEntity(world: World): TileEntity = new TileEntityMotor
   override def isOpaqueCube = false
   override def isBlockSolidOnSide(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
@@ -122,7 +117,7 @@ trait BlockMotor extends BlockContainer {
     }
   }*/
   override def getIcon(side: Int, metadata: Int) = {
-    iconArray(side % 3)
+    model.getIcon("block", "MotorFrame")
   }
 
   override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
@@ -435,7 +430,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     tes.startDrawingQuads()
     tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
     tes.setColorOpaque_F(1, 1, 1)
-    model.render("Motor", "Gear", block.getIcon(1, 0))
+    model.render("Motor", "Gear", model.getIcon("block", "MotorGear"))
     tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
@@ -455,13 +450,13 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
     RenderHelper.disableStandardItemLighting()
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
-    model.render("Motor", "Base", block.getIcon(0, 0))
-    model.render("Motor", "Frame", block.getIcon(2, 0))
+    model.render("Motor", "Base", model.getIcon("block", "MotorBase"))
+    model.render("Motor", "Frame", model.getIcon("block", "MotorFrame"))
     tes.draw()
     glTranslatef(0, 3F/14F, 0)
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
-    model.render("Motor", "Gear", block.getIcon(1, 0))
+    model.render("Motor", "Gear", model.getIcon("block", "MotorGear"))
     tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
@@ -482,8 +477,8 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
         tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
         tes.setColorOpaque_F(1, 1, 1)
         tes.addTranslation(x + .5F, y + .5F, z + .5F)
-        model.renderTransformed("Motor", "Base", block.getIcon(0, 0), rotator2(meta, or))
-        model.renderTransformed("Motor", "Frame", block.getIcon(2, 0), rotator2(meta, or))
+        model.renderTransformed("Motor", "Base", model.getIcon("block", "MotorBase"), rotator2(meta, or))
+        model.renderTransformed("Motor", "Frame", model.getIcon("block", "MotorFrame"), rotator2(meta, or))
         tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
         true
       case _ => false

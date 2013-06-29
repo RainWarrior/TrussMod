@@ -39,6 +39,7 @@ import net.minecraft._,
   client.Minecraft.{ getMinecraft => mc },
   client.renderer.tileentity.TileEntitySpecialRenderer,
   client.renderer.Tessellator.{ instance => tes },
+  client.renderer.texture.IconRegister,
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.Entity,
@@ -77,6 +78,9 @@ trait BlockMovingStrip extends BlockContainer {
   LanguageRegistry.addName(this, "Moving Strip Block")
   GameRegistry.registerBlock(this, "Moving_Strip_Block")
   GameRegistry.registerTileEntity(classOf[TileEntityMovingStrip], "Moving_Strip_TileEntity")
+
+  @SideOnly(Side.CLIENT)
+  override def registerIcons(registry: IconRegister) {}
 
   override def createNewTileEntity(world: World) = new TileEntityMovingStrip
   override def isOpaqueCube = false

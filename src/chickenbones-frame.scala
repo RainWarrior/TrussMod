@@ -54,8 +54,6 @@ import scalatraits.TSlottedTile
 import codechicken.microblock.CommonMicroblock
 
 class ChickenBonesFramePart extends TMultiPart with Frame {
-  lazy val icon = CommonProxy.blockFrame.getIcon(0, 0)
-
   override val getType = "Frame"
 
   override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))

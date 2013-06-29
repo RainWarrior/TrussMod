@@ -32,17 +32,35 @@ package rainwarrior.trussmod
 import collection.JavaConversions._
 import net.minecraftforge.client.model.{ AdvancedModelLoader, obj }
 import net.minecraft.client.renderer.Tessellator.{ instance => tes }
+import net.minecraft.client.Minecraft.{ getMinecraft => mc }
 import net.minecraft.util.Icon
 import TrussMod._
 
 object model {
   var models = Map.empty[String, obj.WavefrontObject]
+  var icons = Map.empty[String, Icon]
 
   def loadModel(name: String) {
     val model = AdvancedModelLoader.loadModel(s"/mods/$modId/models/$name.obj").asInstanceOf[obj.WavefrontObject]
     val partNames = for(p <- model.groupObjects) yield p.name
     log.info(s"Loaded model $model with parts ${partNames.mkString}")
     models += name -> model
+  }
+
+  def getIcon(tpe: String, name: String) = icons.get(name) match {
+    case Some(icon) => icon
+    case None =>
+      val tmap = tpe match {
+        case "block" =>
+          mc.renderEngine.textureMapBlocks
+        case "item" =>
+          mc.renderEngine.textureMapItems
+      }
+      val icon = tmap.registerIcon(s"$modId:$name")
+      icons += name -> icon
+      //tmap.refreshTextures()
+      println(name, icon, s"$modId:$name")
+      icon
   }
 
   def render(modelName: String, partName: String, icon: Icon) {

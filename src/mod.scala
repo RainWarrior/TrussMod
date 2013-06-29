@@ -155,13 +155,25 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
 object ClientProxy extends LoadLater {
   import cpw.mods.fml.common.registry._
   import cpw.mods.fml.client.registry._
+  import net.minecraftforge.event.ForgeSubscribe
+  import net.minecraftforge.client.event.TextureStitchEvent
+  import net.minecraftforge.common.MinecraftForge.EVENT_BUS
+
   rainwarrior.hooks.MovingTileEntityRenderer
   TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
   ClientRegistry.bindTileEntitySpecialRenderer(classOf[TileEntityMotor], TileEntityMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockFrameRenderer)
-  net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(HelperRenderer)
-  model
+  EVENT_BUS.register(HelperRenderer)
+  EVENT_BUS.register(this)
+
+  val motorIconNames = Array(List("Base", "Gear", "Frame").map("Motor" + _): _*)
+
+  @ForgeSubscribe
+  def registerIcons(e: TextureStitchEvent.Pre) = if(e.map.textureType == 0) {
+    for (name <- motorIconNames) model.getIcon("block", name)
+    model.getIcon("block", "BlockFrame")
+  }
 }
 
 sealed class CommonProxy

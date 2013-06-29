@@ -39,6 +39,7 @@ import net.minecraft._,
   client.Minecraft.{ getMinecraft => mc },
   client.renderer.tileentity.TileEntitySpecialRenderer,
   client.renderer.Tessellator.{ instance => tes },
+  client.renderer.texture.IconRegister,
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.Entity,
@@ -103,6 +104,9 @@ trait BlockFrame extends Block with Frame {
       Char.box('r'), redstone,
       Char.box('s'), slime)
   }
+
+  @SideOnly(Side.CLIENT)
+  override def registerIcons(registry: IconRegister) {}
 
   //override def createNewTileEntity(world: World): TileEntity = null // new TileEntityFrame
   override def isOpaqueCube = false
@@ -170,7 +174,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     RenderHelper.disableStandardItemLighting()
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
-    model.render("Frame", "Frame", block.getIcon(0, 0))
+    model.render("Frame", "Frame", model.getIcon("block", "BlockFrame"))
     tes.draw()
     RenderHelper.enableStandardItemLighting()
   }
@@ -188,7 +192,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.render("Frame", "Frame", block.getIcon(0, 0))
+    model.render("Frame", "Frame", model.getIcon("block", "BlockFrame"))
     tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
     true
   }
@@ -207,7 +211,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.renderTransformed("Frame", "Frame", block.getIcon(0, 0), sideFixer(sideOffsets))
+    model.renderTransformed("Frame", "Frame", model.getIcon("block", "BlockFrame"), sideFixer(sideOffsets))
     tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
   }
 
