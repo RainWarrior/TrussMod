@@ -53,6 +53,20 @@ import codechicken.multipart.{ TileMultipart, TMultiPart, TItemMultiPart, scalat
 import scalatraits.TSlottedTile
 import codechicken.microblock.CommonMicroblock
 
+class ChickenBonesProxy extends FrameProxy {
+  override def init() = {
+    import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
+    MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
+    MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")
+
+    val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
+    object cbFrameItem
+      extends Item(cbFrameItemId)
+      with ChickenBonesFrameItem
+    new ItemStack(cbFrameItem)
+  }
+}
+
 class ChickenBonesFramePart extends TMultiPart with Frame {
   override val getType = "Frame"
 

@@ -52,36 +52,34 @@ object CommonProxy extends LoadLater {
   val hasImmibis = try {
     Class.forName("mods.immibis.core.api.multipart.util.BlockMultipartBase")
     Class.forName("mods.immibis.microblocks.api.util.TileCoverableBase")
-    log.info("Found immibis's microblocks")
+    log.info("Found Immibis's microblocks")
     true
   } catch {
     case e: ClassNotFoundException =>
       false
   }
 
-  val frameProxy = hasImmibis match {
-    case true => Class.forName("rainwarrior.trussmod.ImmibisProxy").newInstance.asInstanceOf[FrameProxy]
-    case false => new FrameProxy
+  val hasChickenBones = try {
+    Class.forName("codechicken.multipart.TileMultipart")
+    Class.forName("codechicken.microblock.CommonMicroblock")
+    log.info("Found ChickenBones's microblocks")
+    true
+  } catch {
+    case e: ClassNotFoundException =>
+      false
   }
-
-  /*import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
-  MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
-  MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")*/
+  
+  val frameProxy = (hasImmibis, hasChickenBones) match {
+    case (_, true) =>
+      Class.forName("rainwarrior.trussmod.ChickenBonesProxy").newInstance.asInstanceOf[FrameProxy]
+    case (true, _) =>
+      Class.forName("rainwarrior.trussmod.ImmibisProxy").newInstance.asInstanceOf[FrameProxy]
+    case _ =>
+      new FrameProxy
+  }
 
   config.load()
   
-  /*val debugItemId = config.getItem("debugItem", 5000).getInt()
-  object debugItem
-    extends Item(debugItemId)
-    with DebugItem
-  debugItem*/
-
-  /*val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
-  object cbFrameItem
-    extends Item(cbFrameItemId)
-    with ChickenBonesFrameItem
-  cbFrameItem*/
-
   val blockFrameId = config.getBlock("frame", 501).getInt()
   val frameStack = frameProxy.init()
 

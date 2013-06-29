@@ -160,7 +160,8 @@ trait BlockFrame extends Block with Frame {
 @SideOnly(Side.CLIENT)
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
   model.loadModel("Frame")
-  Block.blocksList(CommonProxy.frameStack.itemID) match {
+  val id = CommonProxy.frameStack.itemID
+  if(id < 4096) Block.blocksList(id) match {
     case block: BlockFrame => block.renderType = getRenderId
     case _ =>
   }
