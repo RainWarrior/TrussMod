@@ -47,22 +47,13 @@ import TrussMod._
 import rainwarrior.utils._
 
 import codechicken.core.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
-import codechicken.core.lighting.LazyLightMatrix
+import codechicken.core.lighting.{ LazyLightMatrix, LC }
 import codechicken.core.raytracer.{ RayTracer, IndexedCuboid6 }
-import codechicken.multipart.{ TileMultipart, TMultiPart, TItemMultiPart }
-import codechicken.microblock.MicroblockClass
+import codechicken.multipart.{ TileMultipart, TMultiPart, TItemMultiPart, scalatraits }
+import scalatraits.TSlottedTile
+import codechicken.microblock.CommonMicroblock
 
-trait FrameTile extends TileMultipart with Frame {
-  override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
-    (partList collectFirst {
-      case part: MicroblockClass => 
-    }).isEmpty
-  }
-}
-
-trait FrameMarker
-
-class ChickenBonesFramePart extends TMultiPart with FrameMarker {
+class ChickenBonesFramePart extends TMultiPart with Frame {
   lazy val icon = CommonProxy.blockFrame.getIcon(0, 0)
 
   override val getType = "Frame"
@@ -76,16 +67,28 @@ class ChickenBonesFramePart extends TMultiPart with FrameMarker {
     case _ => true
   }
 
+  override val doesTick = false
+
   @SideOnly(Side.CLIENT)
-  override def renderStatic(pos: Vector3, olm: LazyLightMatrix, pass: Int) {
-    //tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
-    tes.setColorOpaque_F(1, 1, 1)
-    tes.addTranslation((pos.x + .5F).toFloat, (pos.y + .5F).toFloat, (pos.z + .5F).toFloat)
-    model.render("Frame", "Frame", icon)
-    tes.addTranslation((-pos.x - .5F).toFloat, (-pos.y - .5F).toFloat, (-pos.z - .5F).toFloat)
+  override def renderStatic(pos: Vector3, olm: LazyLightMatrix, pass: Int) = /*if(pass == 0)*/ {
+    BlockFrameRenderer.renderWithSides(
+      tile.worldObj,
+      x, y, z,
+      CommonProxy.blockFrame,
+      for(s <- ForgeDirection.VALID_DIRECTIONS) yield isSideSticky(s))
   }
 
-  override val doesTick = false
+  override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) =
+    isSideSticky(side)
+
+  def isSideSticky(side: ForgeDirection) = tile match {
+    case tile: TSlottedTile => tile.partMap(side.ordinal) match {
+      case part: CommonMicroblock =>
+        part.getSize != 1
+      case _ => true
+    }
+    case _ => true
+  }
 }
 
 trait ChickenBonesFrameItem extends Item {
@@ -107,7 +110,7 @@ trait ChickenBonesFrameItem extends Item {
     x: Int, y: Int, z: Int,
     side: Int,
     hitX: Float, hitY:Float, hitZ:Float
-  ) = if(!world.isClient) {
+  ) = {
     val newPart = new ChickenBonesFramePart
     val pos = new BlockCoord(x, y, z)
     val d = getHitDepth(new Vector3(hitX, hitY, hitZ), side)
@@ -116,12 +119,13 @@ trait ChickenBonesFrameItem extends Item {
       pos.offset(side)
 
     if(TileMultipart.canPlacePart(world, pos, newPart)) {
-      TileMultipart.addPart(world, pos, newPart)
+      if(!world.isClient)
+        TileMultipart.addPart(world, pos, newPart)
       if(!player.capabilities.isCreativeMode)
         stack.stackSize -= 1
       true
     } else false
-  } else true
+  }
 
   /*override def newPart(
     stack: ItemStack,
@@ -132,3 +136,4 @@ trait ChickenBonesFrameItem extends Item {
     vhit:Vector3
   ) = new ChickenBonesFramePart*/
 }
+
