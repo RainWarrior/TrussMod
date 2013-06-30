@@ -69,14 +69,20 @@ class ChickenBonesProxy extends FrameItemProxy {
 class ChickenBonesFramePart extends TMultiPart with Frame {
   override val getType = "Frame"
 
-  override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
+  //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
+
+  //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(0, 0, 0, 1, 1, 1)))
+  override val getSubParts: JIterable[IndexedCuboid6] = Seq(
+    new IndexedCuboid6(0, new Cuboid6(.25, .25, .25, .75, .75, .75))
+  )
 
   override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(0, 0, 0, 1, 1, 1))
+  //override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(.25, .25, .25, .75, .75, .75))
 
-  override def occlusionTest(part: TMultiPart) = part match {
+  /*override def occlusionTest(part: TMultiPart) = part match {
     case part: ChickenBonesFramePart => false
     case _ => true
-  }
+  }*/
 
   override val doesTick = false
 
@@ -122,11 +128,12 @@ trait ChickenBonesFrameItem extends ItemBlock {
     side: Int,
     hitX: Float, hitY:Float, hitZ:Float
   ) = {
+    log.info(s"($x, $y, $z), $side, ($hitX, $hitY, $hitZ)")
     val newPart = new ChickenBonesFramePart
     val pos = new BlockCoord(x, y, z)
     val d = getHitDepth(new Vector3(hitX, hitY, hitZ), side)
 
-    if(d > 1 || !TileMultipart.canPlacePart(world, pos, newPart))
+    if(d >= 1 || !TileMultipart.canPlacePart(world, pos, newPart))
       pos.offset(side)
 
     if(world.isAirBlock(pos.x, pos.y, pos.z)) {
