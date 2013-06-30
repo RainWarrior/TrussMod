@@ -73,7 +73,8 @@ class ChickenBonesFramePart extends TMultiPart with Frame {
 
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(0, 0, 0, 1, 1, 1)))
   override val getSubParts: JIterable[IndexedCuboid6] = Seq(
-    new IndexedCuboid6(0, new Cuboid6(.25, .25, .25, .75, .75, .75))
+    new IndexedCuboid6(0, new Cuboid6(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps))
+    //new IndexedCuboid6(0, new Cuboid6(.25, .25, .25, .75, .75, .75))
   )
 
   override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(0, 0, 0, 1, 1, 1))
@@ -133,7 +134,7 @@ trait ChickenBonesFrameItem extends ItemBlock {
     val pos = new BlockCoord(x, y, z)
     val d = getHitDepth(new Vector3(hitX, hitY, hitZ), side)
 
-    if(d >= 1 || !TileMultipart.canPlacePart(world, pos, newPart))
+    if(d > 1 || !TileMultipart.canPlacePart(world, pos, newPart))
       pos.offset(side)
 
     if(world.isAirBlock(pos.x, pos.y, pos.z)) {
@@ -146,5 +147,12 @@ trait ChickenBonesFrameItem extends ItemBlock {
       true
     } else false
   }
+
+  override def canPlaceItemBlockOnSide(
+    world: World,
+    x: Int, y: Int, z: Int,
+    side: Int,
+    player: EntityPlayer,
+    stack: ItemStack) = true
 }
 
