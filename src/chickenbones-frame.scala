@@ -55,20 +55,22 @@ import codechicken.microblock.CommonMicroblock
 
 class ChickenBonesProxy extends FrameItemProxy {
   override def init() = {
-    import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
-    MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
-    MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")
-
     object cbFrameItem
       extends ItemBlock(CommonProxy.blockFrameId - 256) // Hmm
       with ChickenBonesFrameItem
+
+    import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
+    MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
+    MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart(cbFrameItem.itemID), "Frame")
+
     cbFrameItem
   }
 }
 
-class ChickenBonesFramePart extends TMultiPart with Frame {
+class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame {
   override val getType = "Frame"
 
+  override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(id, 1, 0))
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
 
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(0, 0, 0, 1, 1, 1)))
@@ -130,7 +132,7 @@ trait ChickenBonesFrameItem extends ItemBlock {
     hitX: Float, hitY:Float, hitZ:Float
   ) = {
     log.info(s"($x, $y, $z), $side, ($hitX, $hitY, $hitZ)")
-    val newPart = new ChickenBonesFramePart
+    val newPart = new ChickenBonesFramePart(CommonProxy.frameItem.itemID)
     val pos = new BlockCoord(x, y, z)
     val d = getHitDepth(new Vector3(hitX, hitY, hitZ), side)
 
