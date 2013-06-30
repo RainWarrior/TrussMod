@@ -214,9 +214,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       case true => 1
       case false => -1
     }
-    assert(block != null)
-    assert(world != null)
-    tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
+    tes.setBrightness(world.getLightBrightnessForSkyBlocks(x, y, z, Block.stone.getLightValue(world, x, y, z)))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
     model.renderTransformed("Frame", "Frame", model.getIcon("block", "BlockFrame"), sideFixer(sideOffsets))
