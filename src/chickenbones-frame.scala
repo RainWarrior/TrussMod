@@ -39,7 +39,7 @@ import net.minecraft._,
   client.renderer.Tessellator.{ instance => tes },
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
-  item.{ Item, ItemStack },
+  item.{ Item, ItemBlock, ItemStack },
   world.World
 import net.minecraftforge.common.ForgeDirection
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
@@ -53,17 +53,16 @@ import codechicken.multipart.{ TileMultipart, TMultiPart, TItemMultiPart, scalat
 import scalatraits.TSlottedTile
 import codechicken.microblock.CommonMicroblock
 
-class ChickenBonesProxy extends FrameProxy {
+class ChickenBonesProxy extends FrameItemProxy {
   override def init() = {
     import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
     MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
     MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")
 
-    val cbFrameItemId = config.getItem("cbFrameItem", 5001).getInt()
     object cbFrameItem
-      extends Item(cbFrameItemId)
+      extends ItemBlock(CommonProxy.blockFrameId - 256) // Hmm
       with ChickenBonesFrameItem
-    new ItemStack(cbFrameItem)
+    cbFrameItem
   }
 }
 
@@ -82,7 +81,7 @@ class ChickenBonesFramePart extends TMultiPart with Frame {
   override val doesTick = false
 
   @SideOnly(Side.CLIENT)
-  override def renderStatic(pos: Vector3, olm: LazyLightMatrix, pass: Int) = /*if(pass == 0)*/ {
+  override def renderStatic(pos: Vector3, olm: LazyLightMatrix, pass: Int) = if(pass == 0) {
     BlockFrameRenderer.renderWithSides(
       tile.worldObj,
       x, y, z,
@@ -103,7 +102,7 @@ class ChickenBonesFramePart extends TMultiPart with Frame {
   }
 }
 
-trait ChickenBonesFrameItem extends Item {
+trait ChickenBonesFrameItem extends ItemBlock {
   setCreativeTab(CreativeTabs.tabMisc)
   setUnlocalizedName(modId + ":FrameItem")
 
@@ -130,7 +129,9 @@ trait ChickenBonesFrameItem extends Item {
     if(d > 1 || !TileMultipart.canPlacePart(world, pos, newPart))
       pos.offset(side)
 
-    if(TileMultipart.canPlacePart(world, pos, newPart)) {
+    if(world.isAirBlock(pos.x, pos.y, pos.z)) {
+      super.onItemUse(stack, player, world, x, y, z, side, hitX, hitY, hitZ)
+    } else if(TileMultipart.canPlacePart(world, pos, newPart)) {
       if(!world.isClient)
         TileMultipart.addPart(world, pos, newPart)
       if(!player.capabilities.isCreativeMode)
@@ -138,14 +139,5 @@ trait ChickenBonesFrameItem extends Item {
       true
     } else false
   }
-
-  /*override def newPart(
-    stack: ItemStack,
-    player:EntityPlayer,
-    world:World,
-    pos:BlockCoord,
-    side:Int,
-    vhit:Vector3
-  ) = new ChickenBonesFramePart*/
 }
 

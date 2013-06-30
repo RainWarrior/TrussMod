@@ -44,7 +44,7 @@ import net.minecraft._,
   creativetab.CreativeTabs,
   entity.Entity,
   entity.player.EntityPlayer,
-  item.{ Item, ItemStack },
+  item.{ Item, ItemBlock, ItemStack },
   nbt.{ NBTTagCompound, NBTTagList },
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
@@ -70,12 +70,18 @@ trait Frame {
   def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection): Boolean
 }
 
-class FrameProxy {
-  def init() = {
+class FrameBlockProxy {
+  def init(): Block = {
     object blockFrame
       extends Block(CommonProxy.blockFrameId, Material.ground)
       with BlockFrame
-    new ItemStack(blockFrame)
+    blockFrame
+  }
+}
+
+class FrameItemProxy {
+  def init(): Item = {
+    new ItemBlock(CommonProxy.blockFrameId - 256) // Hmm
   }
 }
 
@@ -160,8 +166,7 @@ trait BlockFrame extends Block with Frame {
 @SideOnly(Side.CLIENT)
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
   model.loadModel("Frame")
-  val id = CommonProxy.frameStack.itemID
-  if(id < 4096) Block.blocksList(id) match {
+  CommonProxy.frameBlock match {
     case block: BlockFrame => block.renderType = getRenderId
     case _ =>
   }
@@ -209,6 +214,8 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       case true => 1
       case false => -1
     }
+    assert(block != null)
+    assert(world != null)
     tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)

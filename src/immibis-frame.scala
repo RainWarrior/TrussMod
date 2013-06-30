@@ -69,12 +69,12 @@ import mods.immibis.core.api.multipart.util.BlockMultipartBase
 import mods.immibis.microblocks.api.util.TileCoverableBase
 import mods.immibis.microblocks.api.{ EnumPosition, EnumPositionClass, IMicroblockCoverSystem, PartType }
 
-class ImmibisProxy extends FrameProxy {
+class ImmibisProxy extends FrameBlockProxy {
   override def init() = {
     object blockImmibisFrame
       extends BlockMultipartBase(CommonProxy.blockFrameId, Material.ground)
       with BlockImmibisFrame
-    new ItemStack(blockImmibisFrame)
+    blockImmibisFrame
   }
 }
 

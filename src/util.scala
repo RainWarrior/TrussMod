@@ -85,7 +85,7 @@ object utils {
         start = i
         (xs(i - 1), size)
       }
-      ret :+ (xs.last, xs.length - start)
+      ret :+ ((xs.last, xs.length - start))
     }
   }
 

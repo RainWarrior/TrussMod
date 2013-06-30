@@ -59,7 +59,7 @@ object model {
       val icon = tmap.registerIcon(s"$modId:$name")
       icons += name -> icon
       //tmap.refreshTextures()
-      println(name, icon, s"$modId:$name")
+      println((name, icon, s"$modId:$name"))
       icon
   }
 

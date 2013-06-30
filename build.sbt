@@ -45,7 +45,7 @@ autoCompilerPlugins := true
 
 addCompilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.1")
 
-scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation")
+scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-Xlint")
 
 libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.1"
 

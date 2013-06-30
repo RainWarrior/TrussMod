@@ -69,19 +69,25 @@ object CommonProxy extends LoadLater {
       false
   }
   
-  val frameProxy = (hasImmibis, hasChickenBones) match {
-    case (_, true) =>
-      Class.forName("rainwarrior.trussmod.ChickenBonesProxy").newInstance.asInstanceOf[FrameProxy]
-    case (true, _) =>
-      Class.forName("rainwarrior.trussmod.ImmibisProxy").newInstance.asInstanceOf[FrameProxy]
+  val frameBlockProxy = hasImmibis match {
+    case true =>
+      Class.forName("rainwarrior.trussmod.ImmibisProxy").newInstance.asInstanceOf[FrameBlockProxy]
     case _ =>
-      new FrameProxy
+      new FrameBlockProxy
+  }
+
+  val frameItemProxy = hasChickenBones match {
+    case true =>
+      Class.forName("rainwarrior.trussmod.ChickenBonesProxy").newInstance.asInstanceOf[FrameItemProxy]
+    case _ =>
+      new FrameItemProxy
   }
 
   config.load()
   
   val blockFrameId = config.getBlock("frame", 501).getInt()
-  val frameStack = frameProxy.init()
+  val frameBlock = frameBlockProxy.init()
+  val frameItem = frameItemProxy.init()
 
   val blockMotorId = config.getBlock("motor", 502).getInt()
   object blockMotor

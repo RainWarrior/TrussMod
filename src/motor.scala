@@ -72,7 +72,7 @@ trait BlockMotor extends BlockContainer {
   GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity");
   {
     val motor = new ItemStack(this)
-    val frame = CommonProxy.frameStack
+    val frame = new ItemStack(CommonProxy.frameItem)
     val redstone = new ItemStack(Block.blockRedstone)
     val iron = new ItemStack(Item.ingotIron)
     GameRegistry.addRecipe(
@@ -319,14 +319,17 @@ class TileEntityMotor extends StripHolder {
             if (
               (block.isInstanceOf[Frame]
                 && block.asInstanceOf[Frame].isSideSticky(worldObj, next.x, next.y, next.z, dir))
-              || MovingTileRegistry.stickyHook(worldObj, next.x, next.y, next.z, dir))
+              || {
+                val te = worldObj.getBlockTileEntity(next.x, next.y, next.z)
+                (te.isInstanceOf[Frame]
+                && te.asInstanceOf[Frame].isSideSticky(worldObj, next.x, next.y, next.z, dir))
+              } || MovingTileRegistry.stickyHook(worldObj, next.x, next.y, next.z, dir))
             c = next + dir
             if !(c == WorldPos(this))
             if !blackBlocks(c)
             if !greyBlocks.contains(c)
             if !(MovingRegistry.isMoving(this.worldObj, c.x, c.y, c.z))
-            id = worldObj.getBlockId(c.x, c.y, c.z)
-            if id != 0
+            if !worldObj.isAirBlock(c.x, c.y, c.z)
             if MovingTileRegistry.canMove(this.worldObj, c.x, c.y, c.z)
             /*if !(id == CommonProxy.blockMotorId && {
               val meta = worldObj.getBlockMetadata(c.x, c.y, c.z)
