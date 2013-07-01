@@ -91,13 +91,13 @@ object CommonProxy extends LoadLater {
 
   val blockMotorId = config.getBlock("motor", 502).getInt()
   object blockMotor
-    extends BlockContainer(blockMotorId, Material.ground)
+    extends BlockContainer(blockMotorId, Material.iron)
     with BlockMotor
   blockMotor
 
   val blockMovingStripId = config.getBlock("movingStrip", 503, "Util block, shouldn't be used in the normal game").getInt()
   object blockMovingStrip
-    extends BlockContainer(blockMovingStripId, Material.ground)
+    extends BlockContainer(blockMovingStripId, Material.iron)
     with BlockMovingStrip
   blockMovingStrip
 

@@ -79,7 +79,7 @@ class ImmibisProxy extends FrameBlockProxy {
 }
 
 trait BlockImmibisFrame extends BlockMultipartBase with Frame {
-  setStepSound(Block.soundGravelFootstep)
+  setStepSound(Block.soundMetalFootstep)
   setUnlocalizedName(modId + ":BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
   //setBlockBounds(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
@@ -104,6 +104,7 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
       Char.box('s'), slime)
   }
 
+  override def getPartHardness(world: World, x: Int, y: Int, z: Int, part: Int) = 5f 
   override def createNewTileEntity(world: World): TileEntity =  new TileEntityImmibisFrame
   override def wrappedGetRenderType = BlockFrameRenderer.getRenderId
 

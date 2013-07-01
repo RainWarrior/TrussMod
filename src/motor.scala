@@ -59,8 +59,9 @@ import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 
 trait BlockMotor extends BlockContainer {
-  setHardness(.5f)
-  setStepSound(Block.soundGravelFootstep)
+  setHardness(5f)
+  setResistance(10f)
+  setStepSound(Block.soundMetalFootstep)
   setUnlocalizedName(s"$modId:BlockMotor")
   setCreativeTab(CreativeTabs.tabBlock)
 

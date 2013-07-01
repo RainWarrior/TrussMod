@@ -88,8 +88,9 @@ class FrameItemProxy {
 trait BlockFrame extends Block with Frame {
   var renderType = -1
 
-  setHardness(.5f)
-  setStepSound(Block.soundGravelFootstep)
+  setHardness(5f)
+  setResistance(10f)
+  setStepSound(Block.soundMetalFootstep)
   setUnlocalizedName(modId + ":BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
 
