@@ -37,7 +37,7 @@ import net.minecraft._,
   block.material.Material,
   client.renderer.tileentity.TileEntitySpecialRenderer,
   client.renderer.Tessellator.{ instance => tes },
-  client.renderer.texture.IconRegister,
+  client.renderer.texture.{ IconRegister, TextureMap },
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
@@ -405,7 +405,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     glPushMatrix()
     glTranslated(x, y, z)
     RenderHelper.disableStandardItemLighting()
-    this.bindTextureByName("/terrain.png")
+    this.func_110628_a(TextureMap.field_110575_b)
     glTranslatef(.5F, .5F, .5F)
     glRotatef(90 * or, dir.offsetX, dir.offsetY, dir.offsetZ)
     meta match {

@@ -29,7 +29,8 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.hooks
 
-import cpw.mods.fml.relauncher.{ IClassTransformer, IFMLCallHook, IFMLLoadingPlugin }
+import net.minecraft.launchwrapper.IClassTransformer
+import cpw.mods.fml.relauncher.{ IFMLCallHook, IFMLLoadingPlugin }
 import cpw.mods.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper.{ INSTANCE => mapper }
 import org.objectweb.asm
 import asm.{ ClassReader, ClassWriter, Opcodes }
@@ -113,9 +114,10 @@ class Transformer extends IClassTransformer {
       (n, m) => mapper.mapMethodName(n, m.name, "(III)Z") == "func_72804_r",
       transformIsBlockOpaqueCube(true)
     )),
+    // CHANGES WITH OBFUSCATION:
     "net.minecraft.client.renderer.RenderBlocks" -> ((
       (_, m) => m.name == "renderBlockByRenderType",
-      (n, m) => mapper.mapMethodName(n, m.name, "(Lapa;III)Z") == "func_78612_b" && m.desc == "(Lapa;III)Z",
+      (n, m) => mapper.mapMethodName(n, m.name, "(Laqw;III)Z") == "func_78612_b" && m.desc == "(Laqw;III)Z",
       transformRenderBlockByRenderType
     )),
     "net.minecraft.client.renderer.tileentity.TileEntityRenderer" -> ((
@@ -141,7 +143,7 @@ class Transformer extends IClassTransformer {
       val reader = new ClassReader(data)
       reader.accept(node, 0)
 
-      for(m <- node.methods) {
+      for(m@(_m: MethodNode) <- node.methods) {
         if((deobfEnv && ch1(name, m)) || (!deobfEnv && ch2(name, m))) {
           tr(m)
         }
@@ -159,22 +161,22 @@ class Transformer extends IClassTransformer {
       val reader = new ClassReader(data)
       reader.accept(node, 0)
 
-      for(f <- node.fields) {
-        if(f.name == "field_73064_N"
+      for(f@(_f: FieldNode) <- node.fields) {
+        if(f.name == "pendingTickListEntriesHashSet"
         || mapper.mapFieldName(name, f.name, "Ljava/util/Set;") == "field_73064_N") {
-          println("FOUND field_73064_N")
+          println("FOUND pendingTickListEntriesHashSet")
           f.access &= ~ACC_PRIVATE
           f.access &= ~ACC_PROTECTED
           f.access |= ACC_PUBLIC
-        } else if(f.name == "pendingTickListEntries"
+        } else if(f.name == "pendingTickListEntriesTreeSet"
         || mapper.mapFieldName(name, f.name, "Ljava/util/TreeSet;") == "field_73065_O") {
-          println("FOUND pendingTickListEntries")
+          println("FOUND pendingTickListEntriesTreeSet")
           f.access &= ~ACC_PRIVATE
           f.access &= ~ACC_PROTECTED
           f.access |= ACC_PUBLIC
-        } else if(f.name == "field_94579_S"
-        || mapper.mapFieldName(name, f.name, "Ljava/util/ArrayList;") == "field_94579_S") {
-          println("FOUND field_94579_S")
+        } else if(f.name == "pendingTickListEntriesThisTick"
+        || mapper.mapFieldName(name, f.name, "Ljava/util/List;") == "field_94579_S") {
+          println("FOUND pendingTickListEntriesThisTick")
           f.access &= ~ACC_PRIVATE
           f.access &= ~ACC_PROTECTED
           f.access |= ACC_PUBLIC

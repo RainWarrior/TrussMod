@@ -279,9 +279,9 @@ abstract class StripHolder extends TileEntity {
   def fixScheduledTicks() {
     worldObj match {
       case world: WorldServer =>
-        val hash = world.field_73064_N.asInstanceOf[JSet[NextTickListEntry]]
-        val tree = world.pendingTickListEntries.asInstanceOf[JTreeSet[NextTickListEntry]]
-        val list = world.field_94579_S.asInstanceOf[ArrayList[NextTickListEntry]]
+        val hash = world.pendingTickListEntriesHashSet.asInstanceOf[JSet[NextTickListEntry]]
+        val tree = world.pendingTickListEntriesTreeSet.asInstanceOf[JTreeSet[NextTickListEntry]]
+        val list = world.pendingTickListEntriesThisTick.asInstanceOf[ArrayList[NextTickListEntry]]
         val isOptifine = world.getClass.getName == "WorldServerOF"
         val blocks = this.blocks().toSet
         val allBlocks = this.allBlocks()

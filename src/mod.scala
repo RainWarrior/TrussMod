@@ -163,7 +163,7 @@ object ClientProxy extends LoadLater {
   import net.minecraftforge.client.event.TextureStitchEvent
   import net.minecraftforge.common.MinecraftForge.EVENT_BUS
 
-  rainwarrior.hooks.MovingTileEntityRenderer
+  val renderer = new rainwarrior.hooks.MovingTileEntityRenderer
   TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
   ClientRegistry.bindTileEntitySpecialRenderer(classOf[TileEntityMotor], TileEntityMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockMotorRenderer)
@@ -175,8 +175,8 @@ object ClientProxy extends LoadLater {
 
   @ForgeSubscribe
   def registerIcons(e: TextureStitchEvent.Pre) = if(e.map.textureType == 0) {
-    for (name <- motorIconNames) model.getIcon("block", name)
-    model.getIcon("block", "BlockFrame")
+    for (name <- motorIconNames) model.loadIcon(e.map, name)
+    model.loadIcon(e.map, "BlockFrame")
   }
 }
 
@@ -219,7 +219,7 @@ object TrussMod {
     log.info("There is NO WARRANTY, to the extent permitted by law.")
   }
 
-  @Mod.PreInit def preinit(e: event.FMLPreInitializationEvent) {}
-  @Mod.Init def init(e: event.FMLInitializationEvent) = CommonProxy.init()
+  @Mod.EventHandler def preinit(e: event.FMLPreInitializationEvent) {}
+  @Mod.EventHandler def init(e: event.FMLInitializationEvent) = CommonProxy.init()
 }
 

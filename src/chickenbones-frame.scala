@@ -46,9 +46,9 @@ import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import TrussMod._
 import rainwarrior.utils._
 
-import codechicken.core.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
-import codechicken.core.lighting.{ LazyLightMatrix, LC }
-import codechicken.core.raytracer.{ RayTracer, IndexedCuboid6 }
+import codechicken.lib.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
+import codechicken.lib.lighting.{ LazyLightMatrix, LC }
+import codechicken.lib.raytracer.{ RayTracer, IndexedCuboid6 }
 import codechicken.multipart.{ TileMultipart, TMultiPart, TItemMultiPart, scalatraits }
 import scalatraits.TSlottedTile
 import codechicken.microblock.CommonMicroblock

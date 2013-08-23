@@ -91,7 +91,8 @@ trait BlockFrame extends Block with Frame {
   setHardness(5f)
   setResistance(10f)
   setStepSound(Block.soundMetalFootstep)
-  setUnlocalizedName(modId + ":BlockFrame")
+  setUnlocalizedName(s"$modId:BlockFrame")
+  func_111022_d(s"$modId:BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
 
   import cpw.mods.fml.common.registry._

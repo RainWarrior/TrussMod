@@ -8,6 +8,6 @@
     "mcversion": "1.5.2",
     "authors": [ "RainWarrior" ],
     "credits": "Authored by RainWarrior, based on an original idea by Eloraam and Ecu",
-    "requiredMods": [ "Forge" ],
+    "requiredMods": [ "Forge" ]
   }]
 }

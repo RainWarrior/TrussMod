@@ -1,0 +1,1 @@
+FMLCorePlugin: rainwarrior.hooks.Plugin

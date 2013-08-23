@@ -32,8 +32,9 @@ package rainwarrior.trussmod
 import collection.JavaConversions._
 import net.minecraftforge.client.model.{ AdvancedModelLoader, obj }
 import net.minecraft.client.renderer.Tessellator.{ instance => tes }
+import net.minecraft.client.renderer.texture.TextureMap
 import net.minecraft.client.Minecraft.{ getMinecraft => mc }
-import net.minecraft.util.Icon
+import net.minecraft.util.{ Icon, ResourceLocation }
 import TrussMod._
 
 object model {
@@ -41,7 +42,7 @@ object model {
   var icons = Map.empty[String, Icon]
 
   def loadModel(name: String) {
-    val model = AdvancedModelLoader.loadModel(s"/mods/$modId/models/$name.obj").asInstanceOf[obj.WavefrontObject]
+    val model = AdvancedModelLoader.loadModel(s"/assets/${modId.toLowerCase}/models/$name.obj").asInstanceOf[obj.WavefrontObject]
     val partNames = for(p <- model.groupObjects) yield p.name
     log.info(s"Loaded model $model with parts ${partNames.mkString}")
     models += name -> model
@@ -49,21 +50,18 @@ object model {
 
   def getIcon(tpe: String, name: String) = icons.get(name) match {
     case Some(icon) => icon
-    case None =>
-      val tmap = tpe match {
-        case "block" =>
-          mc.renderEngine.textureMapBlocks
-        case "item" =>
-          mc.renderEngine.textureMapItems
-      }
-      val icon = tmap.registerIcon(s"$modId:$name")
+    case None => throw new RuntimeException(s"Texture $tpe : $name wasn't loaded")
+  }
+
+  def loadIcon(map: TextureMap, name: String) = if(map.textureType == 0) {
+      val icon = map.registerIcon(s"${modId.toLowerCase}:$name")
       icons += name -> icon
       //tmap.refreshTextures()
       println((name, icon, s"$modId:$name"))
-      icon
   }
 
   def render(modelName: String, partName: String, icon: Icon) {
+    assert(icon != null)
     val model = models(modelName)
     val part = (for {
       part <- model.groupObjects

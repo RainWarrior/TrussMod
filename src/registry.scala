@@ -49,7 +49,8 @@ import net.minecraft.block.Block
 import net.minecraft.world.{ World, IBlockAccess, EnumSkyBlock }
 import net.minecraft.client.Minecraft
 import Minecraft.{ getMinecraft => mc }
-import net.minecraft.client.renderer.{ tileentity, RenderBlocks, RenderHelper, Tessellator, OpenGlHelper }
+import net.minecraft.client.renderer.{ tileentity, texture, RenderBlocks, RenderHelper, Tessellator, OpenGlHelper }
+import texture.TextureMap
 import tileentity.{ TileEntityRenderer, TileEntitySpecialRenderer }
 import Tessellator.{ instance => tes }
 import java.util.{ EnumSet, Set, HashSet }
@@ -79,7 +80,7 @@ object HelperRenderer {
     if(block == null) return
 
     val engine = TileEntityRenderer.instance.renderEngine
-    if(engine != null) engine.bindTexture("/terrain.png")
+    if(engine != null) engine.func_110577_a(TextureMap.field_110575_b)
     mc.entityRenderer.enableLightmap(partialTickTime)
     val light = world.getLightBrightnessForSkyBlocks(x, y, z, 0)
     val l1 = light % 65536
@@ -226,11 +227,11 @@ object RenderTickHandler extends ITickHandler {
 }
 
 @SideOnly(Side.CLIENT)
-object MovingTileEntityRenderer extends TileEntityRenderer {
+class MovingTileEntityRenderer extends TileEntityRenderer {
   import org.lwjgl.opengl.GL11._
   import TileEntityRenderer._
   import collection.JavaConversions._
-  val oldRenderer = TileEntityRenderer.instance
+  val oldRenderer = instance
   specialRendererMap = oldRenderer.specialRendererMap
   for(tesr <- specialRendererMap.asInstanceOf[java.util.HashMap[Class[_], TileEntitySpecialRenderer]].values) {
     tesr.setTileEntityRenderer(this)
