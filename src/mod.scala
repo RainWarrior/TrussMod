@@ -37,7 +37,7 @@ import common.{ Mod, event, Loader, network, FMLCommonHandler, SidedProxy }
 import relauncher.{ FMLRelaunchLog, Side }
 import network.NetworkMod
 import net.minecraftforge.common.{ Configuration, Property }
-import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry, HelperRenderer }
+import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry, TileHandlerIdDispatcher, HelperRenderer }
 import rainwarrior.utils._
 import TrussMod._
 
@@ -81,6 +81,14 @@ object CommonProxy extends LoadLater {
       Class.forName("rainwarrior.trussmod.ChickenBonesProxy").newInstance.asInstanceOf[FrameItemProxy]
     case _ =>
       new FrameItemProxy
+  }
+
+  import rainwarrior.hooks.{ ITileHandler, MovingTileRegistry }
+  val movingTileHandler: ITileHandler = hasChickenBones match {
+    case true =>
+      Class.forName("rainwarrior.hooks.TileHandlerIdDispatcher").newInstance.asInstanceOf[ITileHandler]
+    case false =>
+      new TileHandlerIdDispatcher
   }
 
   config.load()

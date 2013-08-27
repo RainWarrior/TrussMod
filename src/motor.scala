@@ -251,7 +251,7 @@ class TileEntityMotor extends StripHolder {
     val id = worldObj.getBlockId(pos.x, pos.y, pos.z)
     if ( id == 0
       || MovingRegistry.isMoving(this.worldObj, pos.x, pos.y, pos.z)
-      || !MovingTileRegistry.canMove(this.worldObj, pos.x, pos.y, pos.z)
+      || !CommonProxy.movingTileHandler.canMove(this.worldObj, pos.x, pos.y, pos.z)
     ) return
     //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(worldObj)}")
     val blocks = bfs(Queue(pos))
@@ -331,7 +331,7 @@ class TileEntityMotor extends StripHolder {
             if !greyBlocks.contains(c)
             if !(MovingRegistry.isMoving(this.worldObj, c.x, c.y, c.z))
             if !worldObj.isAirBlock(c.x, c.y, c.z)
-            if MovingTileRegistry.canMove(this.worldObj, c.x, c.y, c.z)
+            if CommonProxy.movingTileHandler.canMove(this.worldObj, c.x, c.y, c.z)
             /*if !(id == CommonProxy.blockMotorId && {
               val meta = worldObj.getBlockMetadata(c.x, c.y, c.z)
               c == next - ForgeDirection.values()(meta)

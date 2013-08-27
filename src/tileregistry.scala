@@ -44,7 +44,7 @@ trait ITileHandler {
   def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection): Unit
 }
 
-object MovingTileRegistry extends ITileHandler {
+object MovingTileRegistry {
 
   val rId = raw"(\d+)".r
   val rIdMeta = raw"(\d+):(\d+)".r
@@ -147,14 +147,16 @@ object MovingTileRegistry extends ITileHandler {
         modMap.getOrElse(blockMap.get(block), defaultHandler)
       })
     )
+}
 
+class TileHandlerIdDispatcher extends ITileHandler {
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
     //log.info(s"canMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     val id = world.getBlockId(x, y, z)
     val meta = world.getBlockMetadata(x, y, z)
     Block.blocksList(id) match {
       case block: Block =>
-        getHandler(id, meta).canMove(world, x, y, z)
+        MovingTileRegistry.getHandler(id, meta).canMove(world, x, y, z)
       case block => log.severe(s"canMove: invalid block: $block"); false
     }
   }
@@ -165,7 +167,7 @@ object MovingTileRegistry extends ITileHandler {
     val meta = world.getBlockMetadata(x, y, z)
     Block.blocksList(id) match {
       case block: Block =>
-        getHandler(id, meta).move(world, x, y, z, dirTo)
+        MovingTileRegistry.getHandler(id, meta).move(world, x, y, z, dirTo)
       case block => log.severe(s"move: invalid block: $block")
     }
   }
@@ -278,3 +280,34 @@ class ImmovableTileHandler extends ITileHandler {
     }
   }
 }*/
+
+class TMultipartTileHandler extends TileHandlerIdDispatcher {
+  import codechicken.multipart.TileMultipart
+  override def canMove(world: World, x: Int, y: Int, z: Int) = {
+    world.getBlockTileEntity(x, y, z) match {
+      case t: TileMultipart => true
+      case _ => super.canMove(world, x, y, z)
+    }
+  }
+
+  override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
+    val (id, meta, te) = getBlockInfo(world, x, y, z)
+    te match {
+      case t: TileMultipart =>
+        val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
+        if(te != null) {
+          uncheckedRemoveTileEntity(world, x, y, z)
+        }
+        uncheckedSetBlock(world, x, y, z, 0, 0)
+        uncheckedSetBlock(world, nx, ny, nz, id, meta)
+        if(te != null) {
+          te.xCoord = nx
+          te.yCoord = ny
+          te.zCoord = nz
+          uncheckedAddTileEntity(world, nx, ny, nz, te)
+          t.partList.foreach(_.onMoved())
+        }
+      case _ => super.move(world, x, y, z, dirTo)
+    }
+  }
+}

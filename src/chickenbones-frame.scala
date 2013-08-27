@@ -49,7 +49,14 @@ import rainwarrior.utils._
 import codechicken.lib.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
 import codechicken.lib.lighting.{ LazyLightMatrix, LC }
 import codechicken.lib.raytracer.{ RayTracer, IndexedCuboid6 }
-import codechicken.multipart.{ TileMultipart, TMultiPart, TItemMultiPart, scalatraits }
+import codechicken.multipart.{
+  MultiPartRegistry,
+  MultipartGenerator,
+  TileMultipart,
+  TMultiPart,
+  TItemMultiPart,
+  scalatraits
+}
 import scalatraits.TSlottedTile
 import codechicken.microblock.CommonMicroblock
 
@@ -59,9 +66,9 @@ class ChickenBonesProxy extends FrameItemProxy {
       extends ItemBlock(CommonProxy.blockFrameId - 256) // Hmm
       with ChickenBonesFrameItem
 
-    import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
     MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
     MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart(cbFrameItem.itemID), "Frame")
+    MultiPartRegistry.registerConverter(ChickenBonesPartConverter)
 
     cbFrameItem
   }
@@ -158,3 +165,16 @@ trait ChickenBonesFrameItem extends ItemBlock {
     stack: ItemStack) = true
 }
 
+object ChickenBonesPartConverter extends MultiPartRegistry.IPartConverter {
+  override def canConvert(blockId: Int): Boolean = blockId == CommonProxy.blockFrameId
+
+  override def convert(world: World, pos: BlockCoord): TMultiPart = {
+    world.getBlockId(pos.x, pos.y, pos.z) match {
+      case CommonProxy.blockFrameId =>
+        new ChickenBonesFramePart(CommonProxy.blockFrameId - 256)
+      case id =>
+        log.warning(s"Called CB converter for wrong block ID: $id")
+        null
+    }
+  }
+}

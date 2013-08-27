@@ -201,7 +201,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
     for(i <- 1 to size) {
       val c = pos - dirTo * i
       //log.info(s"c: $c")
-      MovingTileRegistry.move(world, c.x, c.y, c.z, dirTo)
+      CommonProxy.movingTileHandler.move(world, c.x, c.y, c.z, dirTo)
     }
   }
   def stopMoving(world: World) {

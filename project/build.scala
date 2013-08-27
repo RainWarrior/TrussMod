@@ -26,11 +26,11 @@ object McpBuild extends Build {
   }
 
   val runJavaOptions = Seq(
-    "-Djava.library.path=../jars/bin/natives",
+    s"-Djava.library.path=../jars/versions/$mcVersion/$mcVersion-natives/",
     "-Dfml.coreMods.load="
-    + "rainwarrior.hooks.Plugin,"
+    + "rainwarrior.hooks.Plugin"
     //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
-    + "codechicken.core.launch.CodeChickenCorePlugin"
+    //+ "codechicken.core.launch.CodeChickenCorePlugin"
     //+ "codechicken.nei.asm.NEICorePlugin"
   )
 
@@ -40,8 +40,8 @@ object McpBuild extends Build {
   }
 
   def runJars: Initialize[Task[PathFinder]] = baseDirectory map { bd =>
-    (bd / "jars/libraries" ** "*.jar" ) +++
-    ((bd / "jars/bin/") * ("*.jar" -- "minecraft.jar"))
+    (bd / "jars/libraries" ** ("*.jar" -- "*source*")) /*+++
+    ((bd / "jars/bin/") * ("*.jar" -- "minecraft.jar"))*/
   }
 
   def runClasspath: Initialize[Task[Classpath]] = Def.task {
@@ -91,7 +91,7 @@ object McpBuild extends Build {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     name := "mcp",
     version := "1.0",
-    scalaVersion := "2.10.1",
+    scalaVersion := "2.10.2",
     sourceDirectory <<= baseDirectory / "src/minecraft",
     resourceDirectories in Compile <++= baseDirectory { base =>
       Seq(base / "jars/versions/1.6.2/1.6.2.jar", base / "jars") },
@@ -103,10 +103,10 @@ object McpBuild extends Build {
     //unmanagedClasspath in Compile <++= (resourceDirectories in Compile).toTask,
     unmanagedClasspath in Runtime <<= runClasspath,
     autoCompilerPlugins := true,
-    addCompilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.1"),
+    addCompilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.2"),
     scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-Xlint"),
-    libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.1",
-    libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.10.1",
+    libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.2",
+    libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.10.2",
     //libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.4", // for SpecialSource
     //libraryDependencies += "org.ow2.asm" % "asm-debug-all" % "4.1", // for SpecialSource
     //libraryDependencies += "com.google.guava" % "guava" % "14.0-rc3", // for SpecialSource
