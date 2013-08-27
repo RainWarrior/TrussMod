@@ -62,8 +62,7 @@ import codechicken.microblock.CommonMicroblock
 
 class ChickenBonesProxy extends FrameItemProxy {
   override def init() = {
-    object cbFrameItem
-      extends ItemBlock(CommonProxy.blockFrameId - 256) // Hmm
+    val cbFrameItem = new ItemBlock(CommonProxy.blockFrameId - 256) // Hmm
       with ChickenBonesFrameItem
 
     MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
@@ -138,7 +137,7 @@ trait ChickenBonesFrameItem extends ItemBlock {
     side: Int,
     hitX: Float, hitY:Float, hitZ:Float
   ) = {
-    log.info(s"($x, $y, $z), $side, ($hitX, $hitY, $hitZ)")
+    //log.info(s"($x, $y, $z), $side, ($hitX, $hitY, $hitZ)")
     val newPart = new ChickenBonesFramePart(CommonProxy.frameItem.itemID)
     val pos = new BlockCoord(x, y, z)
     val d = getHitDepth(new Vector3(hitX, hitY, hitZ), side)

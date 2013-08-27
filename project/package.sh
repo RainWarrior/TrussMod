@@ -5,8 +5,8 @@ echo "Build number $buildId"
 #rm -r reobf/
 #mkdir reobf/
 
-rm -r core/
-mkdir -p core/rainwarrior/hooks/
+#rm -r core/
+#mkdir -p core/rainwarrior/hooks/
 
 rm -r mod/
 mkdir -p mod/rainwarrior/
