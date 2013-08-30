@@ -93,6 +93,9 @@ object CommonProxy extends LoadLater {
 
   config.load()
   
+
+  val structureLimit = config.get("Main", "structure_limit", 4096, "Maximum number of blocks in one structure").getInt()
+
   val blockFrameId = config.getBlock("frame", 501).getInt()
   val frameBlock = frameBlockProxy.init()
   val frameItem = frameItemProxy.init()

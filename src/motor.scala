@@ -273,7 +273,7 @@ class TileEntityMotor extends StripHolder {
       //log.info(s"xyz: $c, basis: $basis, size: $size, shift: $shift")
       (c, size)
     }
-    val canMove = !strips.exists { (pair) =>
+    val canMove = (blocks.size <= CommonProxy.structureLimit) && !strips.exists { (pair) =>
       val c = pair._1
       if(c.y < 0 || c.y >= 256) true
       else {
@@ -309,9 +309,10 @@ class TileEntityMotor extends StripHolder {
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord) 
   }
   @tailrec private def bfs(
-      greyBlocks: Seq[WorldPos], // fames to visit
+      greyBlocks: Seq[WorldPos], // frames to visit
       blackBlocks: Set[WorldPos] = Set.empty): Set[WorldPos] = { // all blocks to move
     greyBlocks match {
+      case _ if blackBlocks.size > CommonProxy.structureLimit => blackBlocks
       case Seq() => blackBlocks
       case Seq(next, rest@ _*) => Block.blocksList(worldObj.getBlockId(next.x, next.y, next.z)) match {
         case block: Block =>
