@@ -70,7 +70,7 @@ trait BlockMotor extends BlockContainer {
   LanguageRegistry.addName(this, "Motor Block")
   net.minecraftforge.common.MinecraftForge.setBlockHarvestLevel(this, "shovel", 0)
   GameRegistry.registerBlock(this, "Motor_Block")
-  GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity");
+  GameRegistry.registerTileEntity(classOf[TileEntityBuildcraftMotor], "Motor_TileEntity");
   {
     val motor = new ItemStack(this)
     val frame = new ItemStack(CommonProxy.frameItem)
@@ -89,7 +89,7 @@ trait BlockMotor extends BlockContainer {
   @SideOnly(Side.CLIENT)
   override def registerIcons(registry: IconRegister) {}
 
-  override def createNewTileEntity(world: World): TileEntity = new TileEntityMotor
+  override def createNewTileEntity(world: World): TileEntity = new TileEntityBuildcraftMotor
   override def isOpaqueCube = false
   override def isBlockSolidOnSide(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
     side.ordinal != world.getBlockMetadata(x, y, z)
