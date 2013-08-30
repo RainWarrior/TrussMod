@@ -69,7 +69,6 @@ object McpBuild extends Build {
 
   def runClient = TaskKey[Unit]("run-client", "Run Client Minecraft")
   def runClientTask(classpath: Initialize[Task[Classpath]]): Initialize[Task[Unit]] = Def.task {
-    //print(classpath.value.map(_.data))
     val runner = new ForkRun(runOptions.value)
     toError(runner.run(
       "net.minecraft.launchwrapper.Launch",
@@ -78,6 +77,17 @@ object McpBuild extends Build {
         "--tweakClass", "cpw.mods.fml.common.launcher.FMLTweaker",
         "--version", "FML_DEV"
       ),
+      streams.value.log
+    ))
+  }
+
+  def runServer = TaskKey[Unit]("run-server", "Run Server Minecraft")
+  def runServerTask(classpath: Initialize[Task[Classpath]]): Initialize[Task[Unit]] = Def.task {
+    val runner = new ForkRun(runOptions.value)
+    toError(runner.run(
+      "cpw.mods.fml.relauncher.ServerLaunchWrapper",
+      classpath.value.map(_.data),
+      Seq(),
       streams.value.log
     ))
   }
@@ -111,8 +121,8 @@ object McpBuild extends Build {
     //libraryDependencies += "org.ow2.asm" % "asm-debug-all" % "4.1", // for SpecialSource
     //libraryDependencies += "com.google.guava" % "guava" % "14.0-rc3", // for SpecialSource
     reobfuscate <<= reobfuscateTask,
-    runClient <<= runClientTask(fullClasspath in Runtime)/*,
-    runServer <<= runServerTask*/
+    runClient <<= runClientTask(fullClasspath in Runtime),
+    runServer <<= runServerTask(fullClasspath in Runtime)
   )
 
   lazy val mcp = Project(
