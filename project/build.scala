@@ -15,10 +15,10 @@ object McpBuild extends Build {
       "net.md_5.specialsource.SpecialSource",
       /*mc.files :+*/ Seq(bd / "project/specialsource.jar"),
       Seq(
-        "--read-inheritance", bd / s"project/$mcVersion/nms.inheritmap" getPath,
-        "--srg-in", bd / s"project/$mcVersion/pkgmcp2numpkg.srg" getPath,
-        "--in-jar", pb getPath,
-        "--out-jar", bd / "project/output.jar" getPath,
+        "--read-inheritance", (bd / s"project/$mcVersion/nms.inheritmap").getPath,
+        "--srg-in", (bd / s"project/$mcVersion/pkgmcp2numpkg.srg").getPath,
+        "--in-jar", pb.getPath,
+        "--out-jar", (bd / "project/output.jar").getPath,
         "--excluded-packages", "paulscode,com,isom,ibxm,de/matthiasmann/twl,org,javax/xml,javax/ws,argo"
       ),
       st.log)
@@ -102,10 +102,10 @@ object McpBuild extends Build {
     name := "mcp",
     version := "1.0",
     scalaVersion := "2.10.2",
-    sourceDirectory <<= baseDirectory / "src/minecraft",
+    sourceDirectory <<= baseDirectory { _ / "src/minecraft" },
     resourceDirectories in Compile <++= baseDirectory { base =>
       Seq(base / "jars/versions/1.6.2/1.6.2.jar", base / "jars") },
-    classDirectory in Compile <<= baseDirectory / "bin/minecraft",
+    classDirectory in Compile <<= baseDirectory { _ / "bin/minecraft" },
     javaSource in Compile <<= sourceDirectory,
     scalaSource in Compile <<= sourceDirectory,
     //unmanagedBase <<= baseDirectory / "jars/libraries",
