@@ -171,7 +171,6 @@ object ClientProxy extends LoadLater {
   import net.minecraftforge.client.event.TextureStitchEvent
   import net.minecraftforge.common.MinecraftForge.EVENT_BUS
 
-  val renderer = new rainwarrior.hooks.MovingTileEntityRenderer
   TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
   ClientRegistry.bindTileEntitySpecialRenderer(classOf[TileEntityMotor], TileEntityMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockMotorRenderer)
@@ -188,8 +187,12 @@ object ClientProxy extends LoadLater {
   }
 }
 
-sealed class CommonProxy
+sealed class CommonProxy {
+  def renderer() {}
+}
+
 class ClientProxy extends CommonProxy {
+  override lazy val renderer: Unit = new rainwarrior.hooks.MovingTileEntityRenderer
   CommonProxy.delayedInit(ClientProxy.init())
 }
 
@@ -227,7 +230,7 @@ object TrussMod {
     log.info("There is NO WARRANTY, to the extent permitted by law.")
   }
 
-  @Mod.EventHandler def preinit(e: event.FMLPreInitializationEvent) {}
+  @Mod.EventHandler def preinit(e: event.FMLPreInitializationEvent) { proxy.renderer }
   @Mod.EventHandler def init(e: event.FMLInitializationEvent) = CommonProxy.init()
 }
 
