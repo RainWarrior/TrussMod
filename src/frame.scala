@@ -80,8 +80,8 @@ class FrameBlockProxy {
 }
 
 class FrameItemProxy {
-  def init(): Item = {
-    new ItemBlock(CommonProxy.blockFrameId - 256) // Hmm
+  def init(): Class[_ <: ItemBlock] = {
+    classOf[ItemBlock]
   }
 }
 
@@ -97,7 +97,7 @@ trait BlockFrame extends Block with Frame {
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Frame Block")
-  GameRegistry.registerBlock(this, "Frame_Block");
+  GameRegistry.registerBlock(this, CommonProxy.frameItemClass, "Frame_Block");
   {
     val frame = new ItemStack(this, 8)
     val iron = new ItemStack(Block.blockIron)

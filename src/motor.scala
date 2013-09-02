@@ -73,7 +73,7 @@ trait BlockMotor extends BlockContainer {
   GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity");
   {
     val motor = new ItemStack(this)
-    val frame = new ItemStack(CommonProxy.frameItem)
+    val frame = new ItemStack(CommonProxy.frameBlock)
     val redstone = new ItemStack(Block.blockRedstone)
     val iron = new ItemStack(Item.ingotIron)
     GameRegistry.addRecipe(
