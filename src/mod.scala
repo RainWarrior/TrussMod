@@ -132,7 +132,11 @@ Other keys can be:
     ("default", "default-hard"),
     ("vanilla", "default-soft"),
     ("TrussMod", "default-soft"),
-    ("ComputerCraft", "default-soft"))
+    ("ComputerCraft", "default-soft"),
+    ("EnderStorage", "default-soft"),
+    ("ChickenChunks", "default-soft"),
+    ("Translocator", "default-soft")
+  )
 
   if(!handlers.containsKey("default")) {
     for((k, v) <- defaulthandlers if !handlers.containsKey(k))
