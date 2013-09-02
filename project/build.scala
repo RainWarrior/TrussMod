@@ -28,7 +28,7 @@ object McpBuild extends Build {
   val runJavaOptions = Seq(
     s"-Djava.library.path=../jars/versions/$mcVersion/$mcVersion-natives/",
     "-Dfml.coreMods.load="
-    + "rainwarrior.hooks.Plugin"
+    + "rainwarrior.hooks.plugin.Plugin"
     //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
     //+ "codechicken.core.launch.CodeChickenCorePlugin"
     //+ "codechicken.nei.asm.NEICorePlugin"
@@ -102,6 +102,7 @@ object McpBuild extends Build {
     name := "mcp",
     version := "1.0",
     scalaVersion := "2.10.2",
+    compileOrder in Compile := CompileOrder.JavaThenScala,
     sourceDirectory <<= baseDirectory { _ / "src/minecraft" },
     resourceDirectories in Compile <++= baseDirectory { base =>
       Seq(base / "jars/versions/1.6.2/1.6.2.jar", base / "jars") },

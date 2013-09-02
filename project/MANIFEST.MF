@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-FMLCorePlugin: rainwarrior.hooks.Plugin
+FMLCorePlugin: rainwarrior.hooks.plugin.Plugin
 FMLCorePluginContainsFMLMod: true

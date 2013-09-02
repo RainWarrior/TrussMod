@@ -27,7 +27,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 */
 
-package rainwarrior.hooks
+package rainwarrior.hooks.plugin
 
 import net.minecraft.launchwrapper.IClassTransformer
 import cpw.mods.fml.relauncher.{ IFMLCallHook, IFMLLoadingPlugin }
@@ -41,12 +41,12 @@ import collection.JavaConversions._
 import java.util.{ Map => JMap }
 import java.io.PrintWriter
 
-@IFMLLoadingPlugin.TransformerExclusions(value = Array("rainwarrior", "scala"))
+@IFMLLoadingPlugin.TransformerExclusions(value = Array("rainwarrior.hooks.plugin", "scala"))
 class Plugin extends IFMLLoadingPlugin with IFMLCallHook {
   override def getLibraryRequestClass: Array[String] = null
-  override def getASMTransformerClass = Array("rainwarrior.hooks.Transformer")
+  override def getASMTransformerClass = Array("rainwarrior.hooks.plugin.Transformer")
   override def getModContainerClass: String = null
-  override def getSetupClass = "rainwarrior.hooks.Plugin"
+  override def getSetupClass = "rainwarrior.hooks.plugin.Plugin"
   override def injectData(data: JMap[String, AnyRef]) {}
   override def call(): Void = {
     //println("Hello, World! From CoreMod!")
