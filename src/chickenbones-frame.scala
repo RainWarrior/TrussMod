@@ -114,7 +114,9 @@ class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame {
   }
 }
 
-trait ChickenBonesFrameItem extends ItemBlock {
+class ChickenBonesFrameItem(id: Int) extends ItemBlock(id) with ChickenBonesFrameTrait
+
+trait ChickenBonesFrameTrait extends ItemBlock {
   setCreativeTab(CreativeTabs.tabMisc)
   setUnlocalizedName(modId + ":FrameItem")
 
