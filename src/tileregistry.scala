@@ -296,6 +296,7 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
       case t: TileMultipart =>
         val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
         if(te != null) {
+          te.invalidate()
           uncheckedRemoveTileEntity(world, x, y, z)
         }
         uncheckedSetBlock(world, x, y, z, 0, 0)
@@ -305,7 +306,7 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
           te.yCoord = ny
           te.zCoord = nz
           uncheckedAddTileEntity(world, nx, ny, nz, te)
-          t.partList.foreach(_.onMoved())
+          te.validate()
         }
       case _ => super.move(world, x, y, z, dirTo)
     }

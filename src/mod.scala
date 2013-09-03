@@ -86,7 +86,7 @@ object CommonProxy extends LoadLater {
   import rainwarrior.hooks.{ ITileHandler, MovingTileRegistry }
   val movingTileHandler: ITileHandler = hasChickenBones match {
     case true =>
-      Class.forName("rainwarrior.hooks.TileHandlerIdDispatcher").newInstance.asInstanceOf[ITileHandler]
+      Class.forName("rainwarrior.hooks.TMultipartTileHandler").newInstance.asInstanceOf[ITileHandler]
     case false =>
       new TileHandlerIdDispatcher
   }
