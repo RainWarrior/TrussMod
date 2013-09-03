@@ -226,8 +226,9 @@ object TrussMod {
   def isServer() = FMLCommonHandler.instance.getEffectiveSide.isServer
 
   @SidedProxy(
-    clientSide="rainwarrior.trussmod.ClientProxy",
-    serverSide="rainwarrior.trussmod.CommonProxy")
+    clientSide = "rainwarrior.trussmod.ClientProxy",
+    serverSide = "rainwarrior.trussmod.CommonProxy",
+    modId = modId)
   var proxy: CommonProxy = null
 
   CommonProxy.delayedInit {
