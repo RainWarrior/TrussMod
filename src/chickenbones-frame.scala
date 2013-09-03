@@ -55,6 +55,8 @@ import codechicken.multipart.{
   TileMultipart,
   TMultiPart,
   TItemMultiPart,
+  JPartialOcclusion,
+  TNormalOcclusion,
   scalatraits
 }
 import scalatraits.TSlottedTile
@@ -70,7 +72,7 @@ class ChickenBonesProxy extends FrameItemProxy {
   }
 }
 
-class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame {
+class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPartialOcclusion with TNormalOcclusion {
   override val getType = "Frame"
 
   override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(id, 1, 0))
@@ -85,10 +87,16 @@ class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame {
   override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(0, 0, 0, 1, 1, 1))
   //override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(.25, .25, .25, .75, .75, .75))
 
-  /*override def occlusionTest(part: TMultiPart) = part match {
+  override def occlusionTest(part: TMultiPart) = part match {
     case part: ChickenBonesFramePart => false
     case _ => true
-  }*/
+  }
+
+  //override val getPartialOcclusionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(0, 0, 0, 1, 1, 1))
+  override val getPartialOcclusionBoxes: JIterable[Cuboid6] = Seq()
+  override val allowCompleteOcclusion = true
+
+  override val getOcclusionBoxes: JIterable[Cuboid6] = Seq()
 
   override val doesTick = false
 
@@ -125,8 +133,11 @@ trait ChickenBonesFrameTrait extends ItemBlock {
 
   override def registerIcons(reg: IconRegister) {}
 
-  def getHitDepth(vhit: Vector3, side: Int) =
-    vhit.copy.scalarProject(Rotation.axes(side)) + (side % 2 ^ 1)
+  def getTile(world: World, pos: BlockCoord) = 
+    TileMultipart.getOrConvertTile(world, pos) match {
+      case t: TileMultipart => Some(t)
+      case _ => None
+    }
 
   override def onItemUse(
     stack: ItemStack,
@@ -139,14 +150,19 @@ trait ChickenBonesFrameTrait extends ItemBlock {
     //log.info(s"($x, $y, $z), $side, ($hitX, $hitY, $hitZ)")
     val newPart = new ChickenBonesFramePart(this.itemID)
     val pos = new BlockCoord(x, y, z)
-    val d = getHitDepth(new Vector3(hitX, hitY, hitZ), side)
 
-    if(d > 1 || !TileMultipart.canPlacePart(world, pos, newPart))
+    def canPlace = 
+      newPart.getCollisionBoxes.forall(b => world.checkNoEntityCollision(b.toAABB().offset(x, y, z))) && (
+        getTile(world, pos).exists(t => t.partList.collectFirst{ case p: Frame =>}.isEmpty)
+        || TileMultipart.replaceable(world, pos)
+      )
+
+    if(!canPlace)
       pos.offset(side)
 
-    if(world.isAirBlock(pos.x, pos.y, pos.z)) {
+    if(TileMultipart.replaceable(world, pos)) {
       super.onItemUse(stack, player, world, x, y, z, side, hitX, hitY, hitZ)
-    } else if(TileMultipart.canPlacePart(world, pos, newPart)) {
+    } else if(canPlace) {
       if(!world.isClient)
         TileMultipart.addPart(world, pos, newPart)
       if(!player.capabilities.isCreativeMode)
