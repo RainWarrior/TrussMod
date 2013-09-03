@@ -216,8 +216,10 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       // id = world.getBlockId(c.x, c.y, c.z)
     } {
       //log.info(s"NOTIFY, pos: $c")
-      world.notifyBlockOfNeighborChange(c.x, c.y, c.z, 0)
-      world.notifyBlockChange(c.x, c.y, c.z, 0)
+      //world.notifyBlockOfNeighborChange(c.x, c.y, c.z, 0)
+      for(d <- ForgeDirection.values()) {
+        world.notifyBlockChange(c.x + d.x, c.y + d.y, c.z + d.z, 0)
+      }
     }
   }
 }
