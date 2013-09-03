@@ -87,7 +87,7 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Frame Block")
-  GameRegistry.registerBlock(this, "Frame_Block")
+  GameRegistry.registerBlock(this, CommonProxy.frameItemClass, "Frame_Block");
   GameRegistry.registerTileEntity(classOf[TileEntityImmibisFrame], "Frame_TileEntity");
   {
     val frame = new ItemStack(this, 8)
