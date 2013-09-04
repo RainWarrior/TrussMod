@@ -60,16 +60,16 @@ object model {
       println((name, icon, s"$modId:$name"))
   }
 
+  def getPartFaces(modelName: String, partName: String) =
+    (for {
+      part <- models(modelName).groupObjects
+      if part.name == partName
+    } yield part).head.faces
+
   def render(modelName: String, partName: String, icon: Icon) {
     assert(icon != null)
-    val model = models(modelName)
-    val part = (for {
-      part <- model.groupObjects
-      if part.name == partName
-    } yield part).head
-
     for {
-      f <- part.faces
+      f <- getPartFaces(modelName, partName)
       n = f.faceNormal
     } {
       tes.setNormal(n.x, n.y, n.z)
@@ -90,14 +90,8 @@ object model {
       partName: String,
       icon: Icon,
       rotator: (Float, Float, Float) => (Float, Float, Float)) {
-    val model = models(modelName)
-    val part = (for {
-      part <- model.groupObjects
-      if part.name == partName
-    } yield part).head
-
     for {
-      f <- part.faces
+      f <- getPartFaces(modelName, partName)
       n = f.faceNormal
       (nx, ny, nz) = rotator(n.x, n.y, n.z)
     } {

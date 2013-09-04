@@ -37,8 +37,10 @@ import net.minecraft._,
   nbt.NBTTagCompound,
   tileentity.TileEntity,
   world.{ ChunkPosition, chunk, World },
-  chunk.storage.ExtendedBlockStorage
+  chunk.storage.ExtendedBlockStorage,
+  util.{ Vec3, Vec3Pool }
 import net.minecraftforge.common.ForgeDirection
+import net.minecraftforge.client.model.obj.{ Face, Vertex }
 import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
@@ -345,4 +347,114 @@ object utils {
 
   def packIdMeta(id: Int, meta: Int): Int = id | (meta << 12)
   def unpackIdMeta(pair: Int) = (pair & ((1 << 12) - 1), pair >> 12)
+
+  case class Vector3(_1: Double, _2: Double, _3: Double) extends Product3[Double, Double, Double] {
+
+    @inline def x = _1
+    @inline def y = _2
+    @inline def z = _3
+  
+    override def toString = s"Vector3(${_1},${_2},${_3})"
+
+    def +(that: Product3[Double, Double, Double]) = Vector3(_1 + that._1, _2 + that._2, _3 + that._3)
+    def -(that: Product3[Double, Double, Double]) = Vector3(_1 - that._1, _2 - that._2, _3 - that._3)
+    def *(that: Double) = Vector3(_1 * that, _2 * that, _3 * that)
+    def /(that: Double) = Vector3(_1 / that, _2 / that, _3 / that)
+    def x(that: Product3[Double, Double, Double]) = Vector3(
+      _2 * that._3 - _3 * that._2,
+      _3 * that._1 - _1 * that._3,
+      _1 * that._2 - _2 * that._1)
+    def dot(that: Product3[Double, Double, Double]) = _1 * that._1 + _2 * that._2 + _3 * that._3
+
+    def toVec3(pool: Vec3Pool) = pool.getVecFromPool(_1, _2, _3)
+
+    def len = math.sqrt(_1 * _1 + _2 * _2 + _3 * _3)
+    def toSide = {
+      Seq(
+        (-_2, 0),
+        ( _2, 1),
+        (-_3, 2),
+        ( _3, 3),
+        (-_1, 4),
+        ( _1, 5)).maxBy(_._1)._2
+    }
+
+    def normal = this / len
+  }
+  implicit def vector3FromVertex(v: Vertex) = Vector3(v.x, v.y, v.z)
+  implicit def vector3FromVec3(v: Vec3) = Vector3(v.xCoord, v.yCoord, v.zCoord)
+
+  def sideHit(n: Vector3, p: Vector3) = {
+    //println(s"n: $n, p: $p, n2: ${n + p * .001}, s: ${(n + p * .001).toSide}")
+    (n + p * .001).toSide
+  }
+
+  def normal(v0: Vector3, v1: Vector3, v2: Vector3) = {
+    ((v1 - v0) x (v2 - v0)).normal
+  }
+
+  // Möller–Trumbore intersection
+  def mt(
+      origin: Vector3,
+      dir: Vector3,
+      v0: Vector3,
+      v1: Vector3,
+      v2: Vector3,
+      cullBack: Boolean = true,
+      epsilon: Double = 1e-6) = {
+    // 2 edges of a triangle
+    val e1 = v1 - v0
+    val e2 = v2 - v0
+    // determinant of the equation
+    val p = dir x e2
+    val det = e1 dot p
+    if(cullBack) {
+      if(det < epsilon) None
+      else {
+        val t = origin - v0
+        val du = t dot p
+        if(du < 0.0 || du > det) None
+        else {
+          val q = t x e1
+          val dv = dir dot q
+          if(dv < 0.0 || du + dv > det) None
+          else Some((e2 dot q) / det)
+        }
+      }
+    } else {
+      if(det < epsilon && det > -epsilon) None
+      else {
+        val invDet = 1.0 / det
+        val t = origin - v0
+        val u = (t dot p) * invDet
+        if(u < 0.0 || u > 1.0) None
+        else {
+          val q = t x e1
+          val v = (dir dot q) * invDet
+          if(v < 0.0 || u + v > 1.0) None
+          else Some((e2 dot q) * invDet)
+        }
+      }
+    }
+  }
+
+  @SideOnly(Side.CLIENT)
+  @inline
+  def faceToTriangles(face: Face) =
+    for (i <- 1 until (face.vertices.length - 1)) yield (
+      face.vertices(0),
+      face.vertices(i),
+      face.vertices(i + 1))
+
+  // raytrace seq of quads from origin towards dir
+  @SideOnly(Side.CLIENT)
+  def rayTraceObj(
+      origin: Vector3,
+      dir: Vector3,
+      faces: Seq[Face]) = {
+    faces.flatMap(faceToTriangles).flatMap { tr =>
+      val (v0, v1, v2) = tr
+      mt(origin, dir, v0, v1, v2).map(t => (t, normal(v0, v1, v2)))
+    }.reduceOption(Ordering.by((_: Tuple2[Double, Vector3])._1).min)
+  }
 }

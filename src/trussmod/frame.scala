@@ -49,7 +49,7 @@ import net.minecraft._,
   network.INetworkManager,
   network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
-  util.AxisAlignedBB,
+  util.{ AxisAlignedBB, MovingObjectPosition, Vec3 },
   world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
@@ -125,6 +125,19 @@ trait BlockFrame extends Block with Frame {
   //override def renderAsNormalBlock = false
 
   override def getRenderType = renderType
+
+  override def collisionRayTrace(world: World, x: Int, y: Int, z: Int, from: Vec3, to: Vec3): MovingObjectPosition = {
+    val offset = (x + .5, y + .5, z + .5)
+    val start = from - offset
+    val dir = to - from
+    rayTraceObj(start, dir, model.getPartFaces("Frame", "Frame")) match {
+      case Some((t, normal)) =>
+        val side = sideHit(normal, start + dir * t)
+        //log.info(s"f: $from, t: $to, t: $t")
+        new MovingObjectPosition(x, y, z, side, (from + dir * t).toVec3(world.getWorldVec3Pool)) // TODO side
+      case None => null
+    }
+  }
 
   override def onBlockAdded(world: World, x: Int, y: Int, z: Int) {
     super.onBlockAdded(world, x, y, z)
