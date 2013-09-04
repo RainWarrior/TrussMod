@@ -131,7 +131,7 @@ trait BlockFrame extends Block with Frame {
     val start = from - offset
     val dir = to - from
     rayTraceObj(start, dir, model.getPartFaces("Frame", "Frame")) match {
-      case Some((t, normal)) =>
+      case Some((t, normal)) if t <= 1 =>
         val side = sideHit(normal, start + dir * t)
         //log.info(s"f: $from, t: $to, t: $t")
         new MovingObjectPosition(x, y, z, side, (from + dir * t).toVec3(world.getWorldVec3Pool)) // TODO side
