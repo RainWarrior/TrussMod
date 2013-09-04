@@ -116,6 +116,7 @@ object McpBuild extends Build {
     autoCompilerPlugins := true,
     addCompilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.2"),
     scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-Xlint"),
+    javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
     libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.2",
     libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.10.2",
     //libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.4", // for SpecialSource
