@@ -127,15 +127,11 @@ trait BlockFrame extends Block with Frame {
   override def getRenderType = renderType
 
   override def collisionRayTrace(world: World, x: Int, y: Int, z: Int, from: Vec3, to: Vec3): MovingObjectPosition = {
-    val offset = (x + .5, y + .5, z + .5)
-    val start = from - offset
-    val dir = to - from
-    rayTraceObj(start, dir, model.getPartFaces("Frame", "Frame")) match {
-      case Some((t, normal)) if t <= 1 =>
-        val side = sideHit(normal, start + dir * t)
-        //log.info(s"f: $from, t: $to, t: $t")
-        new MovingObjectPosition(x, y, z, side, (from + dir * t).toVec3(world.getWorldVec3Pool)) // TODO side
-      case None => null
+    val offset = Vector3(x + .5, y + .5, z + .5)
+    rayTraceObjBlock(offset, from, to, model.getPartFaces("Frame", "Frame")) match {
+      case Some((t, normal, side)) =>
+        new MovingObjectPosition(x, y, z, side, (from + (to - from) * t).toVec3(world.getWorldVec3Pool))
+      case _ => null
     }
   }
 

@@ -457,4 +457,12 @@ object utils {
       mt(origin, dir, v0, v1, v2).map(t => (t, normal(v0, v1, v2)))
     }.reduceOption(Ordering.by((_: Tuple2[Double, Vector3])._1).min)
   }
+
+  @SideOnly(Side.CLIENT)
+  def rayTraceObjBlock(offset: Vector3, start: Vector3, end: Vector3, faces: Seq[Face]) =
+    rayTraceObj(start - offset, end - start, faces) match {
+      case Some((t, normal)) if t <= 1 =>
+        Some((t, normal, sideHit(normal, start - offset + (end - start) * t)))
+      case _ => None
+    }
 }
