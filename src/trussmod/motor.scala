@@ -191,7 +191,7 @@ class TileEntityMotor extends StripHolder {
   override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
     assert(side.isClient)
     packet.actionType match {
-      case 1 => readFromNBT(packet.customParam1)
+      case 1 => readFromNBT(packet.data)
       case 2 => activate()
       case _ => super.onDataPacket(netManager, packet)
     }
@@ -406,7 +406,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     glPushMatrix()
     glTranslated(x, y, z)
     RenderHelper.disableStandardItemLighting()
-    this.func_110628_a(TextureMap.field_110575_b)
+    this.bindTexture(TextureMap.locationBlocksTexture)
     glTranslatef(.5F, .5F, .5F)
     glRotatef(90 * or, dir.offsetX, dir.offsetY, dir.offsetZ)
     meta match {

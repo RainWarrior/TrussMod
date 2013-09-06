@@ -80,7 +80,7 @@ object HelperRenderer {
     if(block == null) return
 
     val engine = TileEntityRenderer.instance.renderEngine
-    if(engine != null) engine.func_110577_a(TextureMap.field_110575_b)
+    if(engine != null) engine.bindTexture(TextureMap.locationBlocksTexture)
     mc.entityRenderer.enableLightmap(partialTickTime)
     val light = world.getLightBrightnessForSkyBlocks(x, y, z, 0)
     val l1 = light % 65536
