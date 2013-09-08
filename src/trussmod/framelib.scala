@@ -29,7 +29,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
-import java.util.{ List => JList, ArrayList, Set => JSet, TreeSet => JTreeSet }
+import java.util.{ List => JList, ArrayList, EnumSet, Set => JSet, TreeSet => JTreeSet }
 import collection.immutable.{ HashSet, Queue }
 import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet, HashSet => MHashSet }
 import collection.JavaConversions._
@@ -56,7 +56,7 @@ import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.{ common, client, relauncher }
-import common.{ Mod, event, network, registry, FMLCommonHandler, SidedProxy }
+import common.{ Mod, event, ITickHandler, network, registry, FMLCommonHandler, TickType, SidedProxy }
 import network.NetworkMod
 import registry.{ GameRegistry, LanguageRegistry, TickRegistry }
 import client.registry.{ ClientRegistry, RenderingRegistry, ISimpleBlockRenderingHandler }
@@ -109,12 +109,12 @@ trait BlockMovingStrip extends BlockContainer {
     }
   }*/
 
-  override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
+  /*override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
     world.getBlockTileEntity(x, y, z) match {
       case te: TileEntityMovingStrip if te.parent != null => te.getAabb
       case _ => null
     }
-  }
+  }*/
 }
 
 class TileEntityMovingStrip extends TileEntity {
@@ -124,7 +124,7 @@ class TileEntityMovingStrip extends TileEntity {
 
   //log.info(s"new TileEntityMovingStrip, pos: ${WorldPos(this)}")
 
-  def getAabb() = {
+  /*def getAabb() = {
     val pos = this - parent.dirTo
     val block = Block.blocksList(worldObj.getBlockId(pos.x, pos.y, pos.z))
     if(parent.counter == 0 || block == null) null
@@ -143,10 +143,10 @@ class TileEntityMovingStrip extends TileEntity {
         case _ => null
       }
     }
-  }
+  }*/
 
   override def updateEntity() {
-    val pos = WorldPos(this)
+    /*val pos = WorldPos(this)
     //log.info(s"TileEntityMovingStrip onUpdate, side: $side, pos: $pos")
     if(parent == null) {
       worldObj.setBlock(pos.x, pos.y, pos.z, 0, 0, 3)
@@ -162,7 +162,8 @@ class TileEntityMovingStrip extends TileEntity {
         }
         case _ =>
       }
-    }
+    }*/
+    worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
   }
 }
 
@@ -189,12 +190,12 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
   def cycle(world: World) {
     val c = pos - dirTo * size
     if(pos.y < 0 || pos.y >= 256) return
-    world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
+/*    world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
       case te: TileEntityMovingStrip => te
       case te => 
         log.severe(s"Tried to cycle invalid TE: $te, $pos, ${EffectiveSide(world)}, id: ${world.getBlockId(pos.x, pos.y, pos.z)}")
         //Thread.dumpStack()
-    }
+    }*/
     world.removeBlockTileEntity(pos.x, pos.y, pos.z)
     uncheckedSetBlock(world, pos.x, pos.y, pos.z, 0, 0)
     //world.setBlock(pos.x, pos.y, pos.z, 0, 0, 0)
@@ -225,19 +226,21 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
 }
 
 abstract class StripHolder extends TileEntity {
-  private[this] var strips = HashSet.empty[StripData]
-  var counter = 0
-  var shouldUpdate = true
-  val renderOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
   def dirTo: ForgeDirection
+  def shouldContinue: Boolean
+
+  private[this] var strips = HashSet.empty[StripData]
+  var isMoving: Boolean = false
+  var offset = 0
+  val renderOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
 
   def +=(s: StripData) {
     //log.info(s"+=strip: $s, client: ${worldObj.isClient}")
     strips += s
     renderOffset.dirTo = dirTo
-    for(i <- 1 to s.size; c = s.pos - s.dirTo * i) {
+    /*for(i <- 1 to s.size; c = s.pos - s.dirTo * i) {
       MovingRegistry.addMoving(worldObj, c, renderOffset)
-    }
+    }*/
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
   }
 
@@ -249,8 +252,8 @@ abstract class StripHolder extends TileEntity {
     if(worldObj.isServer) {
       val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)
       if(players != null) {
-        // can update from 15 to 16
-        val packet = new Packet132TileEntityData(xCoord, yCoord, zCoord, 3, null)
+        val packet = getDescriptionPacket
+        packet.asInstanceOf[Packet132TileEntityData].actionType = 2
         players.sendToAllPlayersWatchingChunk(packet)
       }
     }
@@ -274,8 +277,6 @@ abstract class StripHolder extends TileEntity {
     renderOffset.y = 0
     renderOffset.z = 0
     renderOffset.dirTo = ForgeDirection.UNKNOWN
-    counter = 0
-    shouldUpdate = true
   }
 
   def fixScheduledTicks() {
@@ -359,43 +360,62 @@ abstract class StripHolder extends TileEntity {
     }
   }
 
-  override def updateEntity() = if(!strips.isEmpty) {
+  def preMove() {
+    //log.info(s"stripHolder marking, p: ${WorldPos(this)}, sd: ${EffectiveSide(worldObj)}")
+    if(worldObj != null) for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
+      MovingRegistry.addMoving(worldObj, c, renderOffset)
+      //mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
+    }
+  }
+
+  override def updateEntity() {
     super.updateEntity()
-    //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, c: $counter, sd: ${EffectiveSide(worldObj)}")
-    if(counter == 0 || shouldUpdate) {
-      for(s <- strips) {
+    //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, m: $isMoving, o: $offset, dirTo: $dirTo, sd: ${EffectiveSide(worldObj)}, ro: $renderOffset")
+    if(isServer) {
+      if(offset >= 16) {
+        postMove()
+        isMoving = false
+        offset = 0
+      }
+      if(offset == 0 && shouldContinue) {
+        //isMoving = true
+        preMove()
+      }
+    }
+      /*for(s <- strips) {
         worldObj.getBlockTileEntity(s.pos.x, s.pos.y, s.pos.z) match {
           case te: TileEntityMovingStrip => te.parent = this
           case _ =>
         }
-      }
-    }
-    if(counter < 15 || (counter == 15 && worldObj.isServer)) {
-      counter += 1
-      val shift = (counter / 16F).toFloat
+      }*/
+    if(isMoving && offset <= 16) { // TODO entity pushout
+      offset = (offset + 1)
+      val shift = ((offset).toFloat / 0x10)
       renderOffset.x = dirTo.x * shift
       renderOffset.y = dirTo.y * shift
       renderOffset.z = dirTo.z * shift
-      if(shouldUpdate) {
-        //log.info(s"stripHolder marking, p: ${WorldPos(this)}, sd: ${EffectiveSide(worldObj)}")
-        for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
-          MovingRegistry.addMoving(worldObj, c, renderOffset)
-          //mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
-        }
-      }
     }
-    shouldUpdate = false
-    if(counter >= 16) postMove
+  }
+
+  override def getDescriptionPacket(): Packet = {
+    val cmp = new NBTTagCompound
+    writeToNBT(cmp)
+    //log.info("getPacket, world: " + worldObj)
+    new Packet132TileEntityData(xCoord, yCoord, zCoord, 1, cmp)
   }
 
   override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
     //log.info(s"Holder onDatapacket, type: ${packet.actionType}")
+    //log.info(s"onDataPacket, ($xCoord, $yCoord, $zCoord), ${packet.actionType}")
     packet.actionType match {
-      case 3 =>
-        counter = 16
-        updateEntity()
-      case _ => super.onDataPacket(netManager, packet)
+      case 1 => readFromNBT(packet.data)
+      case 2 =>
+        readFromNBT(packet.data)
+        postMove()
+        isMoving = false
+        offset = 0
     }
+    super.onDataPacket(netManager, packet)
   }
 
   override def readFromNBT(cmp: NBTTagCompound) {
@@ -408,8 +428,13 @@ abstract class StripHolder extends TileEntity {
           strip
         case x => throw new RuntimeException(s"Invalid tag: $x")
       }): _*)
-    counter = cmp.getInteger("counter")
+    if(cmp.hasKey("counter")) {
+      throw new IllegalStateException(s"Save data incompatible with current version of $modId")
+    }
+    isMoving = cmp.getBoolean("isMoving")
+    offset = cmp.getInteger("offset")
     renderOffset.readFromNBT(cmp.getCompoundTag("renderOffset"))
+    if(isMoving) preMove()
     //log.info(s"StripHolder readFromNBT, pos: ${WorldPos(this)}, counter: $counter, side:" + FMLCommonHandler.instance.getEffectiveSide)
   }
 
@@ -422,10 +447,12 @@ abstract class StripHolder extends TileEntity {
       stripList.appendTag(cmp1)
     }
     cmp.setTag("strips", stripList)
-    cmp.setInteger("counter", counter)
+    cmp.setBoolean("isMoving", isMoving)
+    cmp.setInteger("offset", offset)
     val cmp1 = new NBTTagCompound
     renderOffset.writeToNBT(cmp1)
     cmp.setTag("renderOffset", cmp1)
     //log.info(s"StripHolder writeToNBT, pos: ${WorldPos(this)}, counter: $counter, side:" + FMLCommonHandler.instance.getEffectiveSide)
   }
 }
+

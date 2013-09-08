@@ -457,4 +457,6 @@ object utils {
       mt(origin, dir, v0, v1, v2).map(t => (t, normal(v0, v1, v2)))
     }.reduceOption(Ordering.by((_: Tuple2[Double, Vector3])._1).min)
   }
+
+  def clamp(min: Float, max: Float, v: Float) = Math.min(max, Math.max(min, v))
 }

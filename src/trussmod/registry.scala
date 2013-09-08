@@ -57,6 +57,7 @@ import java.util.{ EnumSet, Set, HashSet }
 import cpw.mods.fml.{ common, relauncher }
 import common.{ ITickHandler, TickType, registry }
 import relauncher.{ Side, SideOnly }
+import Math.max
 import rainwarrior.utils._
 
 object HelperRenderer {
@@ -96,9 +97,9 @@ object HelperRenderer {
     for(pass <- 0 to 1) {
       tes.startDrawingQuads()
       tes.setTranslation(
-        -TileEntityRenderer.staticPlayerX + d.x + d.dirTo.x * tick / 16F,
-        -TileEntityRenderer.staticPlayerY + d.y + d.dirTo.y * tick / 16F,
-        -TileEntityRenderer.staticPlayerZ + d.z + d.dirTo.z * tick / 16F)
+        -TileEntityRenderer.staticPlayerX + clamp(-1F, 1F, d.x + d.dirTo.x * tick / 16F),
+        -TileEntityRenderer.staticPlayerY + clamp(-1F, 1F, d.y + d.dirTo.y * tick / 16F),
+        -TileEntityRenderer.staticPlayerZ + clamp(-1F, 1F, d.z + d.dirTo.z * tick / 16F))
       tes.setColorOpaque(1, 1, 1)
 
       block.getRenderBlockPass()
@@ -158,7 +159,9 @@ object MovingRegistry {
   //case class Key(world: World, pos: WorldPos)
   final val eps = 1.0 / 0x10000
   //var moving = Map.empty[Key, BlockData]
+  // from packet client coordinates to rendering offset data
   val clientMap = new TSynchronizedLongObjectMap(new TLongObjectHashMap[BlockData])
+  // from dimension id to a set of coords of moving blocks
   val serverMap = new TSynchronizedIntObjectMap(new TIntObjectHashMap[TSynchronizedLongSet])
   val debugOffset = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
 
@@ -248,9 +251,9 @@ class MovingTileEntityRenderer extends TileEntityRenderer {
         val o = MovingRegistry.getData(te.worldObj, (te.xCoord, te.yCoord, te.zCoord))
         this.renderTileEntityAt(
           te,
-          te.xCoord.toDouble - staticPlayerX + o.x + o.dirTo.x * tick / 16F,
-          te.yCoord.toDouble - staticPlayerY + o.y + o.dirTo.y * tick / 16F,
-          te.zCoord.toDouble - staticPlayerZ + o.z + o.dirTo.z * tick / 16F,
+          te.xCoord.toDouble - staticPlayerX + clamp(-1F, 1F, o.x + o.dirTo.x * tick / 16F),
+          te.yCoord.toDouble - staticPlayerY + clamp(-1F, 1F, o.y + o.dirTo.y * tick / 16F),
+          te.zCoord.toDouble - staticPlayerZ + clamp(-1F, 1F, o.z + o.dirTo.z * tick / 16F),
           tick)
       } else {
         this.renderTileEntityAt(

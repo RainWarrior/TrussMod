@@ -152,11 +152,11 @@ trait BlockMotor extends BlockContainer {
     if(te == null)
       throw new RuntimeException("no tile entity!")
 //    FMLCommonHandler.instance.showGuiScreen(te.openGui())
-      if(te.counter == 0) te.rotate(player.isSneaking())
+      if(!te.isMoving) te.rotate(player.isSneaking())
     true
   }
 
-  override def onNeighborBlockChange(world: World, x: Int, y: Int, z: Int, id: Int) {
+/*  override def onNeighborBlockChange(world: World, x: Int, y: Int, z: Int, id: Int) {
     if(world.isServer) {
       if(world.isBlockIndirectlyGettingPowered(x, y, z)) {
         world.scheduleBlockUpdate(x, y, z, this.blockID, 1)
@@ -170,51 +170,29 @@ trait BlockMotor extends BlockContainer {
         te.activate()
       case _ =>
     }
-  }
+  }*/
 }
 
 class TileEntityMotor extends StripHolder {
   lazy val side = EffectiveSide(worldObj)
   var orientation = 0
-  var moving = 0
-
   //log.info(s"new TileEntityMotor, isServer: $isServer")
-
-  override def getDescriptionPacket(): Packet = {
-    assert(side.isServer)
-    val cmp = new NBTTagCompound
-    writeToNBT(cmp)
-    //log.info("getPacket, world: " + worldObj)
-    new Packet132TileEntityData(xCoord, yCoord, zCoord, 1, cmp)
-  }
-
-  override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
-    assert(side.isClient)
-    packet.actionType match {
-      case 1 => readFromNBT(packet.data)
-      case 2 => activate()
-      case _ => super.onDataPacket(netManager, packet)
-    }
-  }
 
   override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
     orientation = cmp.getInteger("orientation")
-    moving = cmp.getInteger("moving")
     //log.info(s"Motor readFromNBT: ($xCoord,$yCoord,$zCoord), " + (if(worldObj != null) side else "NONE"))
   }
 
   override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     cmp.setInteger("orientation", orientation)
-    cmp.setInteger("moving", moving)
     //log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $side")
   }
 
   override def updateEntity() {
     super.updateEntity()
-    if(moving != 0) moving += 1
-    if(moving > 16) moving = 0
+    //log.info(s"updateEntity, ($xCoord, $yCoord, $zCoord), ${worldObj.isClient}")
   }
   
   override def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
@@ -240,19 +218,22 @@ class TileEntityMotor extends StripHolder {
     worldObj.markBlockForRenderUpdate(xCoord, yCoord, zCoord)
   }
 
-  def dirTo = ForgeDirection.values()(moveDir(orientation)(getBlockMetadata))
-  def activate() {
-    if(moving != 0) return
+  override def dirTo = ForgeDirection.values()(moveDir(orientation)(getBlockMetadata))
+
+  override def shouldContinue(): Boolean = {
     //var t = System.currentTimeMillis
 
-    moving = 1
+    if(!worldObj.isBlockIndirectlyGettingPowered(xCoord, yCoord, zCoord)) return false
+
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
+    //log.info(s"shouldUpdate! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(worldObj)}")
     val id = worldObj.getBlockId(pos.x, pos.y, pos.z)
     if ( id == 0
       || MovingRegistry.isMoving(this.worldObj, pos.x, pos.y, pos.z)
       || !CommonProxy.movingTileHandler.canMove(this.worldObj, pos.x, pos.y, pos.z)
-    ) return
+    ) return false
+
     //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(worldObj)}")
     val blocks = bfs(Queue(pos))
     val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
@@ -273,6 +254,7 @@ class TileEntityMotor extends StripHolder {
       //log.info(s"xyz: $c, basis: $basis, size: $size, shift: $shift")
       (c, size)
     }
+
     val canMove = (blocks.size <= CommonProxy.structureLimit) && !strips.exists { (pair) =>
       val c = pair._1
       if(c.y < 0 || c.y >= 256) true
@@ -285,29 +267,29 @@ class TileEntityMotor extends StripHolder {
           !block.isBlockReplaceable(worldObj, c.x, c.y, c.z)
       }
     }
-    if (canMove) {
-      if(worldObj.isServer) {
-        val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)
-        if(players != null) {
-        // activation packet
-          val packet = new Packet132TileEntityData(xCoord, yCoord, zCoord, 2, null)
-          players.sendToAllPlayersWatchingChunk(packet)
-        }
-      }
+
+    if(canMove) {
+      isMoving = true
       for ((c, size) <- strips) {
         //log.info(s"c: $c")
         //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
-        worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
+        //worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
         worldObj.getBlockTileEntity(c.x, c.y, c.z) match {
           case te: TileEntityMovingStrip => te.parent = this
           case _ =>
         }
         this += StripData(c, dirTo, size)
       }
+      val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)
+      if(players != null) {
+        players.sendToAllPlayersWatchingChunk(getDescriptionPacket)
+      }
     }
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord) 
+    canMove
   }
+
   @tailrec private def bfs(
       greyBlocks: Seq[WorldPos], // frames to visit
       blackBlocks: Set[WorldPos] = Set.empty): Set[WorldPos] = { // all blocks to move
@@ -418,8 +400,8 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       case 5 => glRotatef(90, 0, 0, -1)
     }
     val astep = 360F / 64F
-    val angle = if(te.counter == 0) 0
-      else (te.counter - 1 + partialTick) * astep
+    val angle = if(te.offset == 0) 0
+      else (te.offset - 1 + partialTick) * astep
 
     /*tes.startDrawingQuads()
     tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
