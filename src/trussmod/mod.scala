@@ -148,6 +148,8 @@ Other keys can be:
     MovingTileRegistry.setHandler(k, v)
   }
 
+  MovingTileRegistry.setHandler(blockMovingStripId.toString, "immovable")
+
   val sets = config.getCategory("Sticky Sets")
   sets.setComment("""
 Sets of blocks that move together (multiblock structures) (ADVANCED)

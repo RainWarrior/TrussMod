@@ -146,11 +146,11 @@ class TileEntityMovingStrip extends TileEntity {
   }*/
 
   override def updateEntity() {
-    /*val pos = WorldPos(this)
+    val pos = WorldPos(this)
     //log.info(s"TileEntityMovingStrip onUpdate, side: $side, pos: $pos")
     if(parent == null) {
       worldObj.setBlock(pos.x, pos.y, pos.z, 0, 0, 3)
-    } else {
+    } /*else {
       val aabb = getAabb
       val shift = 1.05F / 16F
       if(aabb != null) worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
@@ -163,7 +163,7 @@ class TileEntityMovingStrip extends TileEntity {
         case _ =>
       }
     }*/
-    worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
+    //worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
   }
 }
 

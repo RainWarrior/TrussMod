@@ -273,7 +273,7 @@ class TileEntityMotor extends StripHolder {
       for ((c, size) <- strips) {
         //log.info(s"c: $c")
         //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
-        //worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
+        worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
         worldObj.getBlockTileEntity(c.x, c.y, c.z) match {
           case te: TileEntityMovingStrip => te.parent = this
           case _ =>
