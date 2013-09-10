@@ -38,7 +38,7 @@ import net.minecraft._,
   tileentity.TileEntity,
   world.{ ChunkPosition, chunk, World },
   chunk.storage.ExtendedBlockStorage,
-  util.{ Vec3, Vec3Pool }
+  util.{ MovingObjectPosition, Vec3, Vec3Pool }
 import net.minecraftforge.common.ForgeDirection
 import net.minecraftforge.client.model.obj.{ Face, Vertex }
 import ForgeDirection._
@@ -456,6 +456,25 @@ object utils {
       val (v0, v1, v2) = tr
       mt(origin, dir, v0, v1, v2).map(t => (t, normal(v0, v1, v2)))
     }.reduceOption(Ordering.by((_: Tuple2[Double, Vector3])._1).min)
+  }
+
+  def blockRayTrace(
+      world: World,
+      x: Int, y: Int, z: Int,
+      from: Vec3, to: Vec3,
+      faces: Seq[Face]): MovingObjectPosition = {
+    val offset = (x + .5, y + .5, z + .5)
+    val start = from - offset
+    val dir = to - from
+    rayTraceObj(start, dir, faces) match {
+      case Some((t, normal)) if t <= 1 =>
+        val side = sideHit(normal, start + dir * t)
+        //log.info(s"f: $from, t: $to, t: $t")
+        val mop = new MovingObjectPosition(x, y, z, side, (from + dir * t).toVec3(world.getWorldVec3Pool))
+        mop.subHit = 0
+        mop
+      case None => null
+    }
   }
 
   def clamp(min: Float, max: Float, v: Float) = Math.min(max, Math.max(min, v))

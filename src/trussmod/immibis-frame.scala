@@ -108,6 +108,9 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
   override def createNewTileEntity(world: World): TileEntity =  new TileEntityImmibisFrame
   override def wrappedGetRenderType = BlockFrameRenderer.getRenderId
 
+  override def wrappedCollisionRayTrace(world: World, x: Int, y: Int, z: Int, from: Vec3, to: Vec3) =
+    blockRayTrace(world, x, y, z, from, to, model.getPartFaces("Frame", "Frame"))
+
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
     world.getBlockTileEntity(x, y, z) match {
       case te: TileEntityImmibisFrame =>
@@ -181,11 +184,13 @@ class TileEntityImmibisFrame extends TileCoverableBase {
   override def getPartAABBFromPool(part: Int) =
     AxisAlignedBB.getAABBPool.getAABB(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
 
-  override def getCollidingBoundingBoxes(mask: AxisAlignedBB, list: JList[AxisAlignedBB]) {
+  /*override def getCollidingBoundingBoxes(mask: AxisAlignedBB, list: JList[AxisAlignedBB]) {
     val hit = AxisAlignedBB.getAABBPool.getAABB(0, 0, 0, 1, 1, 1).offset(xCoord, yCoord, zCoord)
     if(hit.intersectsWith(mask))
       list.add(hit)
-  }
+  }*/
+
   override def getNumTileOwnedParts() = 1
+
 }
 
