@@ -478,4 +478,12 @@ object utils {
   }
 
   def clamp(min: Float, max: Float, v: Float) = Math.min(max, Math.max(min, v))
+
+  @SideOnly(Side.CLIENT)
+  def rayTraceObjBlock(offset: Vector3, start: Vector3, end: Vector3, faces: Seq[Face]) =
+    rayTraceObj(start - offset, end - start, faces) match {
+      case Some((t, normal)) if t <= 1 =>
+        Some((t, normal, sideHit(normal, start - offset + (end - start) * t)))
+      case _ => None
+    }
 }

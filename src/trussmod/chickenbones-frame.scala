@@ -40,15 +40,16 @@ import net.minecraft._,
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
   item.{ Item, ItemBlock, ItemStack },
-  world.World
+  world.World,
+  util.{ MovingObjectPosition, Vec3 }
 import net.minecraftforge.common.ForgeDirection
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import TrussMod._
-import rainwarrior.utils._
+import rainwarrior.utils.{ Vector3 => MyVector3, _}
 
 import codechicken.lib.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
 import codechicken.lib.lighting.{ LazyLightMatrix, LC }
-import codechicken.lib.raytracer.{ RayTracer, IndexedCuboid6 }
+import codechicken.lib.raytracer.{ ExtendedMOP, RayTracer, IndexedCuboid6 }
 import codechicken.multipart.{
   MultiPartRegistry,
   MultipartGenerator,
@@ -79,10 +80,18 @@ class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPar
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
 
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(0, 0, 0, 1, 1, 1)))
-  override val getSubParts: JIterable[IndexedCuboid6] = Seq(
+  /*override val getSubParts: JIterable[IndexedCuboid6] = Seq(
     new IndexedCuboid6(0, new Cuboid6(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps))
     //new IndexedCuboid6(0, new Cuboid6(.25, .25, .25, .75, .75, .75))
-  )
+  )*/
+
+  override def collisionRayTrace(from: Vec3, to: Vec3) = {
+    blockRayTrace(world, x, y, z, from, to, model.getPartFaces("Frame", "Frame")) match {
+      case mop: MovingObjectPosition =>
+        new ExtendedMOP(mop, 0, from.squareDistanceTo(mop.hitVec))
+      case _ => null
+    }
+  }
 
   override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(0, 0, 0, 1, 1, 1))
   //override val getCollisionBoxes: JIterable[Cuboid6] = Seq(new Cuboid6(.25, .25, .25, .75, .75, .75))
@@ -119,6 +128,10 @@ class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPar
       case _ => true
     }
     case _ => true
+  }
+  @SideOnly(Side.CLIENT)
+  override def drawHighlight(hit: MovingObjectPosition, player: EntityPlayer, frame: Float): Boolean = {
+    true // TODO
   }
 }
 
