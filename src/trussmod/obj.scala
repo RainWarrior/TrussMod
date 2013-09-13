@@ -42,17 +42,22 @@ object obj {
     parser.parseAll(parser.obj, file)
   }
 
-  sealed class ObjElement
+  sealed abstract class ObjElement
   case class Vertex(x: Double, y: Double, z: Double, w: Double) extends ObjElement
   case class NormalVertex(i: Double, j: Double, k: Double) extends ObjElement
   case class TextureVertex(u: Double, v: Double, w: Double) extends ObjElement
   case class Points(vs: List[Int]) extends ObjElement
-  case class Line(vs: List[Int]) extends ObjElement
-  case class TexturedLine(vs: List[(Int, Int)]) extends ObjElement
-  case class Face(vs: List[Int]) extends ObjElement
-  case class TexturedFace(vs: List[(Int, Int)]) extends ObjElement
-  case class NormaledFace(vs: List[(Int, Int)]) extends ObjElement
-  case class TexturedNormaledFace(vs: List[(Int, Int, Int)]) extends ObjElement
+
+  sealed abstract class Line extends ObjElement
+  case class VertexLine(vs: List[Int]) extends Line
+  case class TexturedLine(vs: List[(Int, Int)]) extends Line
+
+  sealed abstract class Face extends ObjElement
+  case class VertexFace(vs: List[Int]) extends Face
+  case class TexturedFace(vs: List[(Int, Int)]) extends Face
+  case class NormaledFace(vs: List[(Int, Int)]) extends Face
+  case class TexturedNormaledFace(vs: List[(Int, Int, Int)]) extends Face
+
   case class Groups(names: List[String]) extends ObjElement
   case class SmoothGroup(index: Option[Int]) extends ObjElement
   case class Object(name: String) extends ObjElement
@@ -93,12 +98,12 @@ object obj {
 
     def p: Parser[Points] = line("p", rep(int) ^^ Points.apply)
     
-    def l: Parser[ObjElement] =
-      line("l", rep(int) ^^ Line.apply) |
+    def l: Parser[Line] =
+      line("l", rep(int) ^^ VertexLine.apply) |
       line("l", rep(ct) ^^ TexturedLine.apply)
 
-    def f: Parser[ObjElement] =
-      line("f", rep(int) ^^ Face.apply) |
+    def f: Parser[Face] =
+      line("f", rep(int) ^^ VertexFace.apply) |
       line("f", rep(ct)  ^^ TexturedFace.apply) |
       line("f", rep(cn)  ^^ NormaledFace.apply) |
       line("f", rep(ctn) ^^ TexturedNormaledFace.apply)
