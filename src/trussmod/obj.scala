@@ -29,16 +29,26 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior
 
+import java.util.logging.Logger
 import scala.util.parsing.combinator._
+import scala.io.Source
 
 object obj {
-  object ObjParser extends RegexParsers {
+
+  def readObj(log: Logger, url: String) = {
+    val rawFile = Source.fromInputStream(this.getClass.getResource(url).openStream()).mkString("")
+    val file = rawFile.replaceAll("""\r""", "").replaceAll("""\\\n""", "").replaceAll("""#[^\n]*\n""", "\n").replaceAll("""(?m)^[ \t]*\n""", "")
+    val parser = new ObjParser(log)
+    parser.parseAll(parser.obj, file)
+  }
+
+  class ObjParser(val log: Logger) extends RegexParsers {
     override val whiteSpace = """[ \t]+""".r
 
     def int: Parser[Int] = """-?\d+""".r ^^ (_.toInt)
     def double: Parser[Double] = """-?(\d+(\.\d*)?|\d*\.\d+)""".r ^^ (_.toDouble)
 
-    def line[U](s: String, p: Parser[U]): Parser[U] = ("^" + s).r ~> p <~ "$".r
+    def line[U](s: String, p: Parser[U]): Parser[U] = ("^" + s).r ~> p <~ "\n"
 
     def v: Parser[(Double, Double, Double, Double)] = line("v", double~double~double~opt(double)) ^^ {
       case x~y~z~Some(w) => (x, y, z, w)
@@ -76,11 +86,13 @@ object obj {
     def on: Parser[Boolean] = ("on" ^^^ true)
     def off: Parser[Boolean] = ("off" ^^^ false)
 
-    // def g TODO
+    def name: Parser[String] = """[^ \t\n]+""".r
+
+    def g: Parser[List[String]] = line("g", rep(name))
 
     def s: Parser[Option[Int]] = line("s", (int ^^ Some.apply ) | (("off" | "0") ^^^ None))
     
-    // def o TODO
+    def o: Parser[String] = line("o", name)
 
     def bevel = line("bevel", on|off)
 
@@ -90,16 +102,8 @@ object obj {
 
     def lod = line("lod", int ^? ({ case l if(l >= 0 && l <= 100) => l }, l => s"lod level $l is out of range"))
 
-    // def maplib filename+ TODO
+    def unsupported = """^(maplib|usemap|usemtl|mtllib|shadow_obj|trace_obj|deg|bmat|step|curv|curv2|surf|parm|trim|hole|scrv|sp|end|con|mg|ctech|stech).*\n""".r ^^ { l => log.warning(s"Ignoring statement: '$l'") }
 
-    // def usemap name/off TODO
-
-    // def usemtl name? TODO
-
-    // def mtllib filename+ TODO
-
-    // def shadow_obj filename TODO
-
-    // def trace_obj filename TODO
+    def obj: Parser[List[Any]] = rep(v|vn|vt|p|l|f|g|s|o|bevel|c_interp|d_interp|lod|unsupported)
   }
 }
