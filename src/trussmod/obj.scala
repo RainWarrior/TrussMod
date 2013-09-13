@@ -113,22 +113,22 @@ object obj {
 
     def name: Parser[String] = """[^ \t\n]+""".r
 
-    def g = line("g", rep(name) ^^ Groups.apply)
+    def g: Parser[Groups] = line("g", rep(name) ^^ Groups.apply)
 
-    def s = line("s", (int ^^ {i => SmoothGroup(Some(i)) }) | (("off" | "0") ^^^ SmoothGroup(None)))
+    def s: Parser[SmoothGroup] = line("s", (int ^^ {i => SmoothGroup(Some(i)) }) | (("off" | "0") ^^^ SmoothGroup(None)))
     
-    def o = line("o", name ^^ Object.apply)
+    def o: Parser[Object] = line("o", name ^^ Object.apply)
 
-    def bevel = line("bevel", on|off ^^ Bevel.apply)
+    def bevel: Parser[Bevel] = line("bevel", (on|off) ^^ Bevel.apply)
 
-    def c_interp = line("c_interp", on|off ^^ ColorInterpolation.apply)
+    def c_interp: Parser[ColorInterpolation] = line("c_interp", (on|off) ^^ ColorInterpolation.apply)
 
-    def d_interp = line("d_interp", on|off ^^ DissolveInterpolation.apply)
+    def d_interp: Parser[DissolveInterpolation] = line("d_interp", (on|off) ^^ DissolveInterpolation.apply)
 
-    def lod = line("lod", int ^? ({ case l if(l >= 0 && l <= 100) => LodLevel(l) }, l => s"lod level $l is out of range"))
+    def lod: Parser[LodLevel] = line("lod", int ^? ({ case l if(l >= 0 && l <= 100) => LodLevel(l) }, l => s"lod level $l is out of range"))
 
-    def unsupported = """^(maplib|usemap|usemtl|mtllib|shadow_obj|trace_obj|deg|bmat|step|curv|curv2|surf|parm|trim|hole|scrv|sp|end|con|mg|ctech|stech).*""".r <~ """\n""".r ^^ { l => log.warning(s"Ignoring statement: '$l'"); Unsupported(l) }
+    def unsupported: Parser[Unsupported] = """^(maplib|usemap|usemtl|mtllib|shadow_obj|trace_obj|deg|bmat|step|curv|curv2|surf|parm|trim|hole|scrv|sp|end|con|mg|ctech|stech).*""".r <~ """\n""".r ^^ { l => log.warning(s"Ignoring statement: '$l'"); Unsupported(l) }
 
-    def obj: Parser[List[Any]] = rep(v|vn|vt|p|l|f|g|s|o|bevel|c_interp|d_interp|lod|unsupported)
+    def obj: Parser[List[ObjElement]] = rep(v|vn|vt|p|l|f|g|s|o|bevel|c_interp|d_interp|lod|unsupported)
   }
 }
