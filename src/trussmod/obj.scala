@@ -42,6 +42,26 @@ object obj {
     parser.parseAll(parser.obj, file)
   }
 
+  sealed class ObjElement
+  case class Vertex(x: Double, y: Double, z: Double, w: Double) extends ObjElement
+  case class NormalVertex(i: Double, j: Double, k: Double) extends ObjElement
+  case class TextureVertex(u: Double, v: Double, w: Double) extends ObjElement
+  case class Points(vs: List[Int]) extends ObjElement
+  case class Line(vs: List[Int]) extends ObjElement
+  case class TexturedLine(vs: List[(Int, Int)]) extends ObjElement
+  case class Face(vs: List[Int]) extends ObjElement
+  case class TexturedFace(vs: List[(Int, Int)]) extends ObjElement
+  case class NormaledFace(vs: List[(Int, Int)]) extends ObjElement
+  case class TexturedNormaledFace(vs: List[(Int, Int, Int)]) extends ObjElement
+  case class Groups(names: List[String]) extends ObjElement
+  case class SmoothGroup(index: Option[Int]) extends ObjElement
+  case class Object(name: String) extends ObjElement
+  case class Bevel(state: Boolean) extends ObjElement
+  case class ColorInterpolation(state: Boolean) extends ObjElement
+  case class DissolveInterpolation(state: Boolean) extends ObjElement
+  case class LodLevel(level: Int) extends ObjElement
+  case class Unsupported(string: String) extends ObjElement
+
   class ObjParser(val log: Logger) extends RegexParsers {
     override val whiteSpace = """[ \t]+""".r
 
@@ -50,19 +70,19 @@ object obj {
 
     def line[U](s: String, p: Parser[U]): Parser[U] = ("^" + s).r ~> p <~ "\n"
 
-    def v: Parser[(Double, Double, Double, Double)] = line("v", double~double~double~opt(double)) ^^ {
-      case x~y~z~Some(w) => (x, y, z, w)
-      case x~y~z~None => (x, y, z, 1.0)
+    def v: Parser[Vertex] = line("v", double~double~double~opt(double)) ^^ {
+      case x~y~z~Some(w) => Vertex(x, y, z, w)
+      case x~y~z~None => Vertex(x, y, z, 1.0)
     }
 
-    def vn: Parser[(Double, Double, Double)] = line("vn", double~double~double) ^^ {
-      case i~j~k => (i, j, k)
+    def vn: Parser[NormalVertex] = line("vn", double~double~double) ^^ {
+      case i~j~k => NormalVertex(i, j, k)
     }
 
-    def vt: Parser[(Double, Double, Double)] = line("vt", double~opt(double~opt(double))) ^^ {
-      case u~None => (u, 0.0, 0.0)
-      case u~Some(v~None) => (u, v, 0.0)
-      case u~Some(v~Some(w)) => (u, v, w)
+    def vt: Parser[TextureVertex] = line("vt", double~opt(double~opt(double))) ^^ {
+      case u~None => TextureVertex(u, 0.0, 0.0)
+      case u~Some(v~None) => TextureVertex(u, v, 0.0)
+      case u~Some(v~Some(w)) => TextureVertex(u, v, w)
     }
 
     def ct: Parser[(Int, Int)] = (int<~"/")~int ^^ { case v~vt => (v, vt) }
@@ -71,38 +91,38 @@ object obj {
 
     def ctn: Parser[(Int, Int, Int)] = (int<~"/")~(int<~"/")~int ^^ { case v~vt~vn => (v, vt, vn) }
 
-    def p: Parser[List[Int]] = line("p", rep(int))
+    def p: Parser[Points] = line("p", rep(int) ^^ Points.apply)
     
-    def l: Parser[List[Either[Int, (Int, Int)]]] =
-      line("l", rep(int) ^^ { _.map(Left.apply) }) |
-      line("l", rep(ct) ^^ { _.map(Right.apply) })
+    def l: Parser[ObjElement] =
+      line("l", rep(int) ^^ Line.apply) |
+      line("l", rep(ct) ^^ TexturedLine.apply)
 
-    def f: Parser[List[Either[Either[Int, (Int, Int)], Either[(Int, Int), (Int, Int, Int)]]]] =
-      line("f", rep(int) ^^ { _.map(c => Left(Left(c)))   }) |
-      line("f", rep(ct)  ^^ { _.map(c => Left(Right(c)))  }) |
-      line("f", rep(cn)  ^^ { _.map(c => Right(Left(c)))  }) |
-      line("f", rep(ctn) ^^ { _.map(c => Right(Right(c))) })
+    def f: Parser[ObjElement] =
+      line("f", rep(int) ^^ Face.apply) |
+      line("f", rep(ct)  ^^ TexturedFace.apply) |
+      line("f", rep(cn)  ^^ NormaledFace.apply) |
+      line("f", rep(ctn) ^^ TexturedNormaledFace.apply)
 
     def on: Parser[Boolean] = ("on" ^^^ true)
     def off: Parser[Boolean] = ("off" ^^^ false)
 
     def name: Parser[String] = """[^ \t\n]+""".r
 
-    def g: Parser[List[String]] = line("g", rep(name))
+    def g = line("g", rep(name) ^^ Groups.apply)
 
-    def s: Parser[Option[Int]] = line("s", (int ^^ Some.apply ) | (("off" | "0") ^^^ None))
+    def s = line("s", (int ^^ {i => SmoothGroup(Some(i)) }) | (("off" | "0") ^^^ SmoothGroup(None)))
     
-    def o: Parser[String] = line("o", name)
+    def o = line("o", name ^^ Object.apply)
 
-    def bevel = line("bevel", on|off)
+    def bevel = line("bevel", on|off ^^ Bevel.apply)
 
-    def c_interp = line("c_interp", on|off)
+    def c_interp = line("c_interp", on|off ^^ ColorInterpolation.apply)
 
-    def d_interp = line("d_interp", on|off)
+    def d_interp = line("d_interp", on|off ^^ DissolveInterpolation.apply)
 
-    def lod = line("lod", int ^? ({ case l if(l >= 0 && l <= 100) => l }, l => s"lod level $l is out of range"))
+    def lod = line("lod", int ^? ({ case l if(l >= 0 && l <= 100) => LodLevel(l) }, l => s"lod level $l is out of range"))
 
-    def unsupported = """^(maplib|usemap|usemtl|mtllib|shadow_obj|trace_obj|deg|bmat|step|curv|curv2|surf|parm|trim|hole|scrv|sp|end|con|mg|ctech|stech).*\n""".r ^^ { l => log.warning(s"Ignoring statement: '$l'") }
+    def unsupported = """^(maplib|usemap|usemtl|mtllib|shadow_obj|trace_obj|deg|bmat|step|curv|curv2|surf|parm|trim|hole|scrv|sp|end|con|mg|ctech|stech).*""".r <~ """\n""".r ^^ { l => log.warning(s"Ignoring statement: '$l'"); Unsupported(l) }
 
     def obj: Parser[List[Any]] = rep(v|vn|vt|p|l|f|g|s|o|bevel|c_interp|d_interp|lod|unsupported)
   }
