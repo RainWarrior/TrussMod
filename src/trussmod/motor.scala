@@ -275,9 +275,10 @@ class TileEntityMotor extends StripHolder {
         //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
         worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
         worldObj.getBlockTileEntity(c.x, c.y, c.z) match {
-          case te: TileEntityMovingStrip => te.parent = this
+          case te: TileEntityMovingStrip => te.parentPos = Some(this)
           case _ =>
         }
+        worldObj.markBlockForUpdate(c.x, c.y, c.z)
         this += StripData(c, dirTo, size)
       }
       val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)

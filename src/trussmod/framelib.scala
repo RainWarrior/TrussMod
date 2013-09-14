@@ -72,7 +72,7 @@ trait BlockMovingStrip extends BlockContainer {
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockMovingStrip")
   setCreativeTab(null)
-  setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
+  //setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
 
   import cpw.mods.fml.common.registry._
   LanguageRegistry.addName(this, "Moving Strip Block")
@@ -118,56 +118,18 @@ trait BlockMovingStrip extends BlockContainer {
 }
 
 class TileEntityMovingStrip extends TileEntity {
-  import rainwarrior.hooks.MovingRegistry
-  lazy val side = EffectiveSide(worldObj)
-  var parent: StripHolder = null
+  var parentPos: Option[WorldPos] = None
 
   //log.info(s"new TileEntityMovingStrip, pos: ${WorldPos(this)}")
-
-  /*def getAabb() = {
-    val pos = this - parent.dirTo
-    val block = Block.blocksList(worldObj.getBlockId(pos.x, pos.y, pos.z))
-    if(parent.counter == 0 || block == null) null
-    else {
-      val shift = (parent.counter + 1).toFloat / 16F
-      block.getCollisionBoundingBoxFromPool(worldObj, pos.x, pos.y, pos.z) match {
-        case aabb: AxisAlignedBB => 
-          aabb.minX += shift * Math.min(0, parent.dirTo.x)
-          aabb.minY += shift * Math.min(0, parent.dirTo.y)
-          aabb.minZ += shift * Math.min(0, parent.dirTo.z)
-          aabb.maxX += shift * Math.max(0, parent.dirTo.x)
-          aabb.maxY += shift * Math.max(0, parent.dirTo.y)
-          aabb.maxZ += shift * Math.max(0, parent.dirTo.z)
-          //log.info(s"AABB: $aabb")
-          aabb
-        case _ => null
-      }
-    }
-  }*/
-
   override def updateEntity() {
-    val pos = WorldPos(this)
-    //log.info(s"TileEntityMovingStrip onUpdate, side: $side, pos: $pos")
-    if(parent == null) {
-      worldObj.setBlock(pos.x, pos.y, pos.z, 0, 0, 3)
-    } /*else {
-      val aabb = getAabb
-      val shift = 1.05F / 16F
-      if(aabb != null) worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
-        case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
-          e.moveEntity(
-            shift * parent.dirTo.x,
-            shift * parent.dirTo.y,
-            shift * parent.dirTo.z)
-        }
-        case _ =>
-      }
-    }*/
-    //worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
+    if(!parentPos.isEmpty) (worldObj.getBlockTileEntity _).tupled(parentPos.get.toTuple) match {
+      case parent: StripHolder =>
+      case _ => worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
+    } else worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
   }
 }
 
-
+  
 object StripData {
   def readFromNBT(cmp: NBTTagCompound) = {
     val x = cmp.getInteger("x")
@@ -388,12 +350,61 @@ abstract class StripHolder extends TileEntity {
           case _ =>
         }
       }*/
-    if(isMoving && offset <= 16) { // TODO entity pushout
+    if(isMoving && offset <= 16) {
+      val dirTo = this.dirTo
+
       offset = (offset + 1)
       val shift = ((offset).toFloat / 0x10)
       renderOffset.x = dirTo.x * shift
       renderOffset.y = dirTo.y * shift
       renderOffset.z = dirTo.z * shift
+
+      val sh2 = 1.05F / 16F
+
+      for (s <- strips) {
+        val aabb = getAabb(s)
+        log.info(s"Yup2, ${worldObj.isClient}, $aabb")
+        if(aabb != null) worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
+          case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
+            log.info(s"Yup, ${dirTo}, $e")
+            //e.isAirBorne = true
+            e.moveEntity(
+              sh2 * dirTo.x,
+              sh2 * dirTo.y,
+              sh2 * dirTo.z)
+            /*e.addVelocity(
+              sh2 * dirTo.x,
+              sh2 * dirTo.y,
+              sh2 * dirTo.z)*/
+            /*e.posX += sh2 * dirTo.x
+            e.posY += sh2 * dirTo.y
+            e.posZ += sh2 * dirTo.z*/
+          }
+          case _ =>
+        }
+      }
+    }
+  }
+
+  def getAabb(s: StripData) = {
+    val pos = s.pos - dirTo
+    val block = Block.blocksList(worldObj.getBlockId(pos.x, pos.y, pos.z))
+    if(!isMoving || block == null) {
+      null
+    } else {
+      val shift = offset.toFloat / 16F
+      block.getCollisionBoundingBoxFromPool(worldObj, pos.x, pos.y, pos.z) match {
+        case aabb: AxisAlignedBB => 
+          aabb.minX += shift * Math.min(0, dirTo.x)
+          aabb.minY += shift * Math.min(0, dirTo.y)
+          aabb.minZ += shift * Math.min(0, dirTo.z)
+          aabb.maxX += shift * Math.max(0, dirTo.x)
+          aabb.maxY += shift * Math.max(0, dirTo.y)
+          aabb.maxZ += shift * Math.max(0, dirTo.z)
+          //log.info(s"AABB: $aabb")
+          aabb
+        case _ => null
+      }
     }
   }
 
