@@ -171,6 +171,8 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
 
   config.save()
 
+  model.loadModel("Frame")
+  model.loadModel("Motor")
 }
 
 object ClientProxy extends LoadLater {

@@ -30,7 +30,7 @@ of this Program grant you additional permission to convey the resulting work.
 package rainwarrior
 
 import language.implicitConversions
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer}
 import net.minecraft._,
   block.Block,
   client.renderer.RenderBlocks,
@@ -40,9 +40,10 @@ import net.minecraft._,
   chunk.storage.ExtendedBlockStorage,
   util.{ MovingObjectPosition, Vec3, Vec3Pool }
 import net.minecraftforge.common.ForgeDirection
-import net.minecraftforge.client.model.obj.{ Face, Vertex }
 import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
+
+import rainwarrior.obj.{ Obj, Element, Vertex, CoordVertex, NormalVertex, TextureVertex, Face, TexturedFace, TexturedNormaledFace }
 
 object utils {
   trait LoadLater extends DelayedInit {
@@ -303,7 +304,7 @@ object utils {
     }
   }*/
 
-  @inline def rotator(meta: Int)(x: Float, y: Float, z: Float) = ForgeDirection.values()(meta) match {
+  @inline def rotator(meta: Int)(x: Double, y: Double, z: Double) = ForgeDirection.values()(meta) match {
     case DOWN  => ( x, -y, -z)
     case UP    => ( x,  y,  z)
     case NORTH => ( x,  z, -y)
@@ -313,21 +314,21 @@ object utils {
     case _ => throw new RuntimeException("rotate to UNKNOWN direction")
   }
 
-  @inline def rotHelper(or: Int)(x: Float, y: Float, z: Float) = (or & 3) match {
+  @inline def rotHelper(or: Int)(x: Double, y: Double, z: Double) = (or & 3) match {
     case 0 => ( x,  y,  z)
     case 1 => ( z,  y, -x)
     case 2 => (-x,  y, -z)
     case 3 => (-z,  y,  x)
   }
 
-  @inline def rotator2(meta: Int, or: Int)(x: Float, y: Float, z: Float) = {
+  @inline def rotator2(meta: Int, or: Int)(x: Double, y: Double, z: Double) = {
     val (nx, ny, nz) = rotHelper(or)(x, y, z)
     rotator(meta)(nx, ny, nz)
   }
 
   final val offset = 1F/256F
 
-  @inline def sideFixer(sideOffsets: Array[Int])(x: Float, y: Float, z: Float) = {
+  @inline def sideFixer(sideOffsets: Array[Int])(x: Double, y: Double, z: Double) = {
     (x match {
       case x if (x + .5).abs < eps => x - sideOffsets(4) * offset
       case x if (x - .5).abs < eps => x + sideOffsets(5) * offset
@@ -381,8 +382,49 @@ object utils {
 
     def normal = this / len
   }
-  implicit def vector3FromVertex(v: Vertex) = Vector3(v.x, v.y, v.z)
   implicit def vector3FromVec3(v: Vec3) = Vector3(v.xCoord, v.yCoord, v.zCoord)
+
+  implicit def vector3FromVertex(v: Vertex) = v match {
+    case v: CoordVertex => Vector3(v.x, v.y, v.z)
+    case v: NormalVertex => Vector3(v.i, v.j, v.k)
+    case v: TextureVertex => Vector3(v.u, v.v, v.w)
+  }
+
+  type P4V = Product4[Vector3, Vector3, Vector3, Vector3]
+
+  abstract class AQuad(_1: Vector3, _2: Vector3, _3: Vector3, _4: Vector3) extends P4V {
+    def apply(i: Int): Vector3 = i match {
+      case 0 => _1
+      case 1 => _2
+      case 2 => _3
+      case 3 => _4
+      case _ => throw new IndexOutOfBoundsException
+    }
+    val length = 4
+  }
+
+  case class Quad(_1: Vector3, _2: Vector3, _3: Vector3, _4: Vector3) extends AQuad(_1, _2, _3, _4) {
+    override def toString = s"Quad(${_1},${_2},${_3},${_4})"
+  }
+
+  case class TexturedQuad(_1: Vector3, _2: Vector3, _3: Vector3, _4: Vector3, tq: Quad) extends AQuad(_1, _2, _3, _4) {
+    @inline def v0 = _1
+    @inline def v1 = _2
+    @inline def v2 = _3
+    @inline def v3 = _4
+    @inline def t0 = tq._1
+    @inline def t1 = tq._2
+    @inline def t2 = tq._3
+    @inline def t3 = tq._4
+
+    override def toString = s"TexturedQuad[(${_1},${_2},${_3},${_4}),(${tq._1},${tq._2},${tq._3},${tq._4})]"
+    lazy val normal = ((v2 - v0) x (v1 - v0)).normal
+  }
+
+  def filterQuads(part: ArrayBuffer[Element]): ArrayBuffer[TexturedQuad] = part collect {
+    case f: TexturedFace if f.vs.length == 4 => TexturedQuad(f.vs(0)._1, f.vs(1)._1, f.vs(2)._1, f.vs(3)._1, Quad(f.vs(0)._2, f.vs(1)._2, f.vs(2)._2, f.vs(3)._2))
+    case f: TexturedNormaledFace if f.vs.length == 4 => TexturedQuad(f.vs(0)._1, f.vs(1)._1, f.vs(2)._1, f.vs(3)._1, Quad(f.vs(0)._2, f.vs(1)._2, f.vs(2)._2, f.vs(3)._2))
+  }
 
   def sideHit(n: Vector3, p: Vector3) = {
     //println(s"n: $n, p: $p, n2: ${n + p * .001}, s: ${(n + p * .001).toSide}")
@@ -438,31 +480,29 @@ object utils {
     }
   }
 
-  @SideOnly(Side.CLIENT)
   @inline
-  def faceToTriangles(face: Face) =
-    for (i <- 1 until (face.vertices.length - 1)) yield (
-      face.vertices(0),
-      face.vertices(i),
-      face.vertices(i + 1))
+  def faceToTriangles(face: TexturedQuad) =
+    for (i <- 1 until (face.length - 1)) yield (
+      face(0),
+      face(i),
+      face(i + 1))
 
   // raytrace seq of quads from origin towards dir
-  @SideOnly(Side.CLIENT)
   def rayTraceObj(
       origin: Vector3,
       dir: Vector3,
-      faces: Seq[Face]) = {
+      faces: Seq[TexturedQuad]) = {
     faces.flatMap(faceToTriangles).flatMap { tr =>
       val (v0, v1, v2) = tr
       mt(origin, dir, v0, v1, v2).map(t => (t, normal(v0, v1, v2)))
-    }.reduceOption(Ordering.by((_: Tuple2[Double, Vector3])._1).min)
+    }.reduceOption(Ordering.by((_: (Double, Vector3))._1).min)
   }
 
   def blockRayTrace(
       world: World,
       x: Int, y: Int, z: Int,
       from: Vec3, to: Vec3,
-      faces: Seq[Face]): MovingObjectPosition = {
+      faces: Seq[TexturedQuad]): MovingObjectPosition = {
     val offset = (x + .5, y + .5, z + .5)
     val start = from - offset
     val dir = to - from
@@ -473,14 +513,13 @@ object utils {
         val mop = new MovingObjectPosition(x, y, z, side, (from + dir * t).toVec3(world.getWorldVec3Pool))
         mop.subHit = 0
         mop
-      case None => null
+      case _ => null
     }
   }
 
   def clamp(min: Float, max: Float, v: Float) = Math.min(max, Math.max(min, v))
 
-  @SideOnly(Side.CLIENT)
-  def rayTraceObjBlock(offset: Vector3, start: Vector3, end: Vector3, faces: Seq[Face]) =
+  def rayTraceObjBlock(offset: Vector3, start: Vector3, end: Vector3, faces: Seq[TexturedQuad]) =
     rayTraceObj(start - offset, end - start, faces) match {
       case Some((t, normal)) if t <= 1 =>
         Some((t, normal, sideHit(normal, start - offset + (end - start) * t)))

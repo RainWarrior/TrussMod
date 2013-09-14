@@ -29,23 +29,31 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
-import collection.JavaConversions._
-import net.minecraftforge.client.model.{ AdvancedModelLoader, obj }
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.Map
+import scala.collection.JavaConversions._
+
 import net.minecraft.client.renderer.Tessellator.{ instance => tes }
 import net.minecraft.client.renderer.texture.TextureMap
 import net.minecraft.client.Minecraft.{ getMinecraft => mc }
 import net.minecraft.util.{ Icon, ResourceLocation }
+
+import cpw.mods.fml.relauncher.{ Side, SideOnly }
+import Side.CLIENT
+
+import rainwarrior.obj
+import rainwarrior.utils.{ filterQuads, TexturedQuad }
 import TrussMod._
 
 object model {
-  var models = Map.empty[String, obj.WavefrontObject]
+  var models = Map.empty[String, Map[String, ArrayBuffer[TexturedQuad]]]
   var icons = Map.empty[String, Icon]
 
   def loadModel(name: String) {
-    val model = AdvancedModelLoader.loadModel(s"/assets/${modId.toLowerCase}/models/$name.obj").asInstanceOf[obj.WavefrontObject]
-    val partNames = for(p <- model.groupObjects) yield p.name
-    log.info(s"Loaded model $model with parts ${partNames.mkString}")
-    models += name -> model
+    val model = obj.readObj(log, s"/assets/${modId.toLowerCase}/models/$name.obj")
+    val partNames = for(o <- model.objects.keys) yield o
+    log.info(s"Loaded model $name with parts ${partNames.mkString}")
+    models += name -> (model.objects.mapValues(filterQuads))
   }
 
   def getIcon(tpe: String, name: String) = icons.get(name) match {
@@ -61,50 +69,49 @@ object model {
   }
 
   def getPartFaces(modelName: String, partName: String) =
-    (for {
-      part <- models(modelName).groupObjects
-      if part.name == partName
-    } yield part).head.faces
+    models(modelName)(partName)
 
+  @SideOnly(CLIENT)
   def render(modelName: String, partName: String, icon: Icon) {
     assert(icon != null)
     for {
       f <- getPartFaces(modelName, partName)
-      n = f.faceNormal
+      n = f.normal
     } {
-      tes.setNormal(n.x, n.y, n.z)
+      tes.setNormal(n.x.toFloat, n.y.toFloat, n.z.toFloat)
       for {
-        i <- 0 until f.vertices.length
-        v = f.vertices(i)
-        t = f.textureCoordinates(i)
+        i <- 0 until f.length
+        v = f(i)
+        t = f.tq(i)
       } {
         tes.addVertexWithUV(v.x, v.y, v.z,
-          icon.getInterpolatedU(t.u * 16),
-          icon.getInterpolatedV(t.v * 16))
+          icon.getInterpolatedU(t.x * 16),
+          icon.getInterpolatedV(t.y * 16))
       }
     }
   }
 
+  @SideOnly(CLIENT)
   def renderTransformed(
       modelName: String,
       partName: String,
       icon: Icon,
-      rotator: (Float, Float, Float) => (Float, Float, Float)) {
+      rotator: (Double, Double, Double) => (Double, Double, Double)) {
     for {
       f <- getPartFaces(modelName, partName)
-      n = f.faceNormal
+      n = f.normal
       (nx, ny, nz) = rotator(n.x, n.y, n.z)
     } {
-      tes.setNormal(nx, ny, nz)
+      tes.setNormal(nx.toFloat, ny.toFloat, nz.toFloat)
       for {
-        i <- 0 until f.vertices.length
-        v = f.vertices(i)
-        t = f.textureCoordinates(i)
+        i <- 0 until f.length
+        v = f(i)
+        t = f.tq(i)
         (x, y, z) = rotator(v.x, v.y, v.z)
       } {
         tes.addVertexWithUV(x, y, z,
-          icon.getInterpolatedU(t.u * 16),
-          icon.getInterpolatedV(t.v * 16))
+          icon.getInterpolatedU(t.x * 16),
+          icon.getInterpolatedV(t.y * 16))
       }
     }
   }
