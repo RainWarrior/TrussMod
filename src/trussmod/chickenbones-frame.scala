@@ -121,13 +121,12 @@ class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPar
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) =
     isSideSticky(side)
 
-  def isSideSticky(side: ForgeDirection) = tile match {
-    case tile: TSlottedTile => tile.partMap(side.ordinal) match {
+  def isSideSticky(side: ForgeDirection) = {
+    tile.partMap(side.ordinal) match {
       case part: CommonMicroblock =>
         part.getSize != 1
       case _ => true
     }
-    case _ => true
   }
   @SideOnly(Side.CLIENT)
   override def drawHighlight(hit: MovingObjectPosition, player: EntityPlayer, frame: Float): Boolean = {
