@@ -170,7 +170,6 @@ trait BlockFrame extends Block with Frame {
 
 @SideOnly(Side.CLIENT)
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
-  model.loadModel("Frame")
   CommonProxy.frameBlock match {
     case block: BlockFrame => block.renderType = getRenderId
     case _ =>

@@ -425,7 +425,6 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
 }
 
 object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
-  model.loadModel("Motor")
   CommonProxy.blockMotor.renderType = getRenderId
 
   override def renderInventoryBlock(
