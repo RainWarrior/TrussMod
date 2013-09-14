@@ -33,6 +33,7 @@ import java.util.logging.Logger
 import scala.util.parsing.combinator._
 import scala.io.Source
 import scala.collection.mutable.{ ArrayBuffer, Map => MMap }
+import scala.collection.Map
 
 object obj {
 
@@ -49,6 +50,8 @@ object obj {
   def filterObjFile(file: String) = {
     (file + "\n").replaceAll("""\r""", "").replaceAll("""\\\n""", "").replaceAll("""#[^\n]*\n""", "\n").replaceAll("""(?m)^[ \t]*\n""", "")
   }
+
+  case class Obj(groupObjects: Map[String, ArrayBuffer[Element]], objects: Map[String, ArrayBuffer[Element]])
 
   def groopifyObj(data: List[ResultElement]) = {
     val groupObjects = MMap("default" -> new ArrayBuffer[Element])
@@ -68,7 +71,7 @@ object obj {
       case l: LodLevel =>
       case null =>
     }
-    (groupObjects, objects)
+    Obj(groupObjects, objects)
   }
 
   sealed abstract class ObjElement
