@@ -86,7 +86,7 @@ object model {
       } {
         tes.addVertexWithUV(v.x, v.y, v.z,
           icon.getInterpolatedU(t.x * 16),
-          icon.getInterpolatedV(t.y * 16))
+          icon.getInterpolatedV(16.0 - t.y * 16))
       }
     }
   }
@@ -111,7 +111,7 @@ object model {
       } {
         tes.addVertexWithUV(x, y, z,
           icon.getInterpolatedU(t.x * 16),
-          icon.getInterpolatedV(t.y * 16))
+          icon.getInterpolatedV(16.0 - t.y * 16))
       }
     }
   }
