@@ -102,7 +102,7 @@ object McpBuild extends Build {
     name := "mcp",
     version := "1.0",
     scalaVersion := "2.10.2",
-    compileOrder in Compile := CompileOrder.JavaThenScala,
+    compileOrder in Compile := CompileOrder.Mixed,
     sourceDirectory <<= baseDirectory { _ / "src/minecraft" },
     resourceDirectories in Compile <++= baseDirectory { base =>
       Seq(base / "jars/versions/1.6.2/1.6.2.jar", base / "jars") },

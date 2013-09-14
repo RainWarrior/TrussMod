@@ -20,8 +20,8 @@ mkdir -p mod/rainwarrior/
 #cp LICENSE COPYING README core/
 #(cd core/; jar -cm ../MANIFEST.MF > ../TrussCore-beta-${buildId}.jar .)
 
-mkdir -p mod/assets/trussmod
-cp -r ../assets/TrussMod/{models,textures} mod/assets/trussmod/
+mkdir -p mod/assets/
+cp -r ../assets/trussmod mod/assets/
 
 cp reobf/rainwarrior/*.class mod/rainwarrior/
 cp -r reobf/rainwarrior/trussmod/ mod/rainwarrior/
