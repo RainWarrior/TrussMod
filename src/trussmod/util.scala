@@ -418,7 +418,7 @@ object utils {
     @inline def t3 = tq._4
 
     override def toString = s"TexturedQuad[(${_1},${_2},${_3},${_4}),(${tq._1},${tq._2},${tq._3},${tq._4})]"
-    lazy val normal = ((v2 - v0) x (v1 - v0)).normal
+    lazy val normal = utils.normal(v0, v1, v2)
   }
 
   def filterQuads(part: ArrayBuffer[Element]): ArrayBuffer[TexturedQuad] = part collect {
