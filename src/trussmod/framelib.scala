@@ -87,34 +87,46 @@ trait BlockMovingStrip extends BlockContainer {
   override def renderAsNormalBlock = false
   override def getRenderType = -1
 
-/*  override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
+  override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
     world.getBlockTileEntity(x, y, z) match {
-      case te: TileEntityMovingStrip if te.parent != null =>
-        import te.parent
-        val pos = te - parent.dirTo
-        val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
-        if(parent.counter == 0 || block == null) {
-          setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
-        } else {
-          val shift = (16 - parent.counter).toFloat / 16F
-          setBlockBounds(
-            (block.getBlockBoundsMinX - parent.dirTo.x * shift).toFloat,
-            (block.getBlockBoundsMinY - parent.dirTo.y * shift).toFloat,
-            (block.getBlockBoundsMinZ - parent.dirTo.z * shift).toFloat,
-            (block.getBlockBoundsMaxX - parent.dirTo.x * shift).toFloat,
-            (block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat,
-            (block.getBlockBoundsMaxZ - parent.dirTo.z * shift).toFloat)
+      case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
+        (te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple) match {
+          case parent: StripHolder =>
+            val pos = te - parent.dirTo
+            val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
+            if(parent.offset == 0 || block == null) {
+              setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
+            } else {
+              val shift = (16 - parent.offset).toFloat / 16F
+              //log.info(s"SBBBOS: ${te.worldObj.isClient}, ${(block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat}")
+              setBlockBounds(
+                (block.getBlockBoundsMinX - parent.dirTo.x * shift).toFloat,
+                (block.getBlockBoundsMinY - parent.dirTo.y * shift).toFloat,
+                (block.getBlockBoundsMinZ - parent.dirTo.z * shift).toFloat,
+                (block.getBlockBoundsMaxX - parent.dirTo.x * shift).toFloat,
+                (block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat,
+                (block.getBlockBoundsMaxZ - parent.dirTo.z * shift).toFloat)
+            }
+          case _ =>
         }
       case _ =>
     }
-  }*/
+  }
 
-  /*override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
+  override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
+    setBlockBoundsBasedOnState(world, x, y, z)
     world.getBlockTileEntity(x, y, z) match {
-      case te: TileEntityMovingStrip if te.parent != null => te.getAabb
+      case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
+        (te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple) match {
+          case te: StripHolder =>
+            val aabb = te.getAabb((x, y, z))
+            //log.info(s"GCBBFP: ${te.worldObj.isClient}, ${aabb.maxY}")
+            aabb
+          case _ => null
+        }
       case _ => null
     }
-  }*/
+  }
 }
 
 class TileEntityMovingStrip extends TileEntity {
@@ -122,13 +134,44 @@ class TileEntityMovingStrip extends TileEntity {
 
   //log.info(s"new TileEntityMovingStrip, pos: ${WorldPos(this)}")
   override def updateEntity() {
+    //log.info(s"update TileEntityMovingStrip: ${worldObj.isClient}")
     if(!parentPos.isEmpty) (worldObj.getBlockTileEntity _).tupled(parentPos.get.toTuple) match {
       case parent: StripHolder =>
       case _ => worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
     } else worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
   }
-}
+  override def getDescriptionPacket(): Packet = {
+    val cmp = new NBTTagCompound
+    writeToNBT(cmp)
+    new Packet132TileEntityData(xCoord, yCoord, zCoord, 1, cmp)
+  }
 
+  override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
+    readFromNBT(packet.data)
+  }
+
+  override def readFromNBT(cmp: NBTTagCompound) {
+    super.readFromNBT(cmp)
+    val x = cmp.getInteger("parentX")
+    val y = cmp.getInteger("parentY")
+    val z = cmp.getInteger("parentZ")
+    parentPos = Some((x, y, z))
+  }
+
+  override def writeToNBT(cmp: NBTTagCompound) {
+    super.writeToNBT(cmp)
+    parentPos match {
+      case Some(pos) =>
+        cmp.setInteger("parentX", pos.x)
+        cmp.setInteger("parentY", pos.y)
+        cmp.setInteger("parentZ", pos.z)
+      case None =>
+        cmp.setInteger("parentX", 0)
+        cmp.setInteger("parentY", -10)
+        cmp.setInteger("parentZ", 0)
+    }
+  }
+}
   
 object StripData {
   def readFromNBT(cmp: NBTTagCompound) = {
@@ -335,6 +378,7 @@ abstract class StripHolder extends TileEntity {
     //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, m: $isMoving, o: $offset, dirTo: $dirTo, sd: ${EffectiveSide(worldObj)}, ro: $renderOffset")
     if(isServer) {
       if(offset >= 16) {
+        pushEntities()
         postMove()
         isMoving = false
         offset = 0
@@ -358,36 +402,38 @@ abstract class StripHolder extends TileEntity {
       renderOffset.x = dirTo.x * shift
       renderOffset.y = dirTo.y * shift
       renderOffset.z = dirTo.z * shift
+    }
+    pushEntities()
+  }
 
-      val sh2 = 1.05F / 16F
-
-      for (s <- strips) {
-        val aabb = getAabb(s)
-        log.info(s"Yup2, ${worldObj.isClient}, $aabb")
-        if(aabb != null) worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
-          case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
-            log.info(s"Yup, ${dirTo}, $e")
-            //e.isAirBorne = true
-            e.moveEntity(
-              sh2 * dirTo.x,
-              sh2 * dirTo.y,
-              sh2 * dirTo.z)
-            /*e.addVelocity(
-              sh2 * dirTo.x,
-              sh2 * dirTo.y,
-              sh2 * dirTo.z)*/
-            /*e.posX += sh2 * dirTo.x
-            e.posY += sh2 * dirTo.y
-            e.posZ += sh2 * dirTo.z*/
-          }
-          case _ =>
+  def pushEntities() {
+    val sh2 = (1F + 2F / 16F) / 16F
+    for (s <- strips) {
+      val aabb = getAabb(s.pos)
+      //log.info(s"Yup2, ${worldObj.isClient}, $aabb")
+      if(aabb != null) worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
+        case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
+          //log.info(s"Yup, ${dirTo}, $e")
+          //e.isAirBorne = true
+          e.moveEntity(
+            sh2 * dirTo.x,
+            sh2 * dirTo.y,
+            sh2 * dirTo.z)
+          /*e.addVelocity(
+            sh2 * dirTo.x,
+            sh2 * dirTo.y,
+            sh2 * dirTo.z)*/
+          /*e.posX += sh2 * dirTo.x
+          e.posY += sh2 * dirTo.y
+          e.posZ += sh2 * dirTo.z*/
         }
+        case _ =>
       }
     }
   }
 
-  def getAabb(s: StripData) = {
-    val pos = s.pos - dirTo
+  def getAabb(spos: WorldPos) = {
+    val pos = spos - dirTo
     val block = Block.blocksList(worldObj.getBlockId(pos.x, pos.y, pos.z))
     if(!isMoving || block == null) {
       null
