@@ -67,7 +67,7 @@ import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 
-trait BlockMovingStrip extends BlockContainer {
+class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, material) {
   setHardness(-1F)
   setStepSound(Block.soundGravelFootstep)
   setUnlocalizedName(modId + ":BlockMovingStrip")
