@@ -277,6 +277,11 @@ object utils {
       put(new ChunkPosition(x & 0xF, y, z & 0xF), te)
   }
 
+  def uncheckedGetTileEntity(world: World, x: Int, y: Int, z: Int) = {
+    val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
+    ch.chunkTileEntityMap.get(new ChunkPosition(x & 0xF, y, z & 0xF))
+  }
+
   def getBlockInfo(world: World, x: Int, y: Int, z: Int) = (
     world.getBlockId(x, y, z),
     world.getBlockMetadata(x, y, z),

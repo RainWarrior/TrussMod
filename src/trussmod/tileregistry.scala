@@ -40,8 +40,12 @@ import rainwarrior.utils._
 import rainwarrior.trussmod.TrussMod.log // Hmm
 
 trait ITileHandler {
+  // before moving, starts animation
   def canMove(world: World, x: Int, y: Int, z: Int): Boolean
+  // after moving, does actual move, for each moving block, sequentially
   def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection): Unit
+  // after all blocks from group moved, new position
+  def postMove(world: World, x: Int, y: Int, z: Int): Unit
 }
 
 object MovingTileRegistry {
@@ -171,6 +175,17 @@ class TileHandlerIdDispatcher extends ITileHandler {
       case block => log.severe(s"move: invalid block: $block")
     }
   }
+
+  override def postMove(world: World, x: Int, y: Int, z: Int) {
+    //log.info(s"postMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
+    val id = world.getBlockId(x, y, z)
+    val meta = world.getBlockMetadata(x, y, z)
+    Block.blocksList(id) match {
+      case block: Block =>
+        MovingTileRegistry.getHandler(id, meta).postMove(world, x, y, z)
+      case block => log.severe(s"postMove: invalid block: $block")
+    }
+  }
 }
 
 class DefaultTileHandler extends ITileHandler {
@@ -189,9 +204,13 @@ class DefaultTileHandler extends ITileHandler {
       te.xCoord = nx
       te.yCoord = ny
       te.zCoord = nz
-      te.validate()
+      te.validate() // should it be here?
       uncheckedAddTileEntity(world, nx, ny, nz, te)
     }
+  }
+
+  override def postMove(world: World, x: Int, y: Int, z: Int) {
+    //te.validate() // or here?
   }
 }
 
@@ -224,13 +243,19 @@ class DefaultModTileHandler extends ITileHandler {
       }
     }
   }
+
+  override def postMove(world: World, x: Int, y: Int, z: Int) {
+  }
 }
 
 class ImmovableTileHandler extends ITileHandler {
   override def canMove(world: World, x: Int, y: Int, z: Int) = false
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {}
+
+  override def postMove(world: World, x: Int, y: Int, z: Int) {}
 }
+
 /*object BuildCraftTileHandler extends ITileHandler {
   import buildcraft.api.transport.{ IPipeTile }
   import buildcraft.transport.{ Pipe, PipeTransportItems }
@@ -284,6 +309,7 @@ class ImmovableTileHandler extends ITileHandler {
 class TMultipartTileHandler extends TileHandlerIdDispatcher {
   import codechicken.multipart.TileMultipart
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
+    //log.info(s"TcanMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     world.getBlockTileEntity(x, y, z) match {
       case t: TileMultipart => true
       case _ => super.canMove(world, x, y, z)
@@ -291,6 +317,7 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
   }
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
+    //log.info(s"Tmove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     val (id, meta, te) = getBlockInfo(world, x, y, z)
     te match {
       case t: TileMultipart =>
@@ -306,9 +333,17 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
           te.yCoord = ny
           te.zCoord = nz
           uncheckedAddTileEntity(world, nx, ny, nz, te)
-          te.validate()
         }
       case _ => super.move(world, x, y, z, dirTo)
+    }
+  }
+
+  override def postMove(world: World, x: Int, y: Int, z: Int) {
+    //log.info(s"TpostMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
+    uncheckedGetTileEntity(world, x, y, z) match {
+      case t: TileMultipart =>
+        t.validate()
+      case _ => super.postMove(world, x, y, z)
     }
   }
 }

@@ -210,6 +210,12 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       CommonProxy.movingTileHandler.move(world, c.x, c.y, c.z, dirTo)
     }
   }
+  def postCycle(world: World) {
+    for(i <- 0 until size) {
+      val c = pos - dirTo * i
+      CommonProxy.movingTileHandler.postMove(world, c.x, c.y, c.z)
+    }
+  }
   def stopMoving(world: World) {
     for(i <- 0 to size) {
       MovingRegistry.delMoving(world, pos - dirTo * i)
@@ -264,6 +270,9 @@ abstract class StripHolder extends TileEntity {
     }
     //var t = System.currentTimeMillis
     for(s <- strips) s.cycle(worldObj)
+    //println(s"1: ${System.currentTimeMillis - t}")
+    //t = System.currentTimeMillis
+    for(s <- strips) s.postCycle(worldObj)
     //println(s"1: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
     for(s <- strips) s.stopMoving(worldObj)
