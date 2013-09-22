@@ -4,7 +4,8 @@ import Def.Initialize
 import Configurations.Runtime
 
 object McpBuild extends Build {
-  val mcVersion = "1.6.2"
+  val mcVersion = "1.6.4"
+  val wrapperVersion = "1.7"
 
   def reobfuscate = TaskKey[File]("reobfuscate", "Reobfuscation task")
   def reobfuscateTask: Initialize[Task[File]] =
@@ -27,6 +28,8 @@ object McpBuild extends Build {
 
   val runJavaOptions = Seq(
     s"-Djava.library.path=../jars/versions/$mcVersion/$mcVersion-natives/",
+    //"-Xdebug",
+    //"-Xrunjdwp:transport=dt_socket,server=y,address=8000",
     "-Dfml.coreMods.load="
     + "rainwarrior.hooks.plugin.Plugin"
     //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
@@ -48,10 +51,10 @@ object McpBuild extends Build {
       val bd = baseDirectory.value
       (Seq(
         sourceDirectory.value,
-        bd / "jars/versions/1.6.2/1.6.2.jar").map(Attributed.blank) ++: runJars.value.classpath
+        bd / s"jars/versions/$mcVersion/$mcVersion.jar").map(Attributed.blank) ++: runJars.value.classpath
       ) ++ (
         (resourceDirectories in Compile).value :+
-        (bd / "jars/libraries/net/minecraft/launchwrapper/1.3/launchwrapper-1.3.jar")
+        (bd / s"jars/libraries/net/minecraft/launchwrapper/$wrapperVersion/launchwrapper-$wrapperVersion.jar")
       ).map(Attributed.blank)
   }
 
@@ -115,8 +118,8 @@ object McpBuild extends Build {
     unmanagedClasspath in Runtime <<= runClasspath,
     autoCompilerPlugins := true,
     addCompilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.2"),
-    scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-Xlint"),
-    javacOptions ++= Seq("-source", "1.6", "-target", "1.6"),
+    scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-Xlint", "-g:vars"),
+    javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-g"),
     libraryDependencies += "org.scala-lang" % "scala-reflect" % "2.10.2",
     libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.10.2",
     //libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.4", // for SpecialSource
