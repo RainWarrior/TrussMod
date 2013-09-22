@@ -58,6 +58,7 @@ class Transformer extends IClassTransformer {
   type MethodChecker = (String, MethodNode) => Boolean
   type InsTransformer = MethodNode => Unit
   lazy val deobfEnv = this.getClass.getClassLoader.getResource("net/minecraft/world/World.class") != null
+  lazy val blockClass = mapper.unmap("net/minecraft/block/Block")
   def transformIsBlockOpaqueCube(isChunkCache: Boolean)(m: MethodNode) {
     println(s"FOUND isBlockOpaqueCube")
     val l1 = m.instructions.toArray.collectFirst{case i: JumpInsnNode if i.getOpcode == GOTO => i.label}.get
@@ -114,10 +115,9 @@ class Transformer extends IClassTransformer {
       (n, m) => mapper.mapMethodName(n, m.name, "(III)Z") == "func_72804_r",
       transformIsBlockOpaqueCube(true)
     )),
-    // CHANGES WITH OBFUSCATION:
     "net.minecraft.client.renderer.RenderBlocks" -> ((
       (_, m) => m.name == "renderBlockByRenderType",
-      (n, m) => mapper.mapMethodName(n, m.name, "(Laqw;III)Z") == "func_78612_b" && m.desc == "(Laqw;III)Z",
+      (n, m) => mapper.mapMethodName(n, m.name, s"(L$blockClass;III)Z") == "func_78612_b" && m.desc == s"(L$blockClass;III)Z",
       transformRenderBlockByRenderType
     )),
     "net.minecraft.client.renderer.tileentity.TileEntityRenderer" -> ((
