@@ -332,6 +332,8 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
           te.xCoord = nx
           te.yCoord = ny
           te.zCoord = nz
+          //te.tileEntityInvalid = false
+          t.setValid(true)
           uncheckedAddTileEntity(world, nx, ny, nz, te)
         }
       case _ => super.move(world, x, y, z, dirTo)
@@ -341,8 +343,10 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
   override def postMove(world: World, x: Int, y: Int, z: Int) {
     //log.info(s"TpostMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     uncheckedGetTileEntity(world, x, y, z) match {
-      case t: TileMultipart =>
-        t.validate()
+      case te: TileMultipart =>
+        //te.tileEntityInvalid = true
+        te.setValid(false)
+        te.validate()
       case _ => super.postMove(world, x, y, z)
     }
   }
