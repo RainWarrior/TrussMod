@@ -8,7 +8,7 @@ object McpBuild extends Build {
   val wrapperVersion = "1.7"
 
   def reobfuscate = TaskKey[File]("reobfuscate", "Reobfuscation task")
-  def reobfuscateTask: Initialize[Task[File]] =
+  def ssTask: Initialize[Task[File]] =
   (baseDirectory, javaHome, streams, /*managedClasspath in Compile, */packageBin in Compile) map { (bd, jh, st, /*mc, */pb) =>
     val options = new ForkOptions(javaHome = jh, workingDirectory = some(bd))
     val runner = new ForkRun(options)
@@ -22,6 +22,30 @@ object McpBuild extends Build {
         "--out-jar", (bd / "project/output.jar").getPath,
         "--excluded-packages", "paulscode,com,isom,ibxm,de/matthiasmann/twl,org,javax/xml,javax/ws,argo"
       ),
+      st.log)
+    bd / "project/output.jar"
+  }
+
+  def reobfuscateTask: Initialize[Task[File]] =
+  (baseDirectory, javaHome, streams, packageBin in Compile) map { (bd, jh, st, pb) =>
+    val options = new ForkOptions(javaHome = jh, workingDirectory = some(bd))
+    val runner = new ForkRun(options)
+    runner.run(
+      "immibis.bon.cui.MCPRemap",
+      Seq(bd / "project/BON.jar"),
+      Seq(
+        "-mcp", bd.getPath,
+        "-from", "MCP",
+        "-to", "SRG",
+        "-side", "UNIVERSAL",
+        "-in", pb.getPath,
+        "-out", (bd / "project/output.jar").getPath,
+        "-refn", "MCP:" + (bd / "bin/minecraft").getPath
+      ) ++ (bd / "run/mods" ** "*.jar").getPaths.map { f =>
+        (if(f contains "-dev") "MCP:" else "OBF:") + f
+      }.flatMap { f =>
+        Seq("-refn", f)
+      },
       st.log)
     bd / "project/output.jar"
   }

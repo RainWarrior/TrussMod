@@ -2,8 +2,8 @@
 buildId=`cat ./buildId`
 echo "Build number $buildId"
 
-#rm -r reobf/
-#mkdir reobf/
+rm -r reobf/
+mkdir reobf/
 
 #rm -r core/
 #mkdir -p core/rainwarrior/hooks/
@@ -11,7 +11,7 @@ echo "Build number $buildId"
 rm -r mod/
 mkdir -p mod/rainwarrior/
 
-#unzip -q output.jar -d reobf/
+unzip -q output.jar -d reobf/
 #(cd ..; rm -r ./bin/minecraft/argo; ./reobfuscate_srg.sh)
 #cp -r ../reobf/minecraft/* reobf/
 
