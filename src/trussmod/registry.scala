@@ -83,12 +83,12 @@ object HelperRenderer {
     val engine = TileEntityRenderer.instance.renderEngine
     if(engine != null) engine.bindTexture(TextureMap.locationBlocksTexture)
     mc.entityRenderer.enableLightmap(partialTickTime)
-    val light = world.getLightBrightnessForSkyBlocks(x, y, z, 0)
+    val light = world.getLightBrightnessForSkyBlocks(x, y, z, block.getLightValue(world, x, y, z))
     val l1 = light % 65536
     val l2 = light / 65536
     OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, l1, l2)
     glColor4f(0, 0, 0, 0)
-    //RenderHelper.disableStandardItemLighting()
+    RenderHelper.disableStandardItemLighting()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     glEnable(GL_BLEND)
     glDisable(GL_CULL_FACE)
@@ -113,7 +113,7 @@ object HelperRenderer {
       tes.draw()
 
     }
-    //RenderHelper.enableStandardItemLighting()
+    RenderHelper.enableStandardItemLighting()
     mc.entityRenderer.disableLightmap(partialTickTime)
 
     mc.gameSettings.ambientOcclusion = oldOcclusion
