@@ -204,13 +204,12 @@ class DefaultTileHandler extends ITileHandler {
       te.xCoord = nx
       te.yCoord = ny
       te.zCoord = nz
-      te.validate() // should it be here?
+      te.validate()
       uncheckedAddTileEntity(world, nx, ny, nz, te)
     }
   }
 
   override def postMove(world: World, x: Int, y: Int, z: Int) {
-    //te.validate() // or here?
   }
 }
 
