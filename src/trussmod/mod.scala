@@ -52,6 +52,7 @@ object CommonProxy extends LoadLater {
   val hasImmibis = try {
     Class.forName("mods.immibis.core.api.multipart.util.BlockMultipartBase")
     Class.forName("mods.immibis.microblocks.api.util.TileCoverableBase")
+    Class.forName("mods.immibis.core.ImmibisCore")
     log.info("Found Immibis's microblocks")
     true
   } catch {
