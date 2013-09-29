@@ -32,7 +32,7 @@ cp -r reobf/gnu/ mod/
 cp LICENSE COPYING README mod/
 cat mcmod.info | sed "s/\$buildId/$buildId/" > mod/mcmod.info
 
-(cd mod/; jar -cm ../MANIFEST.MF > ../TrussMod-beta-1.6.2-${buildId}.jar .)
+(cd mod/; jar -cm ../MANIFEST.MF > ../TrussMod-beta-1.6.4-${buildId}.jar .)
 
 #zip TrussMod-beta-$buildId-archive.zip \
 #	TrussCore-beta-${buildId}.jar \
