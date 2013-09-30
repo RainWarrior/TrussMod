@@ -3,15 +3,23 @@ import Keys._
 import Def.Initialize
 import Configurations.Runtime
 
+import java.util.Properties
+
 object McpBuild extends Build {
-  val mcVersion = "1.6.4"
-  val wrapperVersion = "1.7"
+
+  def properties = TaskKey[Properties]("properties", "main build properties")
+  def propertiesImpl: Initialize[Task[Properties]] = baseDirectory map { bd =>
+    val props = new java.util.Properties
+    IO.load(props, bd / "project/build.properties")
+    props
+  }
 
   def reobfuscate = TaskKey[File]("reobfuscate", "Reobfuscation task")
   def ssTask: Initialize[Task[File]] =
-  (baseDirectory, javaHome, streams, /*managedClasspath in Compile, */packageBin in Compile) map { (bd, jh, st, /*mc, */pb) =>
+  (properties, baseDirectory, javaHome, streams, /*managedClasspath in Compile, */packageBin in Compile) map { (pr, bd, jh, st, /*mc, */pb) =>
     val options = new ForkOptions(javaHome = jh, workingDirectory = some(bd))
     val runner = new ForkRun(options)
+    val mcVersion = pr.getProperty("mcVersion")
     runner.run(
       "net.md_5.specialsource.SpecialSource",
       /*mc.files :+*/ Seq(bd / "project/specialsource.jar"),
@@ -50,10 +58,35 @@ object McpBuild extends Build {
     bd / "project/output.jar"
   }
 
-  val runJavaOptions = Seq(
+  def `package` = TaskKey[File]("package", "Mod package task")
+  def packageTask: Initialize[Task[File]] = (properties, baseDirectory, reobfuscate) map { (pr, bd, reo) =>
+    import sbt.IO._
+
+    val pd = bd / "project"
+    val manifest = new java.util.jar.Manifest(new java.io.FileInputStream(pd / "MANIFEST.MF"))
+    val mcVersion = pr.getProperty("mcVersion")
+    val buildId = pr.getProperty("buildId")
+    val buildName = pr.getProperty("buildName").format(mcVersion, buildId)
+    val filter = pr.getProperty("packageRegex").r.pattern
+    val nameFilter = new NameFilter { def accept(f: String): Boolean = filter.matcher(f).matches }
+    val outFile = pd / s"$buildName.jar"
+    withTemporaryDirectory { temp =>
+      unzip(reo, temp, nameFilter)
+      for(f <- Seq("mcmod.info", "LICENSE", "COPYING", "README"))
+        copyFile(pd / f, temp / f)
+      jar((temp ** "*").get.map { f =>
+          (f, temp.toPath.relativize(f.toPath).toString)
+        }, outFile, manifest)
+    }
+    //delete(pd / "reobf")
+    //createDirectory(pd / "reobf")
+    outFile
+  }
+
+  def runJavaOptions(mcVersion: String) = Seq(
     s"-Djava.library.path=../jars/versions/$mcVersion/$mcVersion-natives/",
-    //"-Xdebug",
-    //"-Xrunjdwp:transport=dt_socket,server=y,address=8000",
+    "-Xdebug",
+    "-Xrunjdwp:transport=dt_socket,server=y,address=8000",
     "-Dfml.coreMods.load="
     + "rainwarrior.hooks.plugin.Plugin"
     //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
@@ -73,6 +106,9 @@ object McpBuild extends Build {
 
   def runClasspath: Initialize[Task[Classpath]] = Def.task {
       val bd = baseDirectory.value
+      val props = properties.value
+      val mcVersion = props.getProperty("mcVersion")
+      val wrapperVersion = props.getProperty("wrapperVersion")
       (Seq(
         sourceDirectory.value,
         bd / s"jars/versions/$mcVersion/$mcVersion.jar").map(Attributed.blank) ++: runJars.value.classpath
@@ -88,7 +124,7 @@ object McpBuild extends Build {
       javaHome = javaHome.value,
       connectInput = true,
       outputStrategy = Some(StdoutOutput),
-      runJVMOptions = runJavaOptions,
+      runJVMOptions = runJavaOptions(properties.value.getProperty("mcVersion")),
       workingDirectory = Some(baseDirectory.value / "run"),
       envVars = envVars.value
     )
@@ -149,7 +185,9 @@ object McpBuild extends Build {
     //libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.4", // for SpecialSource
     //libraryDependencies += "org.ow2.asm" % "asm-debug-all" % "4.1", // for SpecialSource
     //libraryDependencies += "com.google.guava" % "guava" % "14.0-rc3", // for SpecialSource
+    properties <<= propertiesImpl,
     reobfuscate <<= reobfuscateTask,
+    `package` <<= packageTask,
     runClient <<= runClientTask(fullClasspath in Runtime),
     runServer <<= runServerTask(fullClasspath in Runtime)
   )
