@@ -281,8 +281,10 @@ class TileEntityMotor extends StripHolder {
         worldObj.markBlockForUpdate(c.x, c.y, c.z)
         this += StripData(c, dirTo, size)
       }
-      val players = worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false)
-      if(players != null) {
+      val manager = worldObj.asInstanceOf[WorldServer].getPlayerManager
+      for {
+        players <- Option(manager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false))
+      } {
         players.sendToAllPlayersWatchingChunk(getDescriptionPacket)
       }
     }

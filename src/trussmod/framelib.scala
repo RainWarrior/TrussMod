@@ -88,44 +88,40 @@ class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, m
   override def getRenderType = -1
 
   override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
-    world.getBlockTileEntity(x, y, z) match {
+    Option(world.getBlockTileEntity(x, y, z)).collect {
       case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
-        (te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple) match {
-          case parent: StripHolder =>
-            val pos = te - parent.dirTo
-            val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
-            if(parent.offset == 0 || block == null) {
-              setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
-            } else {
-              val shift = (16 - parent.offset).toFloat / 16F
-              //log.info(s"SBBBOS: ${te.worldObj.isClient}, ${(block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat}")
-              setBlockBounds(
-                (block.getBlockBoundsMinX - parent.dirTo.x * shift).toFloat,
-                (block.getBlockBoundsMinY - parent.dirTo.y * shift).toFloat,
-                (block.getBlockBoundsMinZ - parent.dirTo.z * shift).toFloat,
-                (block.getBlockBoundsMaxX - parent.dirTo.x * shift).toFloat,
-                (block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat,
-                (block.getBlockBoundsMaxZ - parent.dirTo.z * shift).toFloat)
-            }
-          case _ =>
+        Option((te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple)).map(p => (te, p))
+    }.flatten.collect {
+      case (te, parent: StripHolder) =>
+        val pos = te - parent.dirTo
+        val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
+        if(parent.offset == 0 || block == null) {
+          setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
+        } else {
+          val shift = (16 - parent.offset).toFloat / 16F
+          //log.info(s"SBBBOS: ${te.worldObj.isClient}, ${(block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat}")
+          setBlockBounds(
+            (block.getBlockBoundsMinX - parent.dirTo.x * shift).toFloat,
+            (block.getBlockBoundsMinY - parent.dirTo.y * shift).toFloat,
+            (block.getBlockBoundsMinZ - parent.dirTo.z * shift).toFloat,
+            (block.getBlockBoundsMaxX - parent.dirTo.x * shift).toFloat,
+            (block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat,
+            (block.getBlockBoundsMaxZ - parent.dirTo.z * shift).toFloat)
         }
-      case _ =>
     }
   }
 
   override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
     setBlockBoundsBasedOnState(world, x, y, z)
-    world.getBlockTileEntity(x, y, z) match {
+    Option(world.getBlockTileEntity(x, y, z)).collect {
       case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
-        (te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple) match {
-          case te: StripHolder =>
-            val aabb = te.getAabb((x, y, z))
-            //log.info(s"GCBBFP: ${te.worldObj.isClient}, ${aabb.maxY}")
-            aabb
-          case _ => null
-        }
-      case _ => null
-    }
+        Option((te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple))
+    }.flatten.collect {
+      case te: StripHolder =>
+        val aabb = te.getAabb((x, y, z))
+        //log.info(s"GCBBFP: ${te.worldObj.isClient}, ${aabb.maxY}")
+        aabb
+    }.orNull
   }
 }
 
