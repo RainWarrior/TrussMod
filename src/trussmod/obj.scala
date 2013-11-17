@@ -38,7 +38,7 @@ import scala.collection.Map
 object obj {
 
   def readObj(log: Logger, url: String) = {
-    val rawFile = Source.fromInputStream(this.getClass.getResource(url).openStream()).mkString("")
+    val rawFile = Source.fromInputStream(this.getClass.getResource(url).openStream(), "UTF-8").mkString("")
     val file = filterObjFile(rawFile)
     val parser = new ObjParser(log)
     parser.parseAll(parser.obj, file) match {
