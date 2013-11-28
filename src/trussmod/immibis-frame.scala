@@ -106,6 +106,7 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
 
   override def getPartHardness(world: World, x: Int, y: Int, z: Int, part: Int) = 5f 
   override def createNewTileEntity(world: World): TileEntity =  new TileEntityImmibisFrame
+  @SideOnly(Side.CLIENT)
   override def wrappedGetRenderType = BlockFrameRenderer.getRenderId
 
   override def wrappedCollisionRayTrace(world: World, x: Int, y: Int, z: Int, from: Vec3, to: Vec3) =
