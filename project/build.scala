@@ -151,6 +151,17 @@ object McpBuild extends Build {
     ))
   }
 
+  val runStart = taskKey[Unit]("Run MCP Start class")
+  def runStartTask: Initialize[Task[Unit]] = Def.task {
+    val runner = new ForkRun(runOptions.value)
+    toError(runner.run(
+      "Start",
+      (fullClasspath in Runtime).value.map(_.data),
+      Seq(),
+      streams.value.log
+    ))
+  }
+
   val buildSettings = Defaults.defaultSettings ++ Seq(
     sourceDirectory := baseDirectory.value / "src/minecraft",
     classDirectory in Compile := baseDirectory.value / "bin/minecraft",
@@ -164,7 +175,7 @@ object McpBuild extends Build {
     unmanagedClasspath in Runtime := runClasspath.value,
     autoCompilerPlugins := true,
     addCompilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.2"),
-    scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-Xlint", "-g:vars"),
+    scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-optimise", "-Xlint", "-g:vars"),
     javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-g"),
     libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value,
@@ -174,7 +185,8 @@ object McpBuild extends Build {
     reobfuscate in Compile := reobfuscateTask.value,
     `package` in Compile := packageTask.value,
     runClient in Runtime := runClientTask.value,
-    runServer in Runtime := runServerTask.value
+    runServer in Runtime := runServerTask.value,
+    runStart in Runtime := runStartTask.value
   )
 
   lazy val mcp = Project(
