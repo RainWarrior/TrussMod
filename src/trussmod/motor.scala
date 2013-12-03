@@ -29,7 +29,8 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
-import annotation.tailrec
+import annotation.{ tailrec, meta }
+import meta._
 import collection.immutable.Queue
 import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet }
 import net.minecraft._,
@@ -50,15 +51,14 @@ import net.minecraft._,
 import net.minecraft.util.Icon
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side}
-import cpw.mods.fml.common.FMLCommonHandler
+import cpw.mods.fml.common.{ FMLCommonHandler, Loader, Optional }
 import cpw.mods.fml.client.registry.{ RenderingRegistry, ISimpleBlockRenderingHandler }
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
-
-trait BlockMotor extends BlockContainer {
+trait TraitMotor extends BlockContainer {
   setHardness(5f)
   setResistance(10f)
   setStepSound(Block.soundMetalFootstep)
@@ -173,7 +173,12 @@ trait BlockMotor extends BlockContainer {
   }*/
 }
 
+class BlockMotor(id: Int)
+  extends BlockContainer(id, Material.iron)
+  with TraitMotor
+
 class TileEntityMotor extends StripHolder {
+
   lazy val side = EffectiveSide(worldObj)
   var orientation = 0
   //log.info(s"new TileEntityMotor, isServer: $isServer")
@@ -220,7 +225,7 @@ class TileEntityMotor extends StripHolder {
 
   override def dirTo = ForgeDirection.values()(moveDir(orientation)(getBlockMetadata))
 
-  override def shouldContinue(): Boolean = {
+  override def shouldContinue: Boolean = {
     //var t = System.currentTimeMillis
 
     if(!worldObj.isBlockIndirectlyGettingPowered(xCoord, yCoord, zCoord)) return false

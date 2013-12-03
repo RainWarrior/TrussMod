@@ -28,84 +28,47 @@ of this Program grant you additional permission to convey the resulting work.
 */
 package rainwarrior.trussmod
 
+import net.minecraft.{ block, item },
+  block.material,
+  block.{ Block, BlockContainer},
+  item.{ Item, ItemBlock },
+  material.Material
 import collection.mutable.ListBuffer
 import collection.JavaConversions._
+import annotation.meta.{ companionClass, companionObject }
 import java.util.logging.Logger
 import java.io.File
 import cpw.mods.fml.{ common, relauncher }
-import common.{ Mod, event, Loader, network, FMLCommonHandler, SidedProxy }
+import common.{ Mod, event, Loader, network, Optional, FMLCommonHandler, SidedProxy }
 import relauncher.{ FMLRelaunchLog, Side }
 import network.NetworkMod
 import net.minecraftforge.common.{ Configuration, Property }
-import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry, TileHandlerIdDispatcher, HelperRenderer }
+import rainwarrior.hooks.{
+  ITileHandler,
+  MovingRegistry,
+  MovingTileRegistry,
+  TileHandlerIdDispatcher,
+  TMultipartTileHandler,
+  HelperRenderer
+}
 import rainwarrior.utils._
 import TrussMod._
 
 object CommonProxy extends LoadLater {
-  import net.minecraft.{ block, item },
-    block.material,
-    block.{ Block, BlockContainer},
-    item.Item,
-    material.Material
   import cpw.mods.fml.common.registry._
 
-  val hasImmibis = try {
-    Class.forName("mods.immibis.core.api.multipart.util.BlockMultipartBase")
-    Class.forName("mods.immibis.microblocks.api.util.TileCoverableBase")
-    Class.forName("mods.immibis.core.ImmibisCore")
-    log.info("Found Immibis's microblocks")
-    true
-  } catch {
-    case e: ClassNotFoundException =>
-      false
-  }
-
-  val hasChickenBones = try {
-    Class.forName("codechicken.multipart.TileMultipart")
-    Class.forName("codechicken.microblock.CommonMicroblock")
-    log.info("Found ChickenBones's microblocks")
-    true
-  } catch {
-    case e: ClassNotFoundException =>
-      false
-  }
-  
-  val frameBlockProxy = hasImmibis match {
-    case true =>
-      Class.forName("rainwarrior.trussmod.ImmibisProxy").newInstance.asInstanceOf[FrameBlockProxy]
-    case _ =>
-      new FrameBlockProxy
-  }
-
-  val frameItemProxy = hasChickenBones match {
-    case true =>
-      Class.forName("rainwarrior.trussmod.ChickenBonesProxy").newInstance.asInstanceOf[FrameItemProxy]
-    case _ =>
-      new FrameItemProxy
-  }
-
-  import rainwarrior.hooks.{ ITileHandler, MovingTileRegistry }
-  val movingTileHandler: ITileHandler = hasChickenBones match {
-    case true =>
-      Class.forName("rainwarrior.hooks.TMultipartTileHandler").newInstance.asInstanceOf[ITileHandler]
-    case false =>
-      new TileHandlerIdDispatcher
-  }
+  val movingTileHandler = proxy.genTileHandler()
 
   config.load()
   
-
   val structureLimit = config.get("Main", "structure_limit", 4096, "Maximum number of blocks in one structure").getInt()
 
   val blockFrameId = config.getBlock("frame", 501).getInt()
-  val frameItemClass = frameItemProxy.init()
-  val frameBlock = frameBlockProxy.init()
+  val frameItemClass = proxy.genFrameItem()
+  val frameBlock = proxy.genFrameBlock()
 
   val blockMotorId = config.getBlock("motor", 502).getInt()
-  object blockMotor
-    extends BlockContainer(blockMotorId, Material.iron)
-    with BlockMotor
-  blockMotor
+  val blockMotor = new BlockMotor(blockMotorId)
 
   val blockMovingStripId = config.getBlock("movingStrip", 503, "Util block, shouldn't be used in the normal game").getInt()
   val blockMovingStrip = new BlockMovingStrip(blockMovingStripId, Material.iron)
@@ -196,11 +159,42 @@ object ClientProxy extends LoadLater {
   }
 }
 
-sealed class CommonProxy {
+class ProxyParent {
+  def genFrameBlock(): Block =
+    new BlockFrame(CommonProxy.blockFrameId)
+
+  def genFrameItem(): Class[_ <: ItemBlock] =
+    classOf[ItemBlock]
+
+  def genTileHandler(): ITileHandler =
+    new TileHandlerIdDispatcher
+}
+
+@Optional.InterfaceList(Array())
+class CommonProxyImpl extends ProxyParent {
+  @Optional.Method(modid = "ImmibisMicroblocks")
+  override def genFrameBlock(): Block =
+    new BlockImmibisFrame(CommonProxy.blockFrameId)
+
+  @Optional.Method(modid = "ForgeMultipart")
+  override def genFrameItem(): Class[_ <: ItemBlock] = {
+    import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
+    MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
+    MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart(CommonProxy.blockFrameId - 256), "Frame")
+    MultiPartRegistry.registerConverter(ChickenBonesPartConverter)
+
+    classOf[ChickenBonesFrameItem]
+  }
+
+  @Optional.Method(modid = "ForgeMultipart")
+  override def genTileHandler(): ITileHandler =
+    new TMultipartTileHandler
+
   def renderer() {}
 }
 
-class ClientProxy extends CommonProxy {
+@Optional.InterfaceList(Array())
+class ClientProxyImpl extends CommonProxyImpl {
   override lazy val renderer: Unit = new rainwarrior.hooks.MovingTileEntityRenderer
   CommonProxy.delayedInit(ClientProxy.init())
 }
@@ -210,7 +204,7 @@ class ClientProxy extends CommonProxy {
   modid = modId,
   name = modName,
   version = "beta",
-  dependencies = "required-after:Forge@[7.8.0.701,);required-after:FML@[5.2.6.701,)"
+  dependencies = "required-after:Forge@[7.8.0.701,);required-after:FML@[5.2.6.701,);after:ImmibisMicroblocks;after:ForgeMultipart"
 )
 @NetworkMod(
 //  channels = Array(modId),
@@ -228,10 +222,10 @@ object TrussMod {
   def isServer() = FMLCommonHandler.instance.getEffectiveSide.isServer
 
   @SidedProxy(
-    clientSide = "rainwarrior.trussmod.ClientProxy",
-    serverSide = "rainwarrior.trussmod.CommonProxy",
+    clientSide = "rainwarrior.trussmod.ClientProxyImpl",
+    serverSide = "rainwarrior.trussmod.CommonProxyImpl",
     modId = modId)
-  var proxy: CommonProxy = null
+  var proxy: CommonProxyImpl = null
 
   CommonProxy.delayedInit {
     log.info("Copyright (C) 2013 RainWarrior")

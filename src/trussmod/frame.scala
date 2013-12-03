@@ -70,22 +70,7 @@ trait Frame {
   def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection): Boolean
 }
 
-class FrameBlockProxy {
-  def init(): Block = {
-    object blockFrame
-      extends Block(CommonProxy.blockFrameId, Material.ground)
-      with BlockFrame
-    blockFrame
-  }
-}
-
-class FrameItemProxy {
-  def init(): Class[_ <: ItemBlock] = {
-    classOf[ItemBlock]
-  }
-}
-
-trait BlockFrame extends Block with Frame {
+trait TraitFrame extends Block with Frame {
   var renderType = -1
 
   setHardness(5f)
@@ -168,10 +153,14 @@ trait BlockFrame extends Block with Frame {
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = true
 }
 
+class BlockFrame(id: Int)
+  extends Block(id, Material.ground)
+  with TraitFrame
+
 @SideOnly(Side.CLIENT)
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
   CommonProxy.frameBlock match {
-    case block: BlockFrame => block.renderType = getRenderId
+    case block: TraitFrame => block.renderType = getRenderId
     case _ =>
   }
 

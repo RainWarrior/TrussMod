@@ -69,16 +69,7 @@ import mods.immibis.core.api.multipart.util.BlockMultipartBase
 import mods.immibis.microblocks.api.util.TileCoverableBase
 import mods.immibis.microblocks.api.{ EnumPosition, EnumPositionClass, IMicroblockCoverSystem, PartType }
 
-class ImmibisProxy extends FrameBlockProxy {
-  override def init() = {
-    object blockImmibisFrame
-      extends BlockMultipartBase(CommonProxy.blockFrameId, Material.ground)
-      with BlockImmibisFrame
-    blockImmibisFrame
-  }
-}
-
-trait BlockImmibisFrame extends BlockMultipartBase with Frame {
+trait TraitImmibisFrame extends BlockMultipartBase with Frame {
   setStepSound(Block.soundMetalFootstep)
   setUnlocalizedName(modId + ":BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
@@ -120,6 +111,10 @@ trait BlockImmibisFrame extends BlockMultipartBase with Frame {
     }
   }
 }
+
+class BlockImmibisFrame(id: Int)
+  extends BlockMultipartBase(id, Material.ground)
+  with TraitImmibisFrame
 
 class TileEntityImmibisFrame extends TileCoverableBase {
   import EnumPosition._

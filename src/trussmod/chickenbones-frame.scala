@@ -52,7 +52,6 @@ import codechicken.lib.lighting.{ LazyLightMatrix, LC }
 import codechicken.lib.raytracer.{ ExtendedMOP, RayTracer, IndexedCuboid6 }
 import codechicken.multipart.{
   MultiPartRegistry,
-  MultipartGenerator,
   TileMultipart,
   TMultiPart,
   TItemMultiPart,
@@ -62,16 +61,6 @@ import codechicken.multipart.{
 }
 import scalatraits.TSlottedTile
 import codechicken.microblock.CommonMicroblock
-
-class ChickenBonesProxy extends FrameItemProxy {
-  override def init() = {
-    MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
-    MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart(CommonProxy.blockFrameId - 256), "Frame")
-    MultiPartRegistry.registerConverter(ChickenBonesPartConverter)
-
-    classOf[ChickenBonesFrameItem]
-  }
-}
 
 class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPartialOcclusion with TNormalOcclusion {
   override val getType = "Frame"
