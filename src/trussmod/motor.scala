@@ -29,8 +29,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
-import annotation.{ tailrec, meta }
-import meta._
+import annotation.tailrec
 import collection.immutable.Queue
 import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet }
 import net.minecraft._,
@@ -57,89 +56,6 @@ import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
-
-import buildcraft.api.power.{ PowerHandler, IPowerReceptor }
-
-object PowerOps {
-  final val bcid = "BuildCraft|Energy"
-  final val CIPowerReceptor = "buildcraft.api.power.IPowerReceptor"
-}
-import PowerOps._
-
-@Optional.InterfaceList(Array())
-class PowerOps(val sup: BuildcraftPowerReceptor) {
-  //log.info("New PowerOps")
-
-  private[this] var _powerHandler: AnyRef = null
-
-  @Optional.Method(modid = bcid)
-  def powerHandler = if(_powerHandler == null) {
-    val ph = new PowerHandler(sup, PowerHandler.Type.MACHINE)
-    ph.configure(
-      30, // minEnergyReceived
-      30, // maxEnergyReceived
-      30, // activationEnergy
-      30 // maxStoredEnergy
-    )
-    ph.configurePowerPerdition(
-      1, // powerLoss
-      100 // powerLossRegularity
-    )
-    _powerHandler = ph
-    ph
-  } else _powerHandler.asInstanceOf[PowerHandler]
-
-  @Optional.Method(modid = bcid)
-  def getPowerReceiver(side: ForgeDirection): PowerHandler#PowerReceiver = 
-    powerHandler.getPowerReceiver
-
-  @Optional.Method(modid = bcid)
-  def doWork(workProvider: PowerHandler) = if(!sup.worldObj.isRemote) {
-    assert(workProvider == powerHandler)
-    if(powerHandler.getEnergyStored >= 30) {
-      if(sup.worldObj.isBlockIndirectlyGettingPowered(sup.x, sup.y, sup.z)) {
-        if(powerHandler.useEnergy(30, 30, true) == 30) {
-          log.info("Moving!")
-        }
-      }
-    }
-  }
-}
-
-@Optional.InterfaceList(Array(
-  new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
-  new Optional.Interface(iface = "rainwarrior.trussmod.BuildcraftPowerReceptor$class", modid = bcid)
-))
-trait BuildcraftPowerReceptor extends TileEntity with IPowerReceptor {
-  private[this] lazy val del = new PowerOps(this)
-
-  abstract override def readFromNBT(cmp: NBTTagCompound) {
-    super.readFromNBT(cmp)
-    if(Loader.isModLoaded(bcid)) del.powerHandler.readFromNBT(cmp)
-  }
-
-  abstract override def writeToNBT(cmp: NBTTagCompound) {
-    super.writeToNBT(cmp)
-    if(Loader.isModLoaded(bcid)) del.powerHandler.writeToNBT(cmp)
-  }
-
-  @Optional.Method(modid = bcid)
-  override def getPowerReceiver(side: ForgeDirection): PowerHandler#PowerReceiver = 
-    del.getPowerReceiver(side)
-
-  @Optional.Method(modid = bcid)
-  override def doWork(workProvider: PowerHandler) =
-    del.doWork(workProvider)
-
-  @Optional.Method(modid = bcid)
-  override def getWorld = worldObj
-
-  abstract override def updateEntity() {
-    super.updateEntity()
-    if(Loader.isModLoaded(bcid)) del.getPowerReceiver(null).update()
-  }
-}
-
 trait TraitMotor extends BlockContainer {
   setHardness(5f)
   setResistance(10f)
@@ -259,10 +175,17 @@ class BlockMotor(id: Int)
   extends BlockContainer(id, Material.iron)
   with TraitMotor
 
+import Power._
+
 @Optional.InterfaceList(Array(
-  new Optional.Interface(iface = "buildcraft.api.power.IPowerReceptor", modid = "BuildCraft|Energy")
+  new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
+  //new Optional.Interface(iface = CBuildcraftPowerReceptor, modid = bcid),
+  new Optional.Interface(iface = CIEnergyHandler, modid = cofhid),
+  //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid),
+  new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
-class TileEntityMotor extends StripHolder with BuildcraftPowerReceptor {
+class TileEntityMotor extends StripHolder with PowerTile {
+  val powerSize = 32000
 
   lazy val side = EffectiveSide(worldObj)
   var orientation = 0
