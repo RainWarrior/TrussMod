@@ -185,7 +185,12 @@ import Power._
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
 class TileEntityMotor extends StripHolder with PowerTile {
-  val powerSize = 32000
+  val maxEnergy = CommonProxy.motorCapacity
+  val moveEnergy = CommonProxy.moveCost
+
+  val bcRatio = CommonProxy.bcRatio
+  val cofhRatio = CommonProxy.cofhRatio
+  val ic2Ratio = CommonProxy.ic2Ratio
 
   lazy val side = EffectiveSide(worldObj)
   var orientation = 0
@@ -237,6 +242,8 @@ class TileEntityMotor extends StripHolder with PowerTile {
     //var t = System.currentTimeMillis
 
     if(!worldObj.isBlockIndirectlyGettingPowered(xCoord, yCoord, zCoord)) return false
+
+    if(energy <= moveEnergy) return false
 
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
@@ -303,6 +310,7 @@ class TileEntityMotor extends StripHolder with PowerTile {
     }
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord) 
+    if(canMove) energy -= moveEnergy
     canMove
   }
 

@@ -58,10 +58,27 @@ object Power {
 }
 import Power._
 
+trait CommonTilePower extends TileEntity {
+  protected[this] var energy: Double = 0D
+  def maxEnergy: Double
+
+  abstract override def readFromNBT(cmp: NBTTagCompound) {
+    super.readFromNBT(cmp)
+    energy = cmp.getDouble("energy")
+  }
+
+  abstract override def writeToNBT(cmp: NBTTagCompound) {
+    super.writeToNBT(cmp)
+    cmp.setDouble("energy", energy)
+  }
+}
+
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIPowerReceptor, modid = bcid)
 ))
-trait BuildcraftPowerReceptor extends TileEntity with IPowerReceptor {
+trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
+  val bcRatio: Double
+
   private[this] var _powerHandler: AnyRef = null
 
   @Optional.Method(modid = bcid)
@@ -121,56 +138,40 @@ trait BuildcraftPowerReceptor extends TileEntity with IPowerReceptor {
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIEnergyHandler, modid = cofhid)
 ))
-trait CofhEnergyHandler extends TileEntity with IEnergyHandler {
-  def powerSize: Int
-
-  private[this] var _storage: AnyRef = null
+trait CofhEnergyHandler extends CommonTilePower with IEnergyHandler {
+  val cofhRatio: Double
 
   @Optional.Method(modid = cofhid)
-  def storage = if(_storage == null) {
-    val st = new EnergyStorage(powerSize)
-    _storage = st
-    st
-  } else _storage.asInstanceOf[EnergyStorage]
-
-  abstract override def readFromNBT(cmp: NBTTagCompound) {
-    super.readFromNBT(cmp)
-    if(Loader.isModLoaded(cofhid)) storage.readFromNBT(cmp)
-  }
-
-  abstract override def writeToNBT(cmp: NBTTagCompound) {
-    super.writeToNBT(cmp)
-    if(Loader.isModLoaded(cofhid)) storage.writeToNBT(cmp)
+  override def receiveEnergy(from: ForgeDirection, max: Int, simulate: Boolean) = {
+    val delta = (max.toDouble / cofhRatio).min(maxEnergy - energy).floor.toInt
+    if(!simulate) energy += delta
+    (delta * cofhRatio).ceil.toInt
   }
 
   @Optional.Method(modid = cofhid)
-  override def receiveEnergy(from: ForgeDirection, max: Int, simulate: Boolean) =
-    // TODO
-    storage.receiveEnergy(max, simulate)
-
-  @Optional.Method(modid = cofhid)
-  override def extractEnergy(from: ForgeDirection, max: Int, simulate: Boolean) =
-    // TODO
-    storage.extractEnergy(max, simulate)
+  override def extractEnergy(from: ForgeDirection, max: Int, simulate: Boolean) = {
+    val delta = (max.toDouble / cofhRatio).min(energy).floor.toInt
+    if(!simulate) energy -= delta
+    (delta * cofhRatio).floor.toInt
+  }
 
   @Optional.Method(modid = cofhid)
   override def canInterface(from: ForgeDirection) = true
 
   @Optional.Method(modid = cofhid)
   override def getEnergyStored(from: ForgeDirection) =
-    // TODO
-    storage.getEnergyStored
+    (energy * cofhRatio).floor.toInt
 
   @Optional.Method(modid = cofhid)
   override def getMaxEnergyStored(from: ForgeDirection) =
-    // TODO
-    storage.getMaxEnergyStored
+    (maxEnergy * cofhRatio).floor.toInt
 }
 
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
-trait Ic2EnergySink extends TileEntity with IEnergySink {
+trait Ic2EnergySink extends CommonTilePower with IEnergySink {
+  val ic2Ratio: Double
 
   var registered = false
 
@@ -178,12 +179,17 @@ trait Ic2EnergySink extends TileEntity with IEnergySink {
   override def acceptsEnergyFrom(emitter: TileEntity, from: ForgeDirection): Boolean = true
 
   @Optional.Method(modid = icid)
-  override def demandedEnergyUnits: Double = 100D // TODO
+  override def demandedEnergyUnits: Double = {
+    //log.info(s"IC2 demand: $energy, $maxEnergy, ${(maxEnergy - energy) * ic2Ratio}")
+    (maxEnergy - energy) * ic2Ratio
+  }
 
   @Optional.Method(modid = icid)
   override def injectEnergyUnits(from: ForgeDirection, amount: Double): Double = {
-    // TODO
-    amount
+    val delta = (amount / ic2Ratio).min(maxEnergy - energy)
+    //log.info(s"IC2 inject: $energy, $maxEnergy, $delta, $amount")
+    energy += delta
+    amount - delta * ic2Ratio
   }
 
   @Optional.Method(modid = icid)

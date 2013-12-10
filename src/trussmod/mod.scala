@@ -116,10 +116,11 @@ Other keys can be:
 Sets of blocks that move together (multiblock structures) (ADVANCED)
 """)
 
-  val defaultSets = List(
-    ("bed", "26"),
-    ("wooden_door", "64"),
-    ("iron_door", "71"))
+  val defaultSets = Map(
+    "bed" -> "26",
+    "wooden_door" -> "64",
+    "iron_door" -> "71"
+  )
 
   for((k, v) <- defaultSets  if !sets.containsKey(k))
     sets.put(k, new Property(k, v, Property.Type.STRING))
@@ -129,6 +130,25 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
     //println(s"$k, $v")
     MovingTileRegistry.addStickySet(v)
   }
+
+  val power = config.getCategory("Power")
+  power.setComment("Power consumption and conversion coefficients")
+
+  val defaultPowers = Map(
+    "motorCapacity" -> 5000D,
+    "moveCost" -> 1600D,
+    "bcRatio" -> 1.0,
+    "cofhRatio" -> 1.0,
+    "ic2Ratio" -> 0.5
+  )
+
+  for((k, v) <- defaultPowers if !power.containsKey(k))
+    power.put(k, new Property(k, v.toString, Property.Type.DOUBLE))
+
+  val Seq(motorCapacity, moveCost, bcRatio, cofhRatio, ic2Ratio) =
+    Seq("motorCapacity", "moveCost", "bcRatio", "cofhRatio", "ic2Ratio") map { k =>
+      power.get(k).getDouble(defaultPowers(k))
+    }
 
   config.save()
 
