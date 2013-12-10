@@ -204,43 +204,43 @@ object utils {
     }
   }
   
-  case class WorldPos(_1: Int, _2: Int, _3: Int) extends Product3[Int, Int, Int] {
+  case class WorldPos(x: Int, y: Int, z: Int) extends Product3[Int, Int, Int] {
 
-    @inline def x = _1
-    @inline def y = _2
-    @inline def z = _3
+    @inline final def _1 = x
+    @inline final def _2 = y
+    @inline final def _3 = z
   
-    def +(that: Product3[Int, Int, Int]) = WorldPos(_1 + that._1, _2 + that._2, _3 + that._3)
-    def -(that: Product3[Int, Int, Int]) = WorldPos(_1 - that._1, _2 - that._2, _3 - that._3)
-    def *(that: Int) = WorldPos(_1 * that, _2 * that, _3 * that)
+    def +(that: WorldPos) = WorldPos(x + that.x, y + that.y, z + that.z)
+    def -(that: WorldPos) = WorldPos(x - that.x, y - that.y, z - that.z)
+    def *(that: Int) = WorldPos(x * that, y * that, z * that)
   
-    def incx(inc: Int) = WorldPos(_1 + inc, _2, _3)
-    def decx(inc: Int) = WorldPos(_1 - inc, _2, _3)
-    def incy(inc: Int) = WorldPos(_1, _2 + inc, _3)
-    def decy(inc: Int) = WorldPos(_1, _2 - inc, _3)
-    def incz(inc: Int) = WorldPos(_1, _2, _3 + inc)
-    def decz(inc: Int) = WorldPos(_1, _2, _3 - inc)
+    def incx(inc: Int) = WorldPos(x + inc, y, z)
+    def decx(inc: Int) = WorldPos(x - inc, y, z)
+    def incy(inc: Int) = WorldPos(x, y + inc, z)
+    def decy(inc: Int) = WorldPos(x, y - inc, z)
+    def incz(inc: Int) = WorldPos(x, y, z + inc)
+    def decz(inc: Int) = WorldPos(x, y, z - inc)
   
-    def toTuple = (_1, _2, _3)
-    def toSeq = Seq[Int](_1, _2, _3)
-    override def toString = s"WorldPos(${_1},${_2},${_3})"
+    def toTuple = (x, y, z)
+    def toSeq = Seq[Int](x, y, z)
+    override def toString = s"WorldPos(${x},${y},${z})"
 
     def normal(dir: ForgeDirection) = dir match {
-      case DOWN  => (_1, _3)
-      case UP    => (_1, _3)
-      case NORTH => (_1, _2)
-      case SOUTH => (_1, _2)
-      case WEST  => (_2, _3)
-      case EAST  => (_2, _3)
+      case DOWN  => (x, z)
+      case UP    => (x, z)
+      case NORTH => (x, y)
+      case SOUTH => (x, y)
+      case WEST  => (y, z)
+      case EAST  => (y, z)
       case _ => throw new RuntimeException("WorldPos.normal from UNKNOWN direction")
     }
     def basis(dir: ForgeDirection) = dir match {
-      case DOWN  => _2
-      case UP    => _2
-      case NORTH => _3
-      case SOUTH => _3
-      case WEST  => _1
-      case EAST  => _1
+      case DOWN  => y
+      case UP    => y
+      case NORTH => z
+      case SOUTH => z
+      case WEST  => x
+      case EAST  => x
       case _ => throw new RuntimeException("WorldPos.basis from UNKNOWN direction")
     }
   }
@@ -354,41 +354,42 @@ object utils {
   def packIdMeta(id: Int, meta: Int): Int = id | (meta << 12)
   def unpackIdMeta(pair: Int) = (pair & ((1 << 12) - 1), pair >> 12)
 
-  case class Vector3(_1: Double, _2: Double, _3: Double) extends Product3[Double, Double, Double] {
+  case class Vector3(x: Double, y: Double, z: Double) extends Product3[Double, Double, Double] {
 
-    @inline def x = _1
-    @inline def y = _2
-    @inline def z = _3
+    @inline final def _1: Double = x
+    @inline final def _2: Double = y
+    @inline final def _3: Double = z
   
     override def toString = s"Vector3(${_1},${_2},${_3})"
 
-    def +(that: Product3[Double, Double, Double]) = Vector3(_1 + that._1, _2 + that._2, _3 + that._3)
-    def -(that: Product3[Double, Double, Double]) = Vector3(_1 - that._1, _2 - that._2, _3 - that._3)
-    def *(that: Double) = Vector3(_1 * that, _2 * that, _3 * that)
-    def /(that: Double) = Vector3(_1 / that, _2 / that, _3 / that)
-    def x(that: Product3[Double, Double, Double]) = Vector3(
-      _2 * that._3 - _3 * that._2,
-      _3 * that._1 - _1 * that._3,
-      _1 * that._2 - _2 * that._1)
-    def dot(that: Product3[Double, Double, Double]) = _1 * that._1 + _2 * that._2 + _3 * that._3
+    def +(that: Vector3) = Vector3(x + that.x, y + that.y, z + that.z)
+    def -(that: Vector3) = Vector3(x - that.x, y - that.y, z - that.z)
+    def *(that: Double) = Vector3(x * that, y * that, z * that)
+    def /(that: Double) = Vector3(x / that, y / that, z / that)
+    def x(that: Vector3): Vector3 = Vector3(
+      y * that.z - z * that.y,
+      z * that.x - x * that.z,
+      x * that.y - y * that.x)
+    def dot(that: Vector3) = x * that.x + y * that.y + z * that.z
 
-    def toVec3(pool: Vec3Pool) = pool.getVecFromPool(_1, _2, _3)
+    def toVec3(pool: Vec3Pool) = pool.getVecFromPool(x, y, z)
 
-    def len = math.sqrt(_1 * _1 + _2 * _2 + _3 * _3)
+    def len = math.sqrt(x * x + y * y + z * z)
     def toSide = {
       Seq(
-        (-_2, 0),
-        ( _2, 1),
-        (-_3, 2),
-        ( _3, 3),
-        (-_1, 4),
-        ( _1, 5)).maxBy(_._1)._2
+        (-y, 0),
+        ( y, 1),
+        (-z, 2),
+        ( z, 3),
+        (-x, 4),
+        ( x, 5)).maxBy(_._1)._2
     }
 
     def normal = this / len
   }
-  implicit def vector3FromVec3(v: Vec3) = Vector3(v.xCoord, v.yCoord, v.zCoord)
 
+  implicit def vector3FromVec3(v: Vec3) = Vector3(v.xCoord, v.yCoord, v.zCoord)
+  implicit def vector3FromProduct3(tup: Product3[Double, Double, Double]) = Vector3(tup._1, tup._2, tup._3)
   implicit def vector3FromVertex(v: Vertex) = v match {
     case v: CoordVertex => Vector3(v.x, v.y, v.z)
     case v: NormalVertex => Vector3(v.i, v.j, v.k)
@@ -423,7 +424,7 @@ object utils {
     @inline def t3 = tq._4
 
     override def toString = s"TexturedQuad[(${_1},${_2},${_3},${_4}),(${tq._1},${tq._2},${tq._3},${tq._4})]"
-    lazy val normal = utils.normal(v0, v1, v2)
+    lazy val normal = utils.normal(_1, _2, _3)
   }
 
   def filterQuads(part: ArrayBuffer[Element]): ArrayBuffer[TexturedQuad] = part collect {
@@ -485,7 +486,6 @@ object utils {
     }
   }
 
-  @inline
   def faceToTriangles(face: TexturedQuad) =
     for (i <- 1 until (face.length - 1)) yield (
       face(0),
