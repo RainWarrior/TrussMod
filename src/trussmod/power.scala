@@ -196,17 +196,27 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
   @Optional.Method(modid = icid)
   override def getMaxSafeInput: Int = Int.MaxValue // TODO
 
+  @Optional.Method(modid = icid)
+  def load(): Unit = {
+    MinecraftForge.EVENT_BUS.post(new EnergyTileLoadEvent(this))
+  }
+
+  @Optional.Method(modid = icid)
+  def unload(): Unit = {
+    MinecraftForge.EVENT_BUS.post(new EnergyTileUnloadEvent(this))
+  }
+
   abstract override def updateEntity(): Unit = {
     super.updateEntity()
     if(!registered) {
-      if(Loader.isModLoaded(icid)) MinecraftForge.EVENT_BUS.post(new EnergyTileLoadEvent(this))
+      if(Loader.isModLoaded(icid)) load()
       registered = true
     }
   }
 
   abstract override def invalidate(): Unit = {
     super.invalidate()
-    if(Loader.isModLoaded(icid)) MinecraftForge.EVENT_BUS.post(new EnergyTileUnloadEvent(this))
+    if(Loader.isModLoaded(icid)) unload()
   }
 }
 
