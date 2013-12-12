@@ -28,64 +28,48 @@ of this Program grant you additional permission to convey the resulting work.
 */
 package rainwarrior.trussmod
 
-import cpw.mods.fml.relauncher
-import relauncher.{ Side, SideOnly }
-import net.minecraft._,
-  item.{ Item, ItemStack },
+import net.minecraft.{ block, creativetab, entity, item, world },
   block.Block,
-  client.renderer.texture.IconRegister,
-  client.Minecraft.getMinecraft,
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
+  item.{ Item, ItemStack },
   world.World
-  import net.minecraftforge.common.{ ForgeDirection => dir }
-import TrussMod._
-import rainwarrior.utils._
+import cpw.mods.fml.common.{ Loader, registry }
+import registry.GameRegistry
+import cpw.mods.fml.client.FMLClientHandler.{ instance => FMLClientHandler }
 
-trait DebugItem extends Item {
+import rainwarrior.utils._
+import TrussMod._
+
+class DebugItem(id: Int) extends Item(id) {
   setMaxStackSize(1)
   setCreativeTab(CreativeTabs.tabMisc)
-  setUnlocalizedName(modId + ":debugItem")
+  setUnlocalizedName("trussmod:DebugItem")
 
-  import cpw.mods.fml.common.registry._
-  LanguageRegistry.addName(this, "Debug Item")
-
-  override def requiresMultipleRenderPasses() = true
-
-  override def onItemRightClick(stack: ItemStack, world: World, player: EntityPlayer): ItemStack = stack
+  GameRegistry.registerItem(this, "debugItem")
 
   override def onItemUseFirst(
       stack: ItemStack,
       player: EntityPlayer,
       world: World,
-      x: Int,
-      y: Int,
-      z: Int,
+      x: Int, y: Int, z: Int,
       side: Int,
-      hitX: Float,
-      hitY: Float,
-      hitZ: Float): Boolean = {
-    //if(world.getBlockId(x, y + 1, z) == 0) {
-      val id = world.getBlockId(x, y, z)
-      val meta = world.getBlockMetadata(x, y, z)
-      val te = world.getBlockTileEntity(x, y, z)
+      hitX: Float, hitY: Float, hitZ: Float): Boolean = {
+    val id = world.getBlockId(x, y, z)
+    if(world.isClient) {
       val name = Block.blocksList(id).getUnlocalizedName
-      EffectiveSide(world) match {
-        case Client =>
-          val msg = s"USE: ($x,$y,$z), Block: $id, $meta, $te, $name"
-          getMinecraft.ingameGUI.getChatGUI.printChatMessage(msg)
-          /*val te = world.getBlockTileEntity(x, y, z)
-          val pos = WorldPos(x, y, z)
-          if(MovingRegistry.moving.isDefinedAt(pos)) {
-            MovingRegistry.delMoving(world, pos)
-          } else {
-            MovingRegistry.addMoving(world, pos, MovingRegistry.debugOffset)
-          }*/
-        case Server =>
-          //CommonProxy.blockMovingStrip.create(world, x, y + 1, z, dir.UP, 2)
-          //FrameBfs(world, (x, y, z), dir.NORTH)
+      val msg = s"USE: ($x,$y,$z), Block: $id, $name"
+      //log.info(msg)
+      FMLClientHandler.getClient.ingameGUI.getChatGUI.printChatMessage(msg)
+    } else {
+      world.getBlockTileEntity(x, y, z) match {
+        case te: TileEntityMotor =>
+          var msg = s"($x, $y, $z): ${te.energy} "
+          if(Loader.isModLoaded(Power.bcid)) msg += te.powerHandler.getEnergyStored
+          log.info(msg)
+        case _ =>
       }
-    //}
+    }
     false
   }
 }

@@ -73,6 +73,9 @@ object CommonProxy extends LoadLater {
   val blockMovingStripId = config.getBlock("movingStrip", 503, "Util block, shouldn't be used in the normal game").getInt()
   val blockMovingStrip = new BlockMovingStrip(blockMovingStripId, Material.iron)
 
+  //val debugItemId = config.getItem("debug", 504).getInt
+  //val debugItem = new DebugItem(debugItemId)
+
   val handlers = config.getCategory("Mod Handlers")
   handlers.setComment("""
 Per-mod moving handlers configuration (ADVANCED)
