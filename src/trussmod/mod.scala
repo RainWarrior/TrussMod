@@ -227,7 +227,7 @@ class ClientProxyImpl extends CommonProxyImpl {
   modid = modId,
   name = modName,
   version = "beta",
-  dependencies = "required-after:Forge@[7.8.0.701,);required-after:FML@[5.2.6.701,);after:ImmibisMicroblocks;after:ForgeMultipart"
+  dependencies = "required-after:Forge@[7.8.0.923,);required-after:FML@[5.2.6.923,);after:ImmibisMicroblocks;after:ForgeMultipart"
 )
 @NetworkMod(
 //  channels = Array(modId),
