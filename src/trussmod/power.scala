@@ -59,7 +59,10 @@ object Power {
 import Power._
 
 trait CommonTilePower extends TileEntity {
-  protected[this] var energy: Double = 0D
+  private[this] var _energy: Double = 0D
+  def energy = _energy
+  protected[this] def energy_=(en: Double) = _energy = en
+
   def maxEnergy: Double
 
   abstract override def readFromNBT(cmp: NBTTagCompound) {
@@ -79,6 +82,9 @@ trait CommonTilePower extends TileEntity {
 trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
   val bcRatio: Double
 
+  def minBcStored: Float = 1
+  def maxBcStored: Float = 100
+
   private[this] var _powerHandler: AnyRef = null
 
   @Optional.Method(modid = bcid)
@@ -86,15 +92,12 @@ trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
     // TODO
     val ph = new PowerHandler(this, PowerHandler.Type.MACHINE)
     ph.configure(
-      30, // minEnergyReceived
-      30, // maxEnergyReceived
-      30, // activationEnergy
-      30 // maxStoredEnergy
+      minBcStored, // minEnergyReceived
+      maxBcStored, // maxEnergyReceived
+      minBcStored, // activationEnergy
+      maxBcStored // maxStoredEnergy
     )
-    ph.configurePowerPerdition(
-      1, // powerLoss
-      100 // powerLossRegularity
-    )
+    ph.setPerdition(new PowerHandler.PerditionCalculator(0.01F))
     _powerHandler = ph
     ph
   } else _powerHandler.asInstanceOf[PowerHandler]
@@ -116,13 +119,11 @@ trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
   @Optional.Method(modid = bcid)
   override def doWork(workProvider: PowerHandler) = if(!worldObj.isRemote) {
     assert(workProvider == powerHandler)
-    // TODO
-    if(powerHandler.getEnergyStored >= 30) {
-      if(worldObj.isBlockIndirectlyGettingPowered(this.x, this.y, this.z)) {
-        if(powerHandler.useEnergy(30, 30, true) == 30) {
-          log.info("Moving!")
-        }
-      }
+    if(powerHandler.getEnergyStored >= minBcStored) {
+      val avail = powerHandler.useEnergy(minBcStored, maxBcStored, false)
+      val d1 = avail.min(((maxEnergy - energy) * bcRatio).toFloat)
+      val delta = powerHandler.useEnergy(minBcStored min d1, d1, true).toDouble / bcRatio
+      energy += delta
     }
   }
 
