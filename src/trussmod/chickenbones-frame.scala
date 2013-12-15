@@ -190,7 +190,7 @@ object ChickenBonesPartConverter extends MultiPartRegistry.IPartConverter {
   override def convert(world: World, pos: BlockCoord): TMultiPart = {
     world.getBlockId(pos.x, pos.y, pos.z) match {
       case CommonProxy.blockFrameId =>
-        new ChickenBonesFramePart(CommonProxy.blockFrameId - 256)
+        new ChickenBonesFramePart(CommonProxy.blockFrameId)
       case id =>
         log.warning(s"Called CB converter for wrong block ID: $id")
         null
