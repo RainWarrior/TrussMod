@@ -65,7 +65,9 @@ import codechicken.microblock.CommonMicroblock
 class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPartialOcclusion with TNormalOcclusion {
   override val getType = "Frame"
 
-  override def getStrength(mop: MovingObjectPosition, player: EntityPlayer) = 5F
+  override def getStrength(mop: MovingObjectPosition, player: EntityPlayer) =
+    player.getCurrentPlayerStrVsBlock(CommonProxy.frameBlock, false, 0) /
+      CommonProxy.frameBlock.getBlockHardness(player.worldObj, mop.blockX, mop.blockY, mop.blockZ)
 
   override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(id, 1, 0))
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))

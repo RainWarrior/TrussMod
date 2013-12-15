@@ -154,7 +154,7 @@ trait TraitFrame extends Block with Frame {
 }
 
 class BlockFrame(id: Int)
-  extends Block(id, Material.ground)
+  extends Block(id, Material.iron)
   with TraitFrame
 
 @SideOnly(Side.CLIENT)
