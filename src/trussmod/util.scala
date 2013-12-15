@@ -437,6 +437,26 @@ object utils {
     (n + p * .001).toSide
   }
 
+  def blockExpand(b: Vector3, p: Vector3) = {
+    val shift = eps //if(isSneaking) -eps else eps
+    val thresh = .5
+    val c = p - b - (.5, .5, .5)
+    val ac = Vector3(c.x.abs, c.y.abs, c.z.abs)
+    if(ac.x < thresh && ac.x >= ac.y && ac.x >= ac.z) {
+      //println(s"x: ${ac.x}")
+      Vector3(if(c.x > 0) b.x + 1 - shift else b.x + shift, p.y, p.z)
+    } else if (ac.y < thresh && ac.y >= ac.z && ac.y >= ac.x) {
+      //println(s"y: ${ac.y}")
+      Vector3(p.x, if(c.y > 0) b.y + 1 - shift else b.y + shift, p.z)
+    } else if (ac.z < thresh && ac.z >= ac.x && ac.z >= ac.y) {
+      //println(s"z: ${ac.z}")
+      Vector3(p.x, p.y, if(c.z > 0) b.z + 1 - shift else b.z + shift)
+    } else {
+      //println("p")
+      p
+    }
+  }
+
   def normal(v0: Vector3, v1: Vector3, v2: Vector3) = {
     ((v1 - v0) x (v2 - v0)).normal
   }
@@ -515,7 +535,7 @@ object utils {
       case Some((t, normal)) if t <= 1 =>
         val side = sideHit(normal, start + dir * t)
         //log.info(s"f: $from, t: $to, t: $t")
-        val mop = new MovingObjectPosition(x, y, z, side, (from + dir * t).toVec3(world.getWorldVec3Pool))
+        val mop = new MovingObjectPosition(x, y, z, side, blockExpand(Vector3(x, y, z), from + dir * t).toVec3(world.getWorldVec3Pool))
         mop.subHit = 0
         mop
       case _ => null
