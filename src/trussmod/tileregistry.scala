@@ -226,6 +226,7 @@ class DefaultModTileHandler extends ITileHandler {
       cmp.setInteger("y", ny)
       cmp.setInteger("z", nz)
       //te.invalidate()
+      te.onChunkUnload()
       //uncheckedRemoveTileEntity(world, x, y, z)
       world.removeBlockTileEntity(x, y, z)
       cmp
@@ -237,7 +238,7 @@ class DefaultModTileHandler extends ITileHandler {
         case te: TileEntity =>
           //uncheckedAddTileEntity(world, nx, ny, nz, te)
           //te.validate()
-          world.setBlockTileEntity(nx, ny, nz, te)
+          world.getChunkFromBlockCoords(nx, nz).addTileEntity(te)
         case _ =>
       }
     }
@@ -321,20 +322,16 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
     te match {
       case t: TileMultipart =>
         val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
-        if(te != null) {
-          te.invalidate()
-          uncheckedRemoveTileEntity(world, x, y, z)
-        }
+        //te.invalidate()
+        uncheckedRemoveTileEntity(world, x, y, z)
         uncheckedSetBlock(world, x, y, z, 0, 0)
         uncheckedSetBlock(world, nx, ny, nz, id, meta)
-        if(te != null) {
-          te.xCoord = nx
-          te.yCoord = ny
-          te.zCoord = nz
-          //te.tileEntityInvalid = false
-          t.setValid(true)
-          uncheckedAddTileEntity(world, nx, ny, nz, te)
-        }
+        te.xCoord = nx
+        te.yCoord = ny
+        te.zCoord = nz
+        //te.tileEntityInvalid = false
+        //t.setValid(true)
+        uncheckedAddTileEntity(world, nx, ny, nz, te)
       case _ => super.move(world, x, y, z, dirTo)
     }
   }
@@ -344,8 +341,9 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
     uncheckedGetTileEntity(world, x, y, z) match {
       case te: TileMultipart =>
         //te.tileEntityInvalid = true
-        te.setValid(false)
-        te.validate()
+        //te.setValid(false)
+        //te.validate()
+        te.onMoved()
       case _ => super.postMove(world, x, y, z)
     }
   }
