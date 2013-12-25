@@ -243,7 +243,7 @@ class TileEntityMotor extends StripHolder with PowerTile {
 
     if(!worldObj.isBlockIndirectlyGettingPowered(xCoord, yCoord, zCoord)) return false
 
-    if(energy <= moveEnergy) return false
+    if(energy < moveEnergy - eps) return false
 
     val meta = getBlockMetadata
     val pos = WorldPos(this) + ForgeDirection.values()(meta)
