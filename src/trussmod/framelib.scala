@@ -64,6 +64,7 @@ import relauncher.{ FMLRelaunchLog, Side }
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
+import rainwarrior.serial._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 
@@ -125,8 +126,13 @@ class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, m
   }
 }
 
-class TileEntityMovingStrip extends TileEntity {
+final class TileEntityMovingStrip extends TileEntity with SerialTileEntityLike[TileEntityMovingStrip] {
   var parentPos: Option[WorldPos] = None
+
+  def channel = TrussMod.modId
+
+  implicit def Repr = TileEntityMovingStrip.serialInstance
+  implicit def CopyRepr = TileEntityMovingStrip.serialInstance
 
   //log.info(s"new TileEntityMovingStrip, pos: ${WorldPos(this)}")
   override def updateEntity() {
@@ -136,7 +142,7 @@ class TileEntityMovingStrip extends TileEntity {
       case _ => worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
     } else worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
   }
-  override def getDescriptionPacket(): Packet = {
+  /*override def getDescriptionPacket(): Packet = {
     val cmp = new NBTTagCompound
     writeToNBT(cmp)
     new Packet132TileEntityData(xCoord, yCoord, zCoord, 1, cmp)
@@ -165,6 +171,32 @@ class TileEntityMovingStrip extends TileEntity {
         cmp.setInteger("parentX", 0)
         cmp.setInteger("parentY", -10)
         cmp.setInteger("parentZ", 0)
+    }
+  }*/
+}
+object TileEntityMovingStrip {
+  object serialInstance extends IsSerializable[TileEntityMovingStrip] with Copyable[TileEntityMovingStrip] {
+    def pickle[F](te: TileEntityMovingStrip)(implicit F: IsSerialSink[F]): F = {
+      @inline def s[A](v: A) = F.toSerial(v)
+      te.parentPos match {
+        case Some(pos) => F.toSerialMap(
+          s("parentX") -> s(pos.x),
+          s("parentY") -> s(pos.y),
+          s("parentZ") -> s(pos.z))
+        case None => F.toSerialMap(
+          s("parentX") -> s(0),
+          s("parentY") -> s(-10),
+          s("parentZ") -> s(0))
+      }
+    }
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): TileEntityMovingStrip = {
+      val map = F.fromSerialMap(f).map{ case (k, v) => F.fromSerial[String](k) -> F.fromSerial[Int](v) }.toMap
+      val te = new TileEntityMovingStrip
+      te.parentPos = Some((map("parentX"), map("parentY"), map("parentZ")))
+      te
+    }
+    def copy(from: TileEntityMovingStrip, to: TileEntityMovingStrip): Unit = {
+      to.parentPos = from.parentPos
     }
   }
 }
