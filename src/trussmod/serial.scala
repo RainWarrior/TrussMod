@@ -31,6 +31,7 @@ package rainwarrior.serial
 import collection.mutable.ArrayBuilder
 import collection.JavaConversions._
 import scala.reflect._
+import annotation.tailrec
 import language.higherKinds
 
 import java.util.Collection
@@ -252,64 +253,105 @@ object SerialFormats {
   }
 
   object vectorSerialInstance extends IsSerialFormat[Vector[Byte]] {
+    def getNextInputLength(f: Vector[Byte]): Int = f.head.toChar match {
+      case 'B' => 2
+      case 'W' => 3
+      case 'I' => 5
+      case 'L' => 9
+      case 'F' => 5
+      case 'D' => 9
+      case 't' => 1
+      case 'f' => 1
+      case 'C' => 3
+      case 'S' | 's' => getNextStringLength(f)
+      case 'V' => getNextListLength(f)
+      case 'M' => getNextMapLength(f)
+      case _ => throw new IllegalArgumentException(s"Illegal start symbol: ${f.head} (${f.head.toChar})")
+    }
+
+    @tailrec final def getNextStringLength(f: Vector[Byte], res: Int = 0): Int = f.head.toChar match {
+      case 's' => getNextStringLength(f.drop(0x10001), res + 0x10000)
+      case 'S' => res + ByteBuffer.wrap(f.toArray, 1, 2).getShort
+    }
+
+    def getNextListLength(f: Vector[Byte]): Int = {
+      assert(f.head == 'V'.toByte)
+      var length = 1
+      var tail = f.tail
+      while(tail.head != 'z') {
+        val len = genNextInputLength(tail)
+        length += len
+        tail = tail.drop(len)
+      }
+      length + 1
+    }
+
+    def getNextMapLength(f: Vector[Byte]): Int = ???
+
     def empty = Vector.empty[Byte]
 
     def toSerialList(l: Vector[Byte]*): Vector[Byte] = {
-      ??? // TODO
+      ('V'.toByte +: l.fold(Vector.empty[Byte])(_ ++ _)) :+ 'z'.toByte
     }
 
     def toSerialMap(l: (Vector[Byte], Vector[Byte])*): Vector[Byte] = {
-      ??? // TODO
+      ('M'.toByte +: l.map { case (k, v) =>
+        ('('.toByte +: k) ++ v :+ ')'.toByte
+      }.fold(Vector.empty[Byte])(_ ++ _)) :+ 'z'.toByte
     }
 
     def toSerial[A](v: A): Vector[Byte] = (v match {
-      case v: Byte    => Array(v)
-      case v: Short   => ByteBuffer.allocate(2).putShort(v).array
-      case v: Int     => ByteBuffer.allocate(4).putInt(v).array
-      case v: Long    => ByteBuffer.allocate(8).putLong(v).array
-      case v: Float   => ByteBuffer.allocate(4).putFloat(v).array
-      case v: Double  => ByteBuffer.allocate(8).putDouble(v).array
-      case v: Boolean => Array((if(v) 1 else 0).toByte)
-      case v: Char    => ByteBuffer.allocate(2).putChar(v).array
-      case v: String  => v.getBytes(Charset.forName("UTF-8"))
+      case v: Byte    => Array('B'.toByte, v)
+      case v: Short   => (ByteBuffer allocate 3 put 'W'.toByte putShort v).array
+      case v: Int     => (ByteBuffer allocate 5 put 'I'.toByte putInt v).array
+      case v: Long    => (ByteBuffer allocate 9 put 'L'.toByte putLong v).array
+      case v: Float   => (ByteBuffer allocate 5 put 'F'.toByte putFloat v).array
+      case v: Double  => (ByteBuffer allocate 9 put 'D'.toByte putDouble v).array
+      case v: Boolean => Array((if(v) 't' else 'f').toByte)
+      case v: Char    => (ByteBuffer allocate 3 put 'C'.toByte putChar v).array
+      case v: String  =>
+        val chunks = v.getBytes(Charset.forName("UTF-8")).grouped(0x10000).toSeq
+        chunks.init.map('s'.toByte +: _).fold(Array.emptyByteArray)(_ ++ _) ++
+        ('S'.toByte +: ((ByteBuffer allocate 2 putShort chunks.last.length.toShort).array ++ chunks.last))
       case _ => ???
     }).to[Vector]
 
-    def addTag(t: Vector[Byte], tag: String) = t
+    def addTag(t: Vector[Byte], tag: String) = t // maybe todo
       
-    /*def append(seq: Vector[Byte], f: Vector[Byte]): Vector[Byte] = {
-      ??? // TODO
-    }*/
-
-    def fromSerialMap(f: Vector[Byte]): Seq[(Vector[Byte], Vector[Byte])] = {
-      ??? // TODO
+    def fromSerialList(f: Vector[Byte]): Seq[Vector[Byte]] = {
+      assert(f.head == 'V'.toByte)
+      var res = Seq.empty[Vector[Byte]]
+      var tail = f.tail
+      while(tail.head != 'z') {
+        val len = getNextInputLength(f.tail)
+        res :+= tail.take(len)
+        tail = tail.drop(len)
+      }
+      res
     }
 
-    def fromSerialList(f: Vector[Byte]): Seq[Vector[Byte]] = {
+    def fromSerialMap(f: Vector[Byte]): Seq[(Vector[Byte], Vector[Byte])] = {
+      assert(f.head == 'M'.toByte)
       ??? // TODO
     }
 
     def fromSerial[A](f: Vector[Byte])(implicit A: ClassTag[A]): A = try {
       (A.runtimeClass match {
-        case java.lang.Byte.TYPE      if f.length == 1 => f(0)
-        case java.lang.Short.TYPE     if f.length == 2 => ByteBuffer.wrap(f.toArray).getShort
-        case java.lang.Integer.TYPE   if f.length == 4 => ByteBuffer.wrap(f.toArray).getInt
-        case java.lang.Long.TYPE      if f.length == 8 => ByteBuffer.wrap(f.toArray).getLong
-        case java.lang.Float.TYPE     if f.length == 4 => ByteBuffer.wrap(f.toArray).getFloat
-        case java.lang.Double.TYPE    if f.length == 8 => ByteBuffer.wrap(f.toArray).getDouble
-        case java.lang.Boolean.TYPE   if f.length == 1 => f(0) > 0
-        case java.lang.Character.TYPE if f.length == 2 => ByteBuffer.wrap(f.toArray).getChar
-        case `stringClass`            => new String(f.toArray, Charset.forName("UTF-8"))
+        case java.lang.Byte.TYPE      if f.length == 2 && f.head == 'B'.toByte => f(1)
+        case java.lang.Short.TYPE     if f.length == 3 && f.head == 'W'.toByte => ByteBuffer.wrap(f.toArray, 1, 2).getShort
+        case java.lang.Integer.TYPE   if f.length == 5 && f.head == 'I'.toByte => ByteBuffer.wrap(f.toArray, 1, 4).getInt
+        case java.lang.Long.TYPE      if f.length == 9 && f.head == 'L'.toByte => ByteBuffer.wrap(f.toArray, 1, 8).getLong
+        case java.lang.Float.TYPE     if f.length == 5 && f.head == 'F'.toByte => ByteBuffer.wrap(f.toArray, 1, 4).getFloat
+        case java.lang.Double.TYPE    if f.length == 9 && f.head == 'D'.toByte => ByteBuffer.wrap(f.toArray, 1, 8).getDouble
+        case java.lang.Boolean.TYPE   if f.length == 1 && f.head == 't'.toByte || f.head == 'f'.toByte => f(0) == 't'.toByte
+        case java.lang.Character.TYPE if f.length == 3 && f.head == 'C'.toByte => ByteBuffer.wrap(f.toArray, 1, 2).getChar
+        case `stringClass`            => ??? // new String(f.toArray, Charset.forName("UTF-8")) TODO
       }).asInstanceOf[A]
     } catch {
       case e: MatchError => throw new IllegalArgumentException(s"can't read type $A from vector $f")
     }
 
-    def removeTag(t: Vector[Byte]) = ???
-
-    /*def extract(seq: Vector[Byte]): (Vector[Byte], Vector[Byte]) = {
-      ??? // TODO
-    }*/
+    def removeTag(t: Vector[Byte]) = ??? // maybe todo
   }
 }
 
