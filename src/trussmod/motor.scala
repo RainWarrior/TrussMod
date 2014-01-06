@@ -55,6 +55,8 @@ import cpw.mods.fml.client.registry.{ RenderingRegistry, ISimpleBlockRenderingHa
 import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
 import TrussMod._
 import rainwarrior.utils._
+import rainwarrior.serial._
+import Serial._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 trait TraitMotor extends BlockContainer {
   setHardness(5f)
@@ -150,7 +152,7 @@ trait TraitMotor extends BlockContainer {
     if(te == null)
       throw new RuntimeException("no tile entity!")
 //    FMLCommonHandler.instance.showGuiScreen(te.openGui())
-      if(!te.isMoving) te.rotate(player.isSneaking())
+      if(!te.stripHolder.isMoving) te.rotate(player.isSneaking())
     true
   }
 
@@ -177,6 +179,31 @@ class BlockMotor(id: Int)
 
 import Power._
 
+object TileEntityMotor {
+  implicit object serialInstance extends IsCopySerial[TileEntityMotor] {
+    def pickle[F: IsSerialSink](t: TileEntityMotor): F = {
+      P.list(
+        P(t.energy),
+        P(t.orientation),
+        P(t.stripHolder)
+      )
+    }
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): TileEntityMotor = {
+      val Seq(energy, orientation, stripHolder) = P.unList(f)
+      new TileEntityMotor(
+        P.unpickle[F, Double](energy),
+        P.unpickle[F, Int](orientation),
+        P.unpickle[F, StripHolder](stripHolder)
+      )
+    }
+    def copy(from: TileEntityMotor, to: TileEntityMotor): Unit = {
+      to.energy = from.energy
+      to.orientation = from.orientation
+      to.stripHolder = from.stripHolder // not deep
+    }
+  }
+}
+
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
   //new Optional.Interface(iface = CBuildcraftPowerReceptor, modid = bcid),
@@ -184,7 +211,11 @@ import Power._
   //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid),
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
-class TileEntityMotor extends StripHolder with PowerTile {
+class TileEntityMotor(
+    en: Double = 0D,
+    var orientation: Int = 0,
+    var stripHolder: StripHolder = null
+) extends StripHolderTile with PowerTile with SimpleSerialTile[TileEntityMotor] {
   val maxEnergy = CommonProxy.motorCapacity
   val moveEnergy = CommonProxy.moveCost
 
@@ -192,24 +223,20 @@ class TileEntityMotor extends StripHolder with PowerTile {
   val cofhRatio = CommonProxy.cofhRatio
   val ic2Ratio = CommonProxy.ic2Ratio
 
+  def channel = modId
+  def Repr = TileEntityMotor.serialInstance
+
   lazy val side = EffectiveSide(worldObj)
-  var orientation = 0
+
+  protected[TileEntityMotor] override def energy_=(en: Double) = super.energy_=(en)
+  energy = en
+  if(stripHolder == null) stripHolder = new StripHolder(this)
+
   //log.info(s"new TileEntityMotor, isServer: $isServer")
-
-  override def readFromNBT(cmp: NBTTagCompound) {
-    super.readFromNBT(cmp)
-    orientation = cmp.getInteger("orientation")
-    //log.info(s"Motor readFromNBT: ($xCoord,$yCoord,$zCoord), " + (if(worldObj != null) side else "NONE"))
-  }
-
-  override def writeToNBT(cmp: NBTTagCompound) {
-    super.writeToNBT(cmp)
-    cmp.setInteger("orientation", orientation)
-    //log.info(s"Motor writeToNBT: ($xCoord,$yCoord,$zCoord), $side")
-  }
 
   override def updateEntity() {
     super.updateEntity()
+    stripHolder.update()
     //log.info(s"updateEntity, ($xCoord, $yCoord, $zCoord), ${worldObj.isClient}")
   }
   
@@ -289,7 +316,7 @@ class TileEntityMotor extends StripHolder with PowerTile {
     }
 
     if(canMove) {
-      isMoving = true
+      stripHolder.isMoving = true
       for ((c, size) <- strips) {
         //log.info(s"c: $c")
         //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
@@ -299,18 +326,18 @@ class TileEntityMotor extends StripHolder with PowerTile {
           case _ =>
         }
         worldObj.markBlockForUpdate(c.x, c.y, c.z)
-        this += StripData(c, dirTo, size)
+        stripHolder += StripData(c, dirTo, size)
       }
       val manager = worldObj.asInstanceOf[WorldServer].getPlayerManager
       for {
         players <- Option(manager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false))
       } {
-        players.sendToAllPlayersWatchingChunk(getDescriptionPacket)
+        players.sendToAllPlayersWatchingChunk(getDescriptionPacket) // TODO check if this is needed/convert to markBlock
       }
     }
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord) 
-    if(canMove) energy -= moveEnergy
+    if(canMove) energy -= moveEnergy // TODO moveEnergy * blocks.size
     canMove
   }
 
@@ -424,8 +451,8 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       case 5 => glRotatef(90, 0, 0, -1)
     }
     val astep = 360F / 64F
-    val angle = if(te.offset == 0) 0
-      else (te.offset - 1 + partialTick) * astep
+    val angle = if(te.stripHolder.offset == 0) 0
+      else (te.stripHolder.offset - 1 + partialTick) * astep
 
     /*tes.startDrawingQuads()
     tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))

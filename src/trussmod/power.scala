@@ -65,7 +65,7 @@ trait CommonTilePower extends TileEntity {
 
   def maxEnergy: Double
 
-  abstract override def readFromNBT(cmp: NBTTagCompound) {
+/*  abstract override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
     energy = cmp.getDouble("energy")
   }
@@ -73,7 +73,7 @@ trait CommonTilePower extends TileEntity {
   abstract override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     cmp.setDouble("energy", energy)
-  }
+  }*/
 }
 
 @Optional.InterfaceList(Array(
@@ -102,7 +102,9 @@ trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
     ph
   } else _powerHandler.asInstanceOf[PowerHandler]
 
-  abstract override def readFromNBT(cmp: NBTTagCompound) {
+  // will lose internal amount on save/load, oh well
+
+/*  abstract override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
     if(Loader.isModLoaded(bcid)) powerHandler.readFromNBT(cmp)
   }
@@ -110,7 +112,7 @@ trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
   abstract override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     if(Loader.isModLoaded(bcid)) powerHandler.writeToNBT(cmp)
-  }
+  }*/
 
   @Optional.Method(modid = bcid)
   override def getPowerReceiver(side: ForgeDirection): PowerHandler#PowerReceiver = 

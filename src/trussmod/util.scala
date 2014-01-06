@@ -43,6 +43,8 @@ import net.minecraftforge.common.ForgeDirection
 import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
+import rainwarrior.serial._
+import Serial._
 import rainwarrior.obj.{ Obj, Element, Vertex, CoordVertex, NormalVertex, TextureVertex, Face, TexturedFace, TexturedNormaledFace }
 
 object utils {
@@ -133,19 +135,29 @@ object utils {
     glPopMatrix()
   }
 
+  object BlockData {
+    implicit object serialInstance extends IsCopySerial[BlockData] {
+      def pickle[F](t: BlockData)(implicit F: IsSerialSink[F]): F = {
+        P.list(P(t.x), P(t.y), P(t.z), P(t.dirTo.ordinal))
+      }
+      def unpickle[F](f: F)(implicit F: IsSerialSource[F]): BlockData = {
+        val Seq(x, y, z, dirTo) = P.unList(f)
+        new BlockData(
+          P.unpickle[F, Int](x),
+          P.unpickle[F, Int](y),
+          P.unpickle[F, Int](z),
+          ForgeDirection.values()(P.unpickle[F, Int](dirTo))
+        )
+      }
+      def copy(from: BlockData, to: BlockData): Unit = {
+        to.x = from.x
+        to.y = from.y
+        to.z = from.z
+        to.dirTo = from.dirTo
+      }
+    }
+  }
   class BlockData(var x: Float, var y: Float, var z: Float, var dirTo: ForgeDirection) {
-    def writeToNBT(cmp: NBTTagCompound) {
-      cmp.setFloat("x", x)
-      cmp.setFloat("y", y)
-      cmp.setFloat("z", z)
-      cmp.setInteger("dirTo", dirTo.ordinal)
-    }
-    def readFromNBT(cmp: NBTTagCompound) {
-      x = cmp.getFloat("x")
-      y = cmp.getFloat("y")
-      z = cmp.getFloat("z")
-      dirTo = ForgeDirection.values()(cmp.getInteger("dirTo"))
-    }
     override def toString = s"BlockData($x,$y,$z:$dirTo)"
   }
 
@@ -440,7 +452,7 @@ object utils {
   def blockExpand(b: Vector3, p: Vector3) = {
     val shift = eps //if(isSneaking) -eps else eps
     val thresh = .5
-    val c = p - b - (.5, .5, .5)
+    val c = p - b - ((.5, .5, .5))
     val ac = Vector3(c.x.abs, c.y.abs, c.z.abs)
     if(ac.x < thresh && ac.x >= ac.y && ac.x >= ac.z) {
       //println(s"x: ${ac.x}")

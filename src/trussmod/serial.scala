@@ -412,6 +412,67 @@ object SerialFormats {
   }
 }
 
+trait PickleInstances {
+  implicit object ByteInstance extends IsSerializable[Byte] {
+    def pickle[F](t: Byte)(implicit F: IsSerialSink[F]): F = F.toSerial[Byte](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Byte = F.fromSerial[Byte](f)
+  }
+  implicit object ShortInstance extends IsSerializable[Short] {
+    def pickle[F](t: Short)(implicit F: IsSerialSink[F]): F = F.toSerial[Short](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Short = F.fromSerial[Short](f)
+  }
+  implicit object IntInstance extends IsSerializable[Int] {
+    def pickle[F](t: Int)(implicit F: IsSerialSink[F]): F = F.toSerial[Int](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Int = F.fromSerial[Int](f)
+  }
+  implicit object LongInstance extends IsSerializable[Long] {
+    def pickle[F](t: Long)(implicit F: IsSerialSink[F]): F = F.toSerial[Long](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Long = F.fromSerial[Long](f)
+  }
+  implicit object FloatInstance extends IsSerializable[Float] {
+    def pickle[F](t: Float)(implicit F: IsSerialSink[F]): F = F.toSerial[Float](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Float = F.fromSerial[Float](f)
+  }
+  implicit object DoubleInstance extends IsSerializable[Double] {
+    def pickle[F](t: Double)(implicit F: IsSerialSink[F]): F = F.toSerial[Double](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Double = F.fromSerial[Double](f)
+  }
+  implicit object BooleanInstance extends IsSerializable[Boolean] {
+    def pickle[F](t: Boolean)(implicit F: IsSerialSink[F]): F = F.toSerial[Boolean](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Boolean = F.fromSerial[Boolean](f)
+  }
+  implicit object CharInstance extends IsSerializable[Char] {
+    def pickle[F](t: Char)(implicit F: IsSerialSink[F]): F = F.toSerial[Char](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Char = F.fromSerial[Char](f)
+  }
+  implicit object StringInstance extends IsSerializable[String] {
+    def pickle[F](t: String)(implicit F: IsSerialSink[F]): F = F.toSerial[String](t)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): String = F.fromSerial[String](f)
+  }
+}
+
+object Serial extends PickleInstances
+
+object P {
+  @inline final def apply[F, T](t: T)(implicit F: IsSerialSink[F], T: IsSerialWritable[T]): F = T.pickle(t)(F)
+  @inline final def apply[F, T](F: IsSerialSink[F], t: T)(implicit T: IsSerialWritable[T]): F = T.pickle(t)(F)
+  @inline final def apply[F, T](T: IsSerialWritable[T], t: T)(implicit F: IsSerialSink[F]): F = T.pickle(t)(F)
+  @inline final def apply[F, T](F: IsSerialSink[F], T: IsSerialWritable[T], t: T): F = T.pickle(t)(F)
+
+  @inline final def unpickle[F, T](f: F)(implicit F: IsSerialSource[F], T: IsSerialReadable[T]): T = T.unpickle(f)(F)
+  @inline final def unpickle[F, T](F: IsSerialSource[F], f: F)(T: IsSerialReadable[T]): T = T.unpickle(f)(F)
+  @inline final def unpickle[F, T](T: IsSerialReadable[T], f: F)(implicit F: IsSerialSource[F]): T = T.unpickle(f)(F)
+  @inline final def unpickle[F, T](F: IsSerialSource[F], T: IsSerialReadable[T], f: F): T = T.unpickle(f)(F)
+
+  @inline final def list[F](t: F*)(implicit F: IsSerialSink[F]): F = F.toSerialList(t: _*)
+
+  @inline final def unList[F](t: F)(implicit F: IsSerialSource[F]): Seq[F] = F.fromSerialList(t)
+
+  @inline final def map[F](t: (F, F)*)(implicit F: IsSerialSink[F]): F = F.toSerialMap(t: _*)
+
+  @inline final def unMap[F](t: F)(implicit F: IsSerialSource[F]): Seq[(F, F)] = F.fromSerialMap(t)
+}
+
 trait IsSerialWritable[T] {
   def pickle[F: IsSerialSink](t: T): F // write t to f
 }
@@ -426,6 +487,8 @@ trait Copyable[T] {
   def copy(from: T, to: T): Unit
 }
 
+trait IsCopySerial[T] extends IsSerializable[T] with Copyable[T]
+
 import net.minecraft.nbt.{ NBTBase, NBTTagCompound }
 import net.minecraft.network.INetworkManager
 import net.minecraft.network.packet.{ Packet, Packet250CustomPayload }
@@ -435,7 +498,8 @@ import cpw.mods.fml.common.network.{ IPacketHandler, Player }
 trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
 
   def channel: String
-  implicit def Repr: IsSerializable[Repr]
+  implicit def WriteRepr: IsSerialWritable[Repr]
+  implicit def ReadRepr: IsSerialReadable[Repr]
   implicit def CopyRepr: Copyable[Repr]
 
   def repr: Repr = this.asInstanceOf[Repr]
@@ -445,22 +509,31 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
   override def readFromNBT(cmp: NBTTagCompound): Unit = {
     super.readFromNBT(cmp)
     val realCmp = cmp.getTag("$serial.data")
-    CopyRepr.copy(Repr.unpickle(realCmp), repr)
+    CopyRepr.copy(ReadRepr.unpickle(realCmp), repr)
   }
 
   override def writeToNBT(cmp: NBTTagCompound): Unit = {
     super.writeToNBT(cmp)
-    val realCmp = Repr.pickle[NBTBase](repr).asInstanceOf[NBTTagCompound]
+    val realCmp = P(NBT, repr).asInstanceOf[NBTTagCompound]
     cmp.setTag("$serial.data", realCmp)
   }
 
   override def getDescriptionPacket(): Packet = {
     val header = ByteBuffer allocate 12 putInt xCoord putInt yCoord putInt zCoord
-    val data = header.array.to[Vector] ++ Repr.pickle[Vector[Byte]](repr)
+    val data = header.array.to[Vector] ++ P(ByteVector, repr)
     new Packet250CustomPayload(channel, data.toArray)
   }
 
   def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: Player): Unit = {
-    CopyRepr.copy(Repr.unpickle(packet.data.to[Vector].drop(12)), repr)
+    CopyRepr.copy(ReadRepr.unpickle(packet.data.to[Vector].drop(12)), repr)
   }
+}
+
+trait SimpleSerialTile[Repr] extends SerialTileEntityLike[Repr] {
+
+  implicit def Repr: IsCopySerial[Repr]
+
+  implicit def WriteRepr: IsSerialWritable[Repr] = Repr
+  implicit def ReadRepr: IsSerialReadable[Repr] = Repr
+  implicit def CopyRepr: Copyable[Repr] = Repr
 }
