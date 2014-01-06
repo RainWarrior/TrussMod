@@ -223,7 +223,7 @@ class TileEntityMotor(
   val cofhRatio = CommonProxy.cofhRatio
   val ic2Ratio = CommonProxy.ic2Ratio
 
-  def channel = modId
+  def channel = tileChannel
   def Repr = TileEntityMotor.serialInstance
 
   lazy val side = EffectiveSide(worldObj)

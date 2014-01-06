@@ -130,7 +130,7 @@ class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, m
 final class TileEntityMovingStrip extends TileEntity with SimpleSerialTile[TileEntityMovingStrip] {
   var parentPos: Option[WorldPos] = None
 
-  def channel = TrussMod.modId
+  def channel = TrussMod.tileChannel
 
   implicit def Repr = TileEntityMovingStrip.serialInstance
 

@@ -489,11 +489,12 @@ trait Copyable[T] {
 
 trait IsCopySerial[T] extends IsSerializable[T] with Copyable[T]
 
+import net.minecraft.entity.Entity
 import net.minecraft.nbt.{ NBTBase, NBTTagCompound }
 import net.minecraft.network.INetworkManager
 import net.minecraft.network.packet.{ Packet, Packet250CustomPayload }
 import net.minecraft.tileentity.TileEntity
-import cpw.mods.fml.common.network.{ IPacketHandler, Player }
+import cpw.mods.fml.common.network.{ IPacketHandler, NetworkRegistry, Player => DPlayer}
 
 trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
 
@@ -505,6 +506,8 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
   def repr: Repr = this.asInstanceOf[Repr]
   implicit def ByteVector: IsSerialFormat[Vector[Byte]] = SerialFormats.vectorSerialInstance
   implicit def NBT: IsSerialFormat[NBTBase] = SerialFormats.nbtSerialInstance
+
+  NetworkRegistry.instance.registerChannel(this, channel)
 
   override def readFromNBT(cmp: NBTTagCompound): Unit = {
     super.readFromNBT(cmp)
@@ -524,8 +527,12 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
     new Packet250CustomPayload(channel, data.toArray)
   }
 
-  def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: Player): Unit = {
-    CopyRepr.copy(ReadRepr.unpickle(packet.data.to[Vector].drop(12)), repr)
+  def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
+    val buf = ByteBuffer.wrap(packet.data, 0, 12)
+    val coords = (buf.getInt, buf.getInt, buf.getInt)
+    if((xCoord, yCoord, zCoord) == coords && player.asInstanceOf[Entity].worldObj == worldObj) {
+      CopyRepr.copy(ReadRepr.unpickle(packet.data.to[Vector].drop(12)), repr)
+    }
   }
 }
 

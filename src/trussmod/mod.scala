@@ -232,12 +232,13 @@ class ClientProxyImpl extends CommonProxyImpl {
   dependencies = "required-after:Forge@[7.8.0.923,);required-after:FML@[5.2.6.923,);after:ImmibisMicroblocks;after:ForgeMultipart"
 )
 @NetworkMod(
-//  channels = Array(modId),
+  channels = Array(modId, tileChannel),
   clientSideRequired = true,
   serverSideRequired = false
 )
 object TrussMod {
   @inline final val modId = "TrussMod"
+  @inline final val tileChannel = "TrussModTileData"
   @inline final val modName = modId
 
   val log = Logger.getLogger(modId)
