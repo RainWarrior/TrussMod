@@ -178,21 +178,23 @@ object TileEntityMovingStrip {
   object serialInstance extends IsSerializable[TileEntityMovingStrip] with Copyable[TileEntityMovingStrip] {
     def pickle[F](te: TileEntityMovingStrip)(implicit F: IsSerialSink[F]): F = {
       @inline def s[A](v: A) = F.toSerial(v)
-      te.parentPos match {
-        case Some(pos) => F.toSerialMap(
-          s("parentX") -> s(pos.x),
-          s("parentY") -> s(pos.y),
-          s("parentZ") -> s(pos.z))
-        case None => F.toSerialMap(
-          s("parentX") -> s(0),
-          s("parentY") -> s(-10),
-          s("parentZ") -> s(0))
+      val (x, y, z) = te.parentPos match {
+        case Some(pos) => pos.toTuple
+        case None => (0, -10, 0)
       }
+      /*F.toSerialMap(
+        s("parentX") -> s(x),
+        s("parentY") -> s(y),
+        s("parentZ") -> s(z)
+      )*/
+      F.toSerialList(s(x), s(y), s(z))
     }
     def unpickle[F](f: F)(implicit F: IsSerialSource[F]): TileEntityMovingStrip = {
-      val map = F.fromSerialMap(f).map{ case (k, v) => F.fromSerial[String](k) -> F.fromSerial[Int](v) }.toMap
+      //val map = F.fromSerialMap(f).map{ case (k, v) => F.fromSerial[String](k) -> F.fromSerial[Int](v) }.toMap
+      val Seq(x, y, z) = F.fromSerialList(f).map(c => F.fromSerial[Int](c))
       val te = new TileEntityMovingStrip
-      te.parentPos = Some((map("parentX"), map("parentY"), map("parentZ")))
+      //te.parentPos = Some((map("parentX"), map("parentY"), map("parentZ")))
+      te.parentPos = Some((x, y, z))
       te
     }
     def copy(from: TileEntityMovingStrip, to: TileEntityMovingStrip): Unit = {
