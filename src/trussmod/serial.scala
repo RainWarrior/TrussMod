@@ -279,14 +279,33 @@ object SerialFormats {
       var length = 1
       var tail = f.tail
       while(tail.head != 'z') {
-        val len = genNextInputLength(tail)
+        val len = getNextInputLength(tail)
         length += len
         tail = tail.drop(len)
       }
       length + 1
     }
 
-    def getNextMapLength(f: Vector[Byte]): Int = ???
+    def getNextMapLength(f: Vector[Byte]): Int = {
+      assert(f.head == 'V'.toByte)
+      var length = 1
+      var tail = f.tail
+      while(tail.head != 'z') {
+        assert(tail.head == '('.toByte)
+        length += 1
+        tail = tail.tail
+        val lenk = getNextInputLength(tail)
+        length += lenk
+        tail = tail.drop(lenk)
+        val lenv = getNextInputLength(tail)
+        length += lenv
+        tail = tail.drop(lenv)
+        assert(tail.head == ')'.toByte)
+        length += 1
+        tail = tail.tail
+      }
+      length + 1
+    }
 
     def empty = Vector.empty[Byte]
 
@@ -316,7 +335,9 @@ object SerialFormats {
       case _ => ???
     }).to[Vector]
 
-    def addTag(t: Vector[Byte], tag: String) = t // maybe todo
+    def addTag(t: Vector[Byte], tag: String) = {
+      toSerial(tag) ++ t
+    }
       
     def fromSerialList(f: Vector[Byte]): Seq[Vector[Byte]] = {
       assert(f.head == 'V'.toByte)
@@ -324,15 +345,34 @@ object SerialFormats {
       var tail = f.tail
       while(tail.head != 'z') {
         val len = getNextInputLength(f.tail)
-        res :+= tail.take(len)
-        tail = tail.drop(len)
+        val (n, nt) = tail.splitAt(len)
+        res :+= n
+        tail = nt
       }
+      assert(tail.length == 1)
       res
     }
 
     def fromSerialMap(f: Vector[Byte]): Seq[(Vector[Byte], Vector[Byte])] = {
       assert(f.head == 'M'.toByte)
-      ??? // TODO
+      var res = Seq.empty[(Vector[Byte], Vector[Byte])]
+      var tail = f.tail
+      while(tail.head != 'z') {
+        assert(tail.head == '('.toByte)
+        tail = tail.tail
+        val lenk = getNextInputLength(tail)
+        val (k, nt1) = tail.splitAt(lenk)
+        tail = nt1
+        val lenv = getNextInputLength(tail)
+        val (v, nt2) = tail.splitAt(lenv)
+        tail = nt2
+        assert(tail.head == ')'.toByte)
+        tail = tail.tail
+
+        res :+= (k -> v)
+      }
+      assert(tail.length == 1)
+      res
     }
 
     def fromSerial[A](f: Vector[Byte])(implicit A: ClassTag[A]): A = try {
@@ -343,15 +383,32 @@ object SerialFormats {
         case java.lang.Long.TYPE      if f.length == 9 && f.head == 'L'.toByte => ByteBuffer.wrap(f.toArray, 1, 8).getLong
         case java.lang.Float.TYPE     if f.length == 5 && f.head == 'F'.toByte => ByteBuffer.wrap(f.toArray, 1, 4).getFloat
         case java.lang.Double.TYPE    if f.length == 9 && f.head == 'D'.toByte => ByteBuffer.wrap(f.toArray, 1, 8).getDouble
-        case java.lang.Boolean.TYPE   if f.length == 1 && f.head == 't'.toByte || f.head == 'f'.toByte => f(0) == 't'.toByte
+        case java.lang.Boolean.TYPE   if f.length == 1 && (f.head == 't'.toByte || f.head == 'f'.toByte) => f(0) == 't'.toByte
         case java.lang.Character.TYPE if f.length == 3 && f.head == 'C'.toByte => ByteBuffer.wrap(f.toArray, 1, 2).getChar
-        case `stringClass`            => ??? // new String(f.toArray, Charset.forName("UTF-8")) TODO
+        case `stringClass`            if f.head == 's' || f.head == 'S' =>
+          var bytes = Vector.empty[Byte]
+          var tail = f
+          while(tail.head == 's') {
+            tail = tail.tail
+            val (b, nt) = tail.splitAt(0x10000)
+            bytes ++= b
+            tail = nt
+          }
+          tail = tail.tail
+          val len = ByteBuffer.wrap(tail.take(2).toArray).getShort
+          val (b, nt) = tail.splitAt(2 + len)
+          bytes ++= b
+          assert(nt.isEmpty)
+          new String(bytes.toArray, Charset.forName("UTF-8"))
       }).asInstanceOf[A]
     } catch {
       case e: MatchError => throw new IllegalArgumentException(s"can't read type $A from vector $f")
     }
 
-    def removeTag(t: Vector[Byte]) = ??? // maybe todo
+    def removeTag(t: Vector[Byte]) = {
+      val (tag, v) = t.splitAt(getNextInputLength(t))
+      (v, fromSerial[String](tag))
+    }
   }
 }
 
