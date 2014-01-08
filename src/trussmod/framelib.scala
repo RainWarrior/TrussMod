@@ -362,7 +362,7 @@ class StripHolder(
   }
 
   def preMove() {
-    log.info(s"stripHolder marking, p: ${WorldPos(parent)}, sd: ${EffectiveSide(parent.worldObj)}")
+    //log.info(s"stripHolder marking, p: ${WorldPos(parent)}, sd: ${EffectiveSide(parent.worldObj)}")
     if(parent.worldObj != null) for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
       MovingRegistry.addMoving(parent.worldObj, c, renderOffset)
       //mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
@@ -402,7 +402,8 @@ class StripHolder(
   }
 
   def pushEntities() {
-    val sh2 = (1F + 2F / 16F) / 16F
+    //val sh2 = (1F + 2F / 16F) / 16F
+    val sh2 = (1F / 16F)
     for (s <- strips) {
       val aabb = getAabb(s.pos)
       //log.info(s"Yup2, ${worldObj.isClient}, $aabb")
@@ -410,14 +411,15 @@ class StripHolder(
         case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
           //log.info(s"Yup, ${dirTo}, $e")
           //e.isAirBorne = true
-          e.moveEntity(
+          /*e.moveEntity(
+            sh2 * parent.dirTo.x,
+            sh2 * parent.dirTo.y,
+            sh2 * parent.dirTo.z)*/
+          e.moveEntity(0, sh2 * parent.dirTo.y, 0)
+          e.addVelocity(
             sh2 * parent.dirTo.x,
             sh2 * parent.dirTo.y,
             sh2 * parent.dirTo.z)
-          /*e.addVelocity(
-            sh2 * dirTo.x,
-            sh2 * dirTo.y,
-            sh2 * dirTo.z)*/
           /*e.posX += sh2 * dirTo.x
           e.posY += sh2 * dirTo.y
           e.posZ += sh2 * dirTo.z*/
