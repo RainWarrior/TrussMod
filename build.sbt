@@ -8,10 +8,10 @@ mcVersion := "1.6.4"
 
 wrapperVersion := "1.7"
 
-packageRegex := "(assets/trussmod/.*|rainwarrior/(trussmod/.*|hooks/.*|[^/]*)|gnu/.*)"
+packageRegex := """(assets/trussmod/(models/(Motor|Frame)\.obj|textures/.*)|rainwarrior/(trussmod/.*|hooks/.*|[^/]*)|gnu/.*)"""
 
 buildName := "TrussMod-beta-%s-%s"
 
-buildId := "30"
+buildId := "32"
 
 compileOrder in Compile := CompileOrder.Mixed
