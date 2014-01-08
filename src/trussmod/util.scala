@@ -143,9 +143,9 @@ object utils {
       def unpickle[F](f: F)(implicit F: IsSerialSource[F]): BlockData = {
         val Seq(x, y, z, dirTo) = P.unList(f)
         new BlockData(
-          P.unpickle[F, Int](x),
-          P.unpickle[F, Int](y),
-          P.unpickle[F, Int](z),
+          P.unpickle[F, Float](x),
+          P.unpickle[F, Float](y),
+          P.unpickle[F, Float](z),
           ForgeDirection.values()(P.unpickle[F, Int](dirTo))
         )
       }
