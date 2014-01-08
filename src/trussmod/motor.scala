@@ -200,6 +200,7 @@ object TileEntityMotor {
       to.energy = from.energy
       to.orientation = from.orientation
       to.stripHolder = from.stripHolder // not deep
+      to.stripHolder.parent = to
     }
   }
 }
@@ -212,10 +213,12 @@ object TileEntityMotor {
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
 class TileEntityMotor(
-    en: Double = 0D,
+    en: Double,
     var orientation: Int = 0,
     var stripHolder: StripHolder = null
 ) extends StripHolderTile with PowerTile with SimpleSerialTile[TileEntityMotor] {
+
+  def this() = this(en = 0D)
   val maxEnergy = CommonProxy.motorCapacity
   val moveEnergy = CommonProxy.moveCost
 

@@ -234,7 +234,7 @@ trait StripHolderTile extends TileEntity {
 }
 
 class StripHolder(
-    parent: StripHolderTile,
+    var parent: StripHolderTile,
     private var strips: Set[StripData] = HashSet.empty[StripData],
     var isMoving: Boolean = false,
     var offset: Int = 0,
