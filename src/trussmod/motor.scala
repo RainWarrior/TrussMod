@@ -201,6 +201,7 @@ object TileEntityMotor {
       to.orientation = from.orientation
       to.stripHolder = from.stripHolder // not deep
       to.stripHolder.parent = to
+      if(to.stripHolder.isMoving) to.stripHolder.preMove()
     }
   }
 }

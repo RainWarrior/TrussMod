@@ -159,6 +159,8 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
 
   model.loadModel("Frame")
   model.loadModel("Motor")
+
+  StatePacketHandler
 }
 
 object ClientProxy extends LoadLater {
@@ -232,7 +234,7 @@ class ClientProxyImpl extends CommonProxyImpl {
   dependencies = "required-after:Forge@[7.8.0.923,);required-after:FML@[5.2.6.923,);after:ImmibisMicroblocks;after:ForgeMultipart"
 )
 @NetworkMod(
-  channels = Array(modId, tileChannel),
+  channels = Array(modId, tileChannel, StatePacketHandler.channel),
   clientSideRequired = true,
   serverSideRequired = false
 )

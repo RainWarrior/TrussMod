@@ -30,6 +30,7 @@ of this Program grant you additional permission to convey the resulting work.
 package rainwarrior.trussmod
 
 import java.util.{ List => JList, ArrayList, EnumSet, Set => JSet, TreeSet => JTreeSet }
+import java.nio.ByteBuffer
 import collection.immutable.{ HashSet, Queue }
 import collection.mutable.{ HashMap => MHashMap, MultiMap, Set => MSet, HashSet => MHashSet }
 import collection.JavaConversions._
@@ -47,7 +48,7 @@ import net.minecraft._,
   item.{ Item, ItemStack },
   nbt.{ NBTTagCompound, NBTTagList },
   network.INetworkManager,
-  network.packet.{ Packet, Packet132TileEntityData },
+  network.packet.{ Packet, Packet132TileEntityData, Packet250CustomPayload },
   tileentity.TileEntity,
   util.AxisAlignedBB,
   world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
@@ -57,7 +58,7 @@ import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.{ common, client, relauncher }
 import common.{ Mod, event, ITickHandler, network, registry, FMLCommonHandler, TickType, SidedProxy }
-import network.NetworkMod
+import network.{ IPacketHandler, NetworkMod, NetworkRegistry, Player => DPlayer }
 import registry.{ GameRegistry, LanguageRegistry, TickRegistry }
 import client.registry.{ ClientRegistry, RenderingRegistry, ISimpleBlockRenderingHandler }
 import relauncher.{ FMLRelaunchLog, Side }
@@ -256,14 +257,14 @@ class StripHolder(
 
   def postMove() {
     //log.info(s"postMove, strips: ${strips.toString}, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
-    /*if(parent.worldObj.isServer) { // TODO send update packet
+    if(parent.worldObj.isServer) {
       val players = parent.worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(parent.xCoord >> 4, parent.zCoord >> 4, false)
       if(players != null) {
-        val packet = parent.getDescriptionPacket
-        packet.asInstanceOf[Packet132TileEntityData].actionType = 2
+        val data = ByteBuffer allocate 12 putInt parent.xCoord putInt parent.yCoord putInt parent.zCoord
+        val packet = new Packet250CustomPayload(StatePacketHandler.channel, data.array)
         players.sendToAllPlayersWatchingChunk(packet)
       }
-    }*/
+    }
     //var t = System.currentTimeMillis
     for(s <- strips) s.cycle(parent.worldObj)
     //println(s"1: ${System.currentTimeMillis - t}")
@@ -459,21 +460,11 @@ class StripHolder(
     }
   }
 
-  // TODO catch update packet
-
-  /*override def onDataPacket(netManager: INetworkManager, packet: Packet132TileEntityData) {
-    //log.info(s"Holder onDatapacket, type: ${packet.actionType}")
-    //log.info(s"onDataPacket, ($xCoord, $yCoord, $zCoord), ${packet.actionType}")
-    packet.actionType match {
-      case 1 => readFromNBT(packet.data)
-      case 2 =>
-        readFromNBT(packet.data)
-        postMove()
-        isMoving = false
-        offset = 0
-    }
-    super.onDataPacket(netManager, packet)
-  }*/
+  def clientPostMove(): Unit = {
+    postMove()
+    isMoving = false
+    offset = 0
+  }
 }
 object StripHolder {
   implicit object serialInstance extends IsSerializable[StripHolder] {
@@ -499,3 +490,17 @@ object StripHolder {
   }
 }
 
+
+object StatePacketHandler extends IPacketHandler {
+  final val channel = modId + "State"
+  NetworkRegistry.instance.registerChannel(this, channel)
+  def onPacketData(nameger: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
+    val world = player.asInstanceOf[Entity].worldObj
+    val buf = ByteBuffer.wrap(packet.data, 0, 12)
+    val (x, y, z) = (buf.getInt, buf.getInt, buf.getInt)
+    world.getBlockTileEntity(x, y, z) match {
+      case te: StripHolderTile => te.stripHolder.clientPostMove()
+      case _ => log.severe(s"stray packet for coords: ($x, $y, $z)")
+    }
+  }
+}
