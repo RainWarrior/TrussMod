@@ -85,15 +85,15 @@ class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, m
   @SideOnly(Side.CLIENT)
   override def registerIcons(registry: IconRegister) {}
 
-  override def createNewTileEntity(world: World) = new TileEntityMovingStrip
+  override def createNewTileEntity(world: World) = new TileEntityMovingStrip(new MovingStripBean(None))
   override def isOpaqueCube = false
   override def renderAsNormalBlock = false
   override def getRenderType = -1
 
   override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
     Option(world.getBlockTileEntity(x, y, z)).collect {
-      case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
-        Option((te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple)).map(p => (te, p))
+      case te: TileEntityMovingStrip if !te.repr.parentPos.isEmpty =>
+        Option((te.worldObj.getBlockTileEntity _).tupled(te.repr.parentPos.get.toTuple)).map(p => (te, p))
     }.flatten.collect {
       case (te, parent: StripHolderTile) =>
         val pos = te - parent.dirTo
@@ -117,8 +117,8 @@ class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, m
   override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
     setBlockBoundsBasedOnState(world, x, y, z)
     Option(world.getBlockTileEntity(x, y, z)).collect {
-      case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
-        Option((te.worldObj.getBlockTileEntity _).tupled(te.parentPos.get.toTuple))
+      case te: TileEntityMovingStrip if !te.repr.parentPos.isEmpty =>
+        Option((te.worldObj.getBlockTileEntity _).tupled(te.repr.parentPos.get.toTuple))
     }.flatten.collect {
       case te: StripHolderTile =>
         val aabb = te.stripHolder.getAabb((x, y, z))
@@ -128,50 +128,40 @@ class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, m
   }
 }
 
-final class TileEntityMovingStrip extends TileEntity with SimpleSerialTile[TileEntityMovingStrip] {
-  var parentPos: Option[WorldPos] = None
+class TileEntityMovingStrip(var repr: MovingStripBean) extends SimpleSerialTile[MovingStripBean, TileEntityMovingStrip] {
+  def this() = this(null)
+  final def channel = tileChannel
+  final def Repr = MovingStripBean.serialInstance
+}
 
-  def channel = TrussMod.tileChannel
+final class MovingStripBean(
+    var parentPos: Option[WorldPos] = None
+  ) extends BeanTE[MovingStripBean, TileEntityMovingStrip] {
 
-  implicit def Repr = TileEntityMovingStrip.serialInstance
-
-  //log.info(s"new TileEntityMovingStrip, pos: ${WorldPos(this)}")
-  override def updateEntity() {
-    //log.info(s"update TileEntityMovingStrip: ${worldObj.isClient}")
-    if(!parentPos.isEmpty) (worldObj.getBlockTileEntity _).tupled(parentPos.get.toTuple) match {
+  override def update() {
+    if(!parentPos.isEmpty) (world.getBlockTileEntity _).tupled(parentPos.get.toTuple) match {
       case parent: StripHolderTile =>
-      case _ => worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
-    } else worldObj.setBlock(xCoord, yCoord, zCoord, 0, 0, 3)
+      case _ => world.setBlock(x, y, z, 0, 0, 3)
+    } else world.setBlock(x, y, z, 0, 0, 3)
   }
 }
-object TileEntityMovingStrip {
-  implicit object serialInstance extends IsCopySerial[TileEntityMovingStrip] {
-    def pickle[F: IsSerialSink](te: TileEntityMovingStrip): F = {
-      val (x, y, z) = te.parentPos match {
+
+object MovingStripBean {
+  implicit object serialInstance extends IsSerializable[MovingStripBean] {
+    def pickle[F: IsSerialSink](b: MovingStripBean): F = {
+      val (x, y, z) = b.parentPos match {
         case Some(pos) => pos.toTuple
         case None => (0, -10, 0)
       }
-      /*F.toSerialMap(
-        s("parentX") -> s(x),
-        s("parentY") -> s(y),
-        s("parentZ") -> s(z)
-      )*/
       P.list(P(x), P(y), P(z))
     }
-    def unpickle[F: IsSerialSource](f: F): TileEntityMovingStrip = {
-      //val map = F.fromSerialMap(f).map{ case (k, v) => F.fromSerial[String](k) -> F.fromSerial[Int](v) }.toMap
+    def unpickle[F: IsSerialSource](f: F): MovingStripBean = {
       val Seq(x, y, z) = P.unList(f).map(c => P.unpickle[F, Int](c))
-      val te = new TileEntityMovingStrip
-      //te.parentPos = Some((map("parentX"), map("parentY"), map("parentZ")))
-      te.parentPos = Some((x, y, z))
-      te
-    }
-    def copy(from: TileEntityMovingStrip, to: TileEntityMovingStrip): Unit = {
-      to.parentPos = from.parentPos
+      new MovingStripBean(Some((x, y, z)))
     }
   }
 }
-  
+
 object StripData {
   implicit object serialInstance extends IsSerializable[StripData] {
     def pickle[F: IsSerialSink](t: StripData): F = {
@@ -372,7 +362,7 @@ class StripHolder(
   }
 
   def preMove() {
-    //log.info(s"stripHolder marking, p: ${WorldPos(this)}, sd: ${EffectiveSide(worldObj)}")
+    log.info(s"stripHolder marking, p: ${WorldPos(parent)}, sd: ${EffectiveSide(parent.worldObj)}")
     if(parent.worldObj != null) for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
       MovingRegistry.addMoving(parent.worldObj, c, renderOffset)
       //mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)

@@ -59,9 +59,8 @@ object Power {
 import Power._
 
 trait CommonTilePower extends TileEntity {
-  private[this] var _energy: Double = 0D
-  def energy = _energy
-  protected[this] def energy_=(en: Double) = _energy = en
+  def energy: Double
+  protected[this] def energy_=(en: Double)
 
   def maxEnergy: Double
 

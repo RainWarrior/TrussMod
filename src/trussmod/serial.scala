@@ -520,30 +520,55 @@ import net.minecraft.nbt.{ NBTBase, NBTTagCompound }
 import net.minecraft.network.INetworkManager
 import net.minecraft.network.packet.{ Packet, Packet132TileEntityData }
 import net.minecraft.tileentity.TileEntity
+import net.minecraft.world.World
 import cpw.mods.fml.common.network.{ IPacketHandler, NetworkRegistry, Player => DPlayer}
 import com.google.common.collect.Multimap
 
-trait SerialTileEntityLike[Repr] extends TileEntity /*with IPacketHandler */{
+trait BeanTE[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] { self: Repr =>
+  private[this] var _parent: Parent = _
+  def parent: Parent = _parent
+  def parent_=(parent: Parent): Unit = _parent = parent
+  def update(): Unit = {}
+  def onInventoryChanged(): Unit = {}
+  def getMaxRenderDistanceSquared: Double = 4096D
+  def receiveClientEvent(num: Int, arg: Int): Boolean = false
+  def canUpdate: Boolean = true
+  def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) =
+    oldId != newId
+  def onChunkUnload(): Unit = {}
+
+  @inline final def world = parent.worldObj
+  @inline final def x = parent.xCoord
+  @inline final def y = parent.yCoord
+  @inline final def z = parent.zCoord
+}
+
+trait SerialTileEntityWrapper[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] extends TileEntity { self: Parent =>
 
   def channel: String
   implicit def WriteRepr: IsSerialWritable[Repr]
   implicit def ReadRepr: IsSerialReadable[Repr]
-  implicit def CopyRepr: Copyable[Repr]
 
-  def repr: Repr = this.asInstanceOf[Repr]
   implicit def ByteVector: IsSerialFormat[Vector[Byte]] = SerialFormats.vectorSerialInstance
   implicit def NBT: IsSerialFormat[NBTBase] = SerialFormats.nbtSerialInstance
 
   //NetworkRegistry.instance.registerChannel(this, channel)
 
+  def repr: Repr
+  def repr_=(repr: Repr): Unit
+
+  if(repr != null) repr.parent = this
+
   override def readFromNBT(cmp: NBTTagCompound): Unit = {
     super.readFromNBT(cmp)
     val realCmp = cmp.getTag("$serial.data")
-    CopyRepr.copy(ReadRepr.unpickle(realCmp), repr)
+    repr = ReadRepr.unpickle(realCmp)
+    repr.parent_=(this)
   }
 
   override def writeToNBT(cmp: NBTTagCompound): Unit = {
     super.writeToNBT(cmp)
+    if(repr == null) throw new RuntimeException("WAT")
     val realCmp = P(NBT, repr)
     cmp.setTag("$serial.data", realCmp)
   }
@@ -552,50 +577,49 @@ trait SerialTileEntityLike[Repr] extends TileEntity /*with IPacketHandler */{
     /*val header = ByteBuffer allocate 12 putInt xCoord putInt yCoord putInt zCoord
     val data = header.array.to[Vector] ++ P(ByteVector, repr)
     new Packet250CustomPayload(channel, data.toArray)*/
+    if(repr == null) throw new RuntimeException("WAT")
     val cmp = new NBTTagCompound
     cmp.setByteArray("$", P(ByteVector, repr).toArray)
     new Packet132TileEntityData(xCoord, yCoord, zCoord, 0, cmp)
   }
 
   override def onDataPacket(manager: INetworkManager, packet: Packet132TileEntityData): Unit = {
-    CopyRepr.copy(ReadRepr.unpickle(packet.data.getByteArray("$").to[Vector]), repr)
+    repr = ReadRepr.unpickle(packet.data.getByteArray("$").to[Vector])
+    repr.parent = this
   }
 
-  /*override def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
-    val buf = ByteBuffer.wrap(packet.data, 0, 12)
-    val coords = (buf.getInt, buf.getInt, buf.getInt)
-    if((xCoord, yCoord, zCoord) == coords && player.asInstanceOf[Entity].worldObj == worldObj) {
-      CopyRepr.copy(ReadRepr.unpickle(packet.data.to[Vector].drop(12)), repr)
-    }
+  override def updateEntity(): Unit = {
+    super.updateEntity()
+    if(repr == null) println("WAT")
+    else repr.update()
   }
 
-  abstract override def validate(): Unit = {
-    super.validate()
-    NetworkRegistry.instance.registerChannel(this, channel)
+  override def onInventoryChanged(): Unit = {
+    super.onInventoryChanged()
+    repr.onInventoryChanged()
   }
 
-  abstract override def invalidate(): Unit = {
-    super.invalidate()
-    NetworkRegistryProxy.universalPacketHandlers.remove(channel, this)
-  }*/
+  override def getMaxRenderDistanceSquared = if(repr == null) 4096D else repr.getMaxRenderDistanceSquared
+
+  override def receiveClientEvent(num: Int, arg: Int) = if(repr == null) false else repr.receiveClientEvent(num, arg)
+
+  override def canUpdate = repr == null || repr.canUpdate
+
+  override def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
+    repr == null || repr.shouldRefresh(oldId, newId, oldMeta, newMeta, world, x, y, z)
+  }
+  override def onChunkUnload(): Unit = {
+    super.onChunkUnload()
+    if(repr != null) repr.onChunkUnload()
+  }
 
 }
-object NetworkRegistryProxy {
-  private[this] lazy val universalPacketHandlersField = {
-    val field = classOf[NetworkRegistry].getDeclaredField("universalPacketHandlers")
-    field.setAccessible(true)
-    field
-  }
 
-  def universalPacketHandlers =
-    universalPacketHandlersField.get(NetworkRegistry.instance).asInstanceOf[Multimap[String, IPacketHandler]]
-}
+trait SimpleSerialTile[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] extends SerialTileEntityWrapper[Repr, Parent] { self: Parent =>
 
-trait SimpleSerialTile[Repr] extends SerialTileEntityLike[Repr] {
-
-  implicit def Repr: IsCopySerial[Repr]
+  implicit def Repr: IsSerializable[Repr]
 
   implicit def WriteRepr: IsSerialWritable[Repr] = Repr
   implicit def ReadRepr: IsSerialReadable[Repr] = Repr
-  implicit def CopyRepr: Copyable[Repr] = Repr
 }
+

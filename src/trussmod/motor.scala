@@ -89,7 +89,12 @@ trait TraitMotor extends BlockContainer {
   @SideOnly(Side.CLIENT)
   override def registerIcons(registry: IconRegister) {}
 
-  override def createNewTileEntity(world: World): TileEntity = new TileEntityMotor
+  override def createNewTileEntity(world: World): TileEntity = {
+    val bean = new MotorBean(new StripHolder(null), 0, 0)
+    val tile = new TileEntityMotor(bean)
+    bean.stripHolder.parent = tile
+    tile
+  }
   override def isOpaqueCube = false
   override def isBlockSolidOnSide(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
     side.ordinal != world.getBlockMetadata(x, y, z)
@@ -152,7 +157,7 @@ trait TraitMotor extends BlockContainer {
     if(te == null)
       throw new RuntimeException("no tile entity!")
 //    FMLCommonHandler.instance.showGuiScreen(te.openGui())
-      if(!te.stripHolder.isMoving) te.rotate(player.isSneaking())
+      if(!te.stripHolder.isMoving) te.repr.rotate(player.isSneaking())
     true
   }
 
@@ -179,69 +184,49 @@ class BlockMotor(id: Int)
 
 import Power._
 
-object TileEntityMotor {
-  implicit object serialInstance extends IsCopySerial[TileEntityMotor] {
-    def pickle[F: IsSerialSink](t: TileEntityMotor): F = {
+object MotorBean {
+  implicit object serialInstance extends IsSerializable[MotorBean] {
+    def pickle[F: IsSerialSink](t: MotorBean): F = {
       P.list(
         P(t.energy),
         P(t.orientation),
         P(t.stripHolder)
       )
     }
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): TileEntityMotor = {
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): MotorBean = {
       val Seq(energy, orientation, stripHolder) = P.unList(f)
-      new TileEntityMotor(
+      new MotorBean(
+        P.unpickle[F, StripHolder](stripHolder),
         P.unpickle[F, Double](energy),
-        P.unpickle[F, Int](orientation),
-        P.unpickle[F, StripHolder](stripHolder)
+        P.unpickle[F, Int](orientation)
       )
-    }
-    def copy(from: TileEntityMotor, to: TileEntityMotor): Unit = {
-      to.energy = from.energy
-      to.orientation = from.orientation
-      to.stripHolder = from.stripHolder // not deep
-      to.stripHolder.parent = to
-      if(to.stripHolder.isMoving) to.stripHolder.preMove()
     }
   }
 }
 
-@Optional.InterfaceList(Array(
-  new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
-  //new Optional.Interface(iface = CBuildcraftPowerReceptor, modid = bcid),
-  new Optional.Interface(iface = CIEnergyHandler, modid = cofhid),
-  //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid),
-  new Optional.Interface(iface = CIEnergySink, modid = icid)
-))
-class TileEntityMotor(
-    en: Double,
-    var orientation: Int = 0,
-    var stripHolder: StripHolder = null
-) extends StripHolderTile with PowerTile with SimpleSerialTile[TileEntityMotor] {
+final class MotorBean(
+    val stripHolder: StripHolder,
+    var energy: Double,
+    var orientation: Int = 0
+) extends BeanTE[MotorBean, TileEntityMotor] {
 
-  def this() = this(en = 0D)
-  val maxEnergy = CommonProxy.motorCapacity
+  override def parent_=(newParent: TileEntityMotor): Unit = {
+    super.parent_=(newParent)
+    stripHolder.parent = parent
+    if(stripHolder.isMoving) stripHolder.preMove()
+  }
+
   val moveEnergy = CommonProxy.moveCost
 
-  val bcRatio = CommonProxy.bcRatio
-  val cofhRatio = CommonProxy.cofhRatio
-  val ic2Ratio = CommonProxy.ic2Ratio
-
-  def channel = tileChannel
-  def Repr = TileEntityMotor.serialInstance
-
-  lazy val side = EffectiveSide(worldObj)
-
-  protected[TileEntityMotor] override def energy_=(en: Double) = super.energy_=(en)
-  energy = en
-  if(stripHolder == null) stripHolder = new StripHolder(this)
+  lazy val side = EffectiveSide(world)
 
   //log.info(s"new TileEntityMotor, isServer: $isServer")
 
-  override def updateEntity() {
-    super.updateEntity()
+  override def update() {
+    //if(stripHolder != null && stripHolder.parent != parent) stripHolder.parent = parent
+
     stripHolder.update()
-    //log.info(s"updateEntity, ($xCoord, $yCoord, $zCoord), ${worldObj.isClient}")
+    //log.info(s"updateEntity, ($xCoord, $yCoord, $zCoord), ${world.isClient}")
   }
   
   override def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
@@ -250,12 +235,12 @@ class TileEntityMotor(
 
   def rotate(isSneaking: Boolean) {
     if(isSneaking) {
-      val meta = getBlockMetadata() match {
+      val meta = parent.getBlockMetadata() match {
         case 5 => 0
-        case _ => getBlockMetadata() + 1
+        case _ => parent.getBlockMetadata() + 1
       }
       //log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
-      worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, meta, 1)
+      world.setBlockMetadataWithNotify(x, y, z, meta, 1)
       //log.info(s"rotated1, m: $getBlockMetadata, meta: $meta, o: $orientation")
     } else {
       orientation = orientation match {
@@ -264,28 +249,28 @@ class TileEntityMotor(
       }
       //log.info(s"rotated2, m: $getBlockMetadata, o: $orientation")
     }
-    worldObj.markBlockForRenderUpdate(xCoord, yCoord, zCoord)
+    world.markBlockForRenderUpdate(x, y, z)
   }
 
-  override def dirTo = ForgeDirection.values()(moveDir(orientation)(getBlockMetadata))
+  def dirTo = ForgeDirection.values()(moveDir(orientation)(parent.getBlockMetadata))
 
-  override def shouldContinue: Boolean = {
+  def shouldContinue: Boolean = {
     //var t = System.currentTimeMillis
 
-    if(!worldObj.isBlockIndirectlyGettingPowered(xCoord, yCoord, zCoord)) return false
+    if(!world.isBlockIndirectlyGettingPowered(x, y, z)) return false
 
     if(energy < moveEnergy - eps) return false
 
-    val meta = getBlockMetadata
-    val pos = WorldPos(this) + ForgeDirection.values()(meta)
-    //log.info(s"shouldUpdate! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(worldObj)}")
-    val id = worldObj.getBlockId(pos.x, pos.y, pos.z)
+    val meta = parent.getBlockMetadata
+    val pos = WorldPos(parent) + ForgeDirection.values()(meta)
+    //log.info(s"shouldUpdate! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(world)}")
+    val id = world.getBlockId(pos.x, pos.y, pos.z)
     if ( id == 0
-      || MovingRegistry.isMoving(this.worldObj, pos.x, pos.y, pos.z)
-      || !CommonProxy.movingTileHandler.canMove(this.worldObj, pos.x, pos.y, pos.z)
+      || MovingRegistry.isMoving(world, pos.x, pos.y, pos.z)
+      || !CommonProxy.movingTileHandler.canMove(world, pos.x, pos.y, pos.z)
     ) return false
 
-    //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(worldObj)}")
+    //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(world)}")
     val blocks = bfs(Queue(pos))
     val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
     for (c <- blocks) {
@@ -310,12 +295,12 @@ class TileEntityMotor(
       val c = pair._1
       if(c.y < 0 || c.y >= 256) true
       else {
-        val id = worldObj.getBlockId(c.x, c.y, c.z)
+        val id = world.getBlockId(c.x, c.y, c.z)
         val block = Block.blocksList(id)
         //log.info(s"block: $block")
         if(block == null) false
         else
-          !block.isBlockReplaceable(worldObj, c.x, c.y, c.z)
+          !block.isBlockReplaceable(world, c.x, c.y, c.z)
       }
     }
 
@@ -323,24 +308,24 @@ class TileEntityMotor(
       stripHolder.isMoving = true
       for ((c, size) <- strips) {
         //log.info(s"c: $c")
-        //CommonProxy.blockMovingStrip.create(worldObj, this, c.x, c.y, c.z, dirTo, size)
-        worldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
-        worldObj.getBlockTileEntity(c.x, c.y, c.z) match {
-          case te: TileEntityMovingStrip => te.parentPos = Some(this)
+        //CommonProxy.blockMovingStrip.create(world, this, c.x, c.y, c.z, dirTo, size)
+        world.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
+        world.getBlockTileEntity(c.x, c.y, c.z) match {
+          case te: TileEntityMovingStrip => te.repr.parentPos = Some(parent)
           case _ =>
         }
-        worldObj.markBlockForUpdate(c.x, c.y, c.z)
+        world.markBlockForUpdate(c.x, c.y, c.z)
         stripHolder += StripData(c, dirTo, size)
       }
-      val manager = worldObj.asInstanceOf[WorldServer].getPlayerManager
+      val manager = world.asInstanceOf[WorldServer].getPlayerManager
       for {
-        players <- Option(manager.getOrCreateChunkWatcher(xCoord >> 4, zCoord >> 4, false))
+        players <- Option(manager.getOrCreateChunkWatcher(x >> 4, z >> 4, false))
       } {
-        players.sendToAllPlayersWatchingChunk(getDescriptionPacket) // TODO check if this is needed/convert to markBlock
+        players.sendToAllPlayersWatchingChunk(parent.getDescriptionPacket) // TODO check if this is needed/convert to markBlock
       }
     }
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
-    //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord) 
+    //world.markBlockForUpdate(xCoord, yCoord, zCoord) 
     if(canMove) energy -= moveEnergy // TODO moveEnergy * blocks.size
     canMove
   }
@@ -351,27 +336,27 @@ class TileEntityMotor(
     greyBlocks match {
       case _ if blackBlocks.size > CommonProxy.structureLimit => blackBlocks
       case Seq() => blackBlocks
-      case Seq(next, rest@ _*) => Block.blocksList(worldObj.getBlockId(next.x, next.y, next.z)) match {
+      case Seq(next, rest@ _*) => Block.blocksList(world.getBlockId(next.x, next.y, next.z)) match {
         case block: Block =>
           val toCheck = for { // TODO: prettify
             dir <- ForgeDirection.VALID_DIRECTIONS.toList
             if (
               (block.isInstanceOf[Frame]
-                && block.asInstanceOf[Frame].isSideSticky(worldObj, next.x, next.y, next.z, dir))
+                && block.asInstanceOf[Frame].isSideSticky(world, next.x, next.y, next.z, dir))
               || {
-                val te = worldObj.getBlockTileEntity(next.x, next.y, next.z)
+                val te = world.getBlockTileEntity(next.x, next.y, next.z)
                 (te.isInstanceOf[Frame]
-                && te.asInstanceOf[Frame].isSideSticky(worldObj, next.x, next.y, next.z, dir))
-              } || MovingTileRegistry.stickyHook(worldObj, next.x, next.y, next.z, dir))
+                && te.asInstanceOf[Frame].isSideSticky(world, next.x, next.y, next.z, dir))
+              } || MovingTileRegistry.stickyHook(world, next.x, next.y, next.z, dir))
             c = next + dir
-            if !(c == WorldPos(this))
+            if !(c == WorldPos(parent))
             if !blackBlocks(c)
             if !greyBlocks.contains(c)
-            if !(MovingRegistry.isMoving(this.worldObj, c.x, c.y, c.z))
-            if !worldObj.isAirBlock(c.x, c.y, c.z)
-            if CommonProxy.movingTileHandler.canMove(this.worldObj, c.x, c.y, c.z)
+            if !(MovingRegistry.isMoving(world, c.x, c.y, c.z))
+            if !world.isAirBlock(c.x, c.y, c.z)
+            if CommonProxy.movingTileHandler.canMove(world, c.x, c.y, c.z)
             /*if !(id == CommonProxy.blockMotorId && {
-              val meta = worldObj.getBlockMetadata(c.x, c.y, c.z)
+              val meta = world.getBlockMetadata(c.x, c.y, c.z)
               c == next - ForgeDirection.values()(meta)
             })*/
           } yield c
@@ -390,6 +375,33 @@ class TileEntityMotor(
       }
     }
   }
+}
+
+@Optional.InterfaceList(Array(
+  new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
+  //new Optional.Interface(iface = CBuildcraftPowerReceptor, modid = bcid),
+  new Optional.Interface(iface = CIEnergyHandler, modid = cofhid),
+  //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid),
+  new Optional.Interface(iface = CIEnergySink, modid = icid)
+))
+class TileEntityMotor(var repr: MotorBean) extends SimpleSerialTile[MotorBean, TileEntityMotor] with StripHolderTile with PowerTile {
+
+  def this() = this(null)
+  final def channel = tileChannel
+  final def Repr = MotorBean.serialInstance
+
+  final def energy = repr.energy
+  protected[this] def energy_=(en: Double) = repr.energy_=(en)
+
+  val maxEnergy = CommonProxy.motorCapacity
+
+  val bcRatio = CommonProxy.bcRatio
+  val cofhRatio = CommonProxy.cofhRatio
+  val ic2Ratio = CommonProxy.ic2Ratio
+
+  @inline final def dirTo = repr.dirTo
+  @inline final def shouldContinue = repr.shouldContinue
+  @inline final def stripHolder = repr.stripHolder
 }
 
 @SideOnly(Side.CLIENT)
@@ -424,6 +436,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     import net.minecraft.client.Minecraft.{ getMinecraft => mc }
     //val rb = mc.renderGlobal.globalRenderBlocks
     val te = tile.asInstanceOf[TileEntityMotor]
+    if(te.repr == null) return
     val block = CommonProxy.blockMotor
     if(te == null) return
 
@@ -437,7 +450,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       te.zCoord)
     //log.info(s"pos: $pos")
     val meta = te.getBlockMetadata
-    val or = te.orientation
+    val or = te.repr.orientation
     val dir = ForgeDirection.values()(meta)
     glColor4f(0F, 0F, 0F, 0F)
     glPushMatrix()
@@ -459,7 +472,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       else (te.stripHolder.offset - 1 + partialTick) * astep
 
     /*tes.startDrawingQuads()
-    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
+    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.world, pos.x, pos.y, pos.z))
     tes.setColorOpaque_F(1, 1, 1)
     model.render("Motor", "Base")
     model.render("Motor", "Frame")
@@ -512,9 +525,9 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
       modelId: Int,
       rb: RenderBlocks) = {
     world.getBlockTileEntity(x, y, z) match {
-      case te: TileEntityMotor =>
+      case te: TileEntityMotor if te.repr != null =>
         val meta = te.getBlockMetadata
-        val or = te.orientation
+        val or = te.repr.orientation
         tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
         tes.setColorOpaque_F(1, 1, 1)
         tes.addTranslation(x + .5F, y + .5F, z + .5F)
