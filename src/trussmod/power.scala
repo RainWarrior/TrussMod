@@ -218,7 +218,10 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
 
   abstract override def invalidate(): Unit = {
     super.invalidate()
-    if(Loader.isModLoaded(icid)) unload()
+    if(Loader.isModLoaded(icid)) {
+      unload()
+      registered = false
+    }
   }
 }
 
