@@ -183,9 +183,9 @@ object SerialFormats {
         list.intArray.map(t => new NBTTagInt(null, t).asInstanceOf[NBTBase]).toVector
       case list: NBTTagCompound if list.getString("$serial.type") == "list" =>
         var res = Seq.empty[NBTBase]
-        for(tag <- list.getTags.asInstanceOf[Collection[NBTBase]]) println(tag.getName)
+        //for(tag <- list.getTags.asInstanceOf[Collection[NBTBase]]) println(tag.getName)
         for(i <- 0 until ((list.getTags.size - 1) / 2)) {
-          println(i)
+          //println(i)
           val t = list.getString(s"t$i")
           val v = list.getTag(s"$i").copy
           v.setName(t)
@@ -348,10 +348,10 @@ object SerialFormats {
       var tail = f.tail
       while(tail.head != 'z') {
         val len = getNextInputLength(tail)
-        println(s"nextlen: $len")
+        //println(s"nextlen: $len")
         val (n, nt) = tail.splitAt(len)
-        println(n)
-        println(nt)
+        //println(n)
+        //println(nt)
         res :+= n
         tail = nt
       }
@@ -518,12 +518,12 @@ trait IsCopySerial[T] extends IsSerializable[T] with Copyable[T]
 import net.minecraft.entity.Entity
 import net.minecraft.nbt.{ NBTBase, NBTTagCompound }
 import net.minecraft.network.INetworkManager
-import net.minecraft.network.packet.{ Packet, Packet250CustomPayload }
+import net.minecraft.network.packet.{ Packet, Packet132TileEntityData }
 import net.minecraft.tileentity.TileEntity
 import cpw.mods.fml.common.network.{ IPacketHandler, NetworkRegistry, Player => DPlayer}
 import com.google.common.collect.Multimap
 
-trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
+trait SerialTileEntityLike[Repr] extends TileEntity /*with IPacketHandler */{
 
   def channel: String
   implicit def WriteRepr: IsSerialWritable[Repr]
@@ -548,13 +548,20 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
     cmp.setTag("$serial.data", realCmp)
   }
 
-  override def getDescriptionPacket(): Packet = {
-    val header = ByteBuffer allocate 12 putInt xCoord putInt yCoord putInt zCoord
+  override def getDescriptionPacket(): Packet = { // TODO maybe split if too big
+    /*val header = ByteBuffer allocate 12 putInt xCoord putInt yCoord putInt zCoord
     val data = header.array.to[Vector] ++ P(ByteVector, repr)
-    new Packet250CustomPayload(channel, data.toArray)
+    new Packet250CustomPayload(channel, data.toArray)*/
+    val cmp = new NBTTagCompound
+    cmp.setByteArray("$", P(ByteVector, repr).toArray)
+    new Packet132TileEntityData(xCoord, yCoord, zCoord, 0, cmp)
   }
 
-  override def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
+  override def onDataPacket(manager: INetworkManager, packet: Packet132TileEntityData): Unit = {
+    CopyRepr.copy(ReadRepr.unpickle(packet.data.getByteArray("$").to[Vector]), repr)
+  }
+
+  /*override def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
     val buf = ByteBuffer.wrap(packet.data, 0, 12)
     val coords = (buf.getInt, buf.getInt, buf.getInt)
     if((xCoord, yCoord, zCoord) == coords && player.asInstanceOf[Entity].worldObj == worldObj) {
@@ -570,7 +577,7 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
   abstract override def invalidate(): Unit = {
     super.invalidate()
     NetworkRegistryProxy.universalPacketHandlers.remove(channel, this)
-  }
+  }*/
 
 }
 object NetworkRegistryProxy {
