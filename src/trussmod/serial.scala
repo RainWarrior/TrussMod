@@ -60,8 +60,15 @@ trait IsSerialSource[F] {
 
   def fromSerialMap(f: F): Seq[(F, F)]
 
-  // should probably have primitives + string
-  def fromSerial[A: ClassTag](f: F): A
+  def fromSerialByte(f: F): Byte
+  def fromSerialShort(f: F): Short
+  def fromSerialInt(f: F): Int
+  def fromSerialLong(f: F): Long
+  def fromSerialFloat(f: F): Float
+  def fromSerialDouble(f: F): Double
+  def fromSerialBoolean(f: F): Boolean
+  def fromSerialChar(f: F): Char
+  def fromSerialString(f: F): String
 
   def removeTag(f: F): (F, String)
 
@@ -176,7 +183,9 @@ object SerialFormats {
         list.intArray.map(t => new NBTTagInt(null, t).asInstanceOf[NBTBase]).toVector
       case list: NBTTagCompound if list.getString("$serial.type") == "list" =>
         var res = Seq.empty[NBTBase]
-        for(i <- 0 until (list.getTags.size - 1)) {
+        for(tag <- list.getTags.asInstanceOf[Collection[NBTBase]]) println(tag.getName)
+        for(i <- 0 until ((list.getTags.size - 1) / 2)) {
+          println(i)
           val t = list.getString(s"t$i")
           val v = list.getTag(s"$i").copy
           v.setName(t)
@@ -190,7 +199,7 @@ object SerialFormats {
     def fromSerialMap(map: NBTBase): Seq[(NBTBase, NBTBase)] = map match {
       case map: NBTTagCompound if map.getString("$serial.type") == "map" =>
         var res = Seq.empty[(NBTBase, NBTBase)]
-        for(i <- 0 until ((map.getTags.size - 1) / 2)) {
+        for(i <- 0 until ((map.getTags.size - 1) / 4)) {
           val kn = map.getString(s"tk$i")
           val k = map.getTag(s"k$i").copy
           k.setName(kn)
@@ -208,21 +217,15 @@ object SerialFormats {
         throw new IllegalArgumentException(s"can't read map from tag $map")
     }
 
-    def fromSerial[A](t: NBTBase)(implicit A: ClassTag[A]): A = try {
-      (A.runtimeClass match { // uglyyyy
-        case java.lang.Byte.TYPE      => Some(t) collect { case t: NBTTagByte   => t.data }
-        case java.lang.Short.TYPE     => Some(t) collect { case t: NBTTagShort  => t.data }
-        case java.lang.Integer.TYPE   => Some(t) collect { case t: NBTTagInt    => t.data }
-        case java.lang.Long.TYPE      => Some(t) collect { case t: NBTTagLong   => t.data }
-        case java.lang.Float.TYPE     => Some(t) collect { case t: NBTTagFloat  => t.data }
-        case java.lang.Double.TYPE    => Some(t) collect { case t: NBTTagDouble => t.data }
-        case java.lang.Boolean.TYPE   => Some(t) collect { case t: NBTTagByte   => t.data > 0 }
-        case java.lang.Character.TYPE => Some(t) collect { case t: NBTTagString => t.data(0) }
-        case `stringClass`            => Some(t) collect { case t: NBTTagString => t.data }
-      }).asInstanceOf[A]
-    } catch {
-      case e: MatchError => throw new IllegalArgumentException(s"can't read type $A from tag $t")
-    }
+    def fromSerialByte(t: NBTBase): Byte = t.asInstanceOf[NBTTagByte].data
+    def fromSerialShort(t: NBTBase): Short = t.asInstanceOf[NBTTagShort].data
+    def fromSerialInt(t: NBTBase): Int = t.asInstanceOf[NBTTagInt].data
+    def fromSerialLong(t: NBTBase): Long = t.asInstanceOf[NBTTagLong].data
+    def fromSerialFloat(t: NBTBase): Float = t.asInstanceOf[NBTTagFloat].data
+    def fromSerialDouble(t: NBTBase): Double = t.asInstanceOf[NBTTagDouble].data
+    def fromSerialBoolean(t: NBTBase): Boolean = t.asInstanceOf[NBTTagByte].data > 0
+    def fromSerialChar(t: NBTBase): Char = t.asInstanceOf[NBTTagString].data(0)
+    def fromSerialString(t: NBTBase): String = t.asInstanceOf[NBTTagString].data
 
     def removeTag(t: NBTBase) = {
       if(t.getName != "") (t.copy.setName(null), t.getName)
@@ -344,8 +347,11 @@ object SerialFormats {
       var res = Seq.empty[Vector[Byte]]
       var tail = f.tail
       while(tail.head != 'z') {
-        val len = getNextInputLength(f.tail)
+        val len = getNextInputLength(tail)
+        println(s"nextlen: $len")
         val (n, nt) = tail.splitAt(len)
+        println(n)
+        println(nt)
         res :+= n
         tail = nt
       }
@@ -375,39 +381,59 @@ object SerialFormats {
       res
     }
 
-    def fromSerial[A](f: Vector[Byte])(implicit A: ClassTag[A]): A = try {
-      (A.runtimeClass match {
-        case java.lang.Byte.TYPE      if f.length == 2 && f.head == 'B'.toByte => f(1)
-        case java.lang.Short.TYPE     if f.length == 3 && f.head == 'W'.toByte => ByteBuffer.wrap(f.toArray, 1, 2).getShort
-        case java.lang.Integer.TYPE   if f.length == 5 && f.head == 'I'.toByte => ByteBuffer.wrap(f.toArray, 1, 4).getInt
-        case java.lang.Long.TYPE      if f.length == 9 && f.head == 'L'.toByte => ByteBuffer.wrap(f.toArray, 1, 8).getLong
-        case java.lang.Float.TYPE     if f.length == 5 && f.head == 'F'.toByte => ByteBuffer.wrap(f.toArray, 1, 4).getFloat
-        case java.lang.Double.TYPE    if f.length == 9 && f.head == 'D'.toByte => ByteBuffer.wrap(f.toArray, 1, 8).getDouble
-        case java.lang.Boolean.TYPE   if f.length == 1 && (f.head == 't'.toByte || f.head == 'f'.toByte) => f(0) == 't'.toByte
-        case java.lang.Character.TYPE if f.length == 3 && f.head == 'C'.toByte => ByteBuffer.wrap(f.toArray, 1, 2).getChar
-        case `stringClass`            if f.head == 's' || f.head == 'S' =>
-          var bytes = Vector.empty[Byte]
-          var tail = f
-          while(tail.head == 's') {
-            tail = tail.tail
-            val (b, nt) = tail.splitAt(0x10000)
-            bytes ++= b
-            tail = nt
-          }
-          tail = tail.tail
-          val len = ByteBuffer.wrap(tail.take(2).toArray).getShort
-          val (b, nt) = tail.splitAt(2 + len)
-          bytes ++= b
-          assert(nt.isEmpty)
-          new String(bytes.toArray, Charset.forName("UTF-8"))
-      }).asInstanceOf[A]
-    } catch {
-      case e: MatchError => throw new IllegalArgumentException(s"can't read type $A from vector $f")
+    def fromSerialByte(f: Vector[Byte]): Byte = {
+      assert(f.length == 2 && f.head == 'B'.toByte)
+      f(1)
+    }
+    def fromSerialShort(f: Vector[Byte]): Short = {
+      assert(f.length == 3 && f.head == 'W'.toByte)
+      ByteBuffer.wrap(f.toArray, 1, 2).getShort
+    }
+    def fromSerialInt(f: Vector[Byte]): Int = {
+      assert(f.length == 5 && f.head == 'I'.toByte)
+      ByteBuffer.wrap(f.toArray, 1, 4).getInt
+    }
+    def fromSerialLong(f: Vector[Byte]): Long = {
+      assert(f.length == 9 && f.head == 'L'.toByte)
+      ByteBuffer.wrap(f.toArray, 1, 8).getLong
+    }
+    def fromSerialFloat(f: Vector[Byte]): Float = {
+      assert(f.length == 5 && f.head == 'F'.toByte)
+      ByteBuffer.wrap(f.toArray, 1, 4).getFloat
+    }
+    def fromSerialDouble(f: Vector[Byte]): Double = {
+      assert(f.length == 9 && f.head == 'D'.toByte)
+      ByteBuffer.wrap(f.toArray, 1, 8).getDouble
+    }
+    def fromSerialBoolean(f: Vector[Byte]): Boolean = {
+      assert(f.length == 1 && (f.head == 't'.toByte || f.head == 'f'.toByte))
+      f(0) == 't'.toByte
+    }
+    def fromSerialChar(f: Vector[Byte]): Char = {
+      assert(f.length == 3 && f.head == 'C'.toByte)
+      ByteBuffer.wrap(f.toArray, 1, 2).getChar
+    }
+    def fromSerialString(f: Vector[Byte]): String = {
+      assert(f.head == 's' || f.head == 'S')
+      var bytes = Vector.empty[Byte]
+      var tail = f
+      while(tail.head == 's') {
+        tail = tail.tail
+        val (b, nt) = tail.splitAt(0x10000)
+        bytes ++= b
+        tail = nt
+      }
+      tail = tail.tail
+      val len = ByteBuffer.wrap(tail.take(2).toArray).getShort
+      val (b, nt) = tail.splitAt(2 + len)
+      bytes ++= b
+      assert(nt.isEmpty)
+      new String(bytes.toArray, Charset.forName("UTF-8"))
     }
 
     def removeTag(t: Vector[Byte]) = {
       val (tag, v) = t.splitAt(getNextInputLength(t))
-      (v, fromSerial[String](tag))
+      (v, fromSerialString(tag))
     }
   }
 }
@@ -415,39 +441,39 @@ object SerialFormats {
 trait PickleInstances {
   implicit object ByteInstance extends IsSerializable[Byte] {
     def pickle[F](t: Byte)(implicit F: IsSerialSink[F]): F = F.toSerial[Byte](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Byte = F.fromSerial[Byte](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Byte = F.fromSerialByte(f)
   }
   implicit object ShortInstance extends IsSerializable[Short] {
     def pickle[F](t: Short)(implicit F: IsSerialSink[F]): F = F.toSerial[Short](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Short = F.fromSerial[Short](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Short = F.fromSerialShort(f)
   }
   implicit object IntInstance extends IsSerializable[Int] {
     def pickle[F](t: Int)(implicit F: IsSerialSink[F]): F = F.toSerial[Int](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Int = F.fromSerial[Int](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Int = F.fromSerialInt(f)
   }
   implicit object LongInstance extends IsSerializable[Long] {
     def pickle[F](t: Long)(implicit F: IsSerialSink[F]): F = F.toSerial[Long](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Long = F.fromSerial[Long](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Long = F.fromSerialLong(f)
   }
   implicit object FloatInstance extends IsSerializable[Float] {
     def pickle[F](t: Float)(implicit F: IsSerialSink[F]): F = F.toSerial[Float](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Float = F.fromSerial[Float](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Float = F.fromSerialFloat(f)
   }
   implicit object DoubleInstance extends IsSerializable[Double] {
     def pickle[F](t: Double)(implicit F: IsSerialSink[F]): F = F.toSerial[Double](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Double = F.fromSerial[Double](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Double = F.fromSerialDouble(f)
   }
   implicit object BooleanInstance extends IsSerializable[Boolean] {
     def pickle[F](t: Boolean)(implicit F: IsSerialSink[F]): F = F.toSerial[Boolean](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Boolean = F.fromSerial[Boolean](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Boolean = F.fromSerialBoolean(f)
   }
   implicit object CharInstance extends IsSerializable[Char] {
     def pickle[F](t: Char)(implicit F: IsSerialSink[F]): F = F.toSerial[Char](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Char = F.fromSerial[Char](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): Char = F.fromSerialChar(f)
   }
   implicit object StringInstance extends IsSerializable[String] {
     def pickle[F](t: String)(implicit F: IsSerialSink[F]): F = F.toSerial[String](t)
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): String = F.fromSerial[String](f)
+    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): String = F.fromSerialString(f)
   }
 }
 
@@ -495,6 +521,7 @@ import net.minecraft.network.INetworkManager
 import net.minecraft.network.packet.{ Packet, Packet250CustomPayload }
 import net.minecraft.tileentity.TileEntity
 import cpw.mods.fml.common.network.{ IPacketHandler, NetworkRegistry, Player => DPlayer}
+import com.google.common.collect.Multimap
 
 trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
 
@@ -507,7 +534,7 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
   implicit def ByteVector: IsSerialFormat[Vector[Byte]] = SerialFormats.vectorSerialInstance
   implicit def NBT: IsSerialFormat[NBTBase] = SerialFormats.nbtSerialInstance
 
-  NetworkRegistry.instance.registerChannel(this, channel)
+  //NetworkRegistry.instance.registerChannel(this, channel)
 
   override def readFromNBT(cmp: NBTTagCompound): Unit = {
     super.readFromNBT(cmp)
@@ -517,7 +544,7 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
 
   override def writeToNBT(cmp: NBTTagCompound): Unit = {
     super.writeToNBT(cmp)
-    val realCmp = P(NBT, repr).asInstanceOf[NBTTagCompound]
+    val realCmp = P(NBT, repr)
     cmp.setTag("$serial.data", realCmp)
   }
 
@@ -527,13 +554,34 @@ trait SerialTileEntityLike[Repr] extends TileEntity with IPacketHandler {
     new Packet250CustomPayload(channel, data.toArray)
   }
 
-  def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
+  override def onPacketData(manager: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
     val buf = ByteBuffer.wrap(packet.data, 0, 12)
     val coords = (buf.getInt, buf.getInt, buf.getInt)
     if((xCoord, yCoord, zCoord) == coords && player.asInstanceOf[Entity].worldObj == worldObj) {
       CopyRepr.copy(ReadRepr.unpickle(packet.data.to[Vector].drop(12)), repr)
     }
   }
+
+  abstract override def validate(): Unit = {
+    super.validate()
+    NetworkRegistry.instance.registerChannel(this, channel)
+  }
+
+  abstract override def invalidate(): Unit = {
+    super.invalidate()
+    NetworkRegistryProxy.universalPacketHandlers.remove(channel, this)
+  }
+
+}
+object NetworkRegistryProxy {
+  private[this] lazy val universalPacketHandlersField = {
+    val field = classOf[NetworkRegistry].getDeclaredField("universalPacketHandlers")
+    field.setAccessible(true)
+    field
+  }
+
+  def universalPacketHandlers =
+    universalPacketHandlersField.get(NetworkRegistry.instance).asInstanceOf[Multimap[String, IPacketHandler]]
 }
 
 trait SimpleSerialTile[Repr] extends SerialTileEntityLike[Repr] {
