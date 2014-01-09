@@ -415,7 +415,7 @@ class StripHolder(
             sh2 * parent.dirTo.x,
             sh2 * parent.dirTo.y,
             sh2 * parent.dirTo.z)*/
-          e.moveEntity(0, sh2 * parent.dirTo.y, 0)
+          e.moveEntity(0, (sh2 * parent.dirTo.y) max 0, 0)
           e.addVelocity(
             sh2 * parent.dirTo.x,
             sh2 * parent.dirTo.y,
