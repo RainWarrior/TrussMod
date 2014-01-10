@@ -42,7 +42,7 @@ import cpw.mods.fml.relauncher.{ Side, SideOnly }
 import Side.CLIENT
 
 import rainwarrior.obj
-import rainwarrior.utils.{ filterQuads, TexturedQuad }
+import rainwarrior.utils.{ filterQuads, TexturedQuad, LightMatrix, light, staticLight }
 import TrussMod._
 
 object model {
@@ -72,7 +72,7 @@ object model {
     models(modelName)(partName)
 
   @SideOnly(CLIENT)
-  def render(modelName: String, partName: String, icon: Icon) {
+  def render(m: LightMatrix, modelName: String, partName: String, icon: Icon) {
     assert(icon != null)
     for {
       f <- getPartFaces(modelName, partName)
@@ -84,6 +84,10 @@ object model {
         v = f(i)
         t = f.tq(i)
       } {
+        val (b, c) = light(m)(v.x, v.y, v.z)
+        val fc = (staticLight(n.x, n.y, n.z) * c).toFloat
+        tes.setColorOpaque_F(fc, fc, fc)
+        tes.setBrightness(b)
         tes.addVertexWithUV(v.x, v.y, v.z,
           icon.getInterpolatedU(t.x * 16),
           icon.getInterpolatedV(16.0 - t.y * 16))
@@ -93,6 +97,7 @@ object model {
 
   @SideOnly(CLIENT)
   def renderTransformed(
+      m: LightMatrix,
       modelName: String,
       partName: String,
       icon: Icon,
@@ -109,6 +114,10 @@ object model {
         t = f.tq(i)
         (x, y, z) = rotator(v.x, v.y, v.z)
       } {
+        val (b, c) = light(m)(x, y, z)
+        val fc = (staticLight(nx, ny, nz) * c).toFloat
+        tes.setColorOpaque_F(fc, fc, fc)
+        tes.setBrightness(b)
         tes.addVertexWithUV(x, y, z,
           icon.getInterpolatedU(t.x * 16),
           icon.getInterpolatedV(16.0 - t.y * 16))

@@ -36,7 +36,7 @@ import net.minecraft._,
   client.renderer.RenderBlocks,
   nbt.NBTTagCompound,
   tileentity.TileEntity,
-  world.{ ChunkPosition, chunk, World },
+  world.{ ChunkPosition, chunk, IBlockAccess, World },
   chunk.storage.ExtendedBlockStorage,
   util.{ MovingObjectPosition, Vec3, Vec3Pool }
 import net.minecraftforge.common.ForgeDirection
@@ -562,4 +562,71 @@ object utils {
         Some((t, normal, sideHit(normal, start - offset + (end - start) * t)))
       case _ => None
     }
+
+  type LightMatrix = Array[Array[Array[Vector3]]]
+
+  val dummyLightMatrix: LightMatrix = {
+    val off = (-1 to 1).toArray
+    off map { ox =>
+      off map { oy =>
+        off map { oz =>
+          Vector3(15, 0, 1)
+        }
+      }
+    }
+  }
+
+  @SideOnly(Side.CLIENT)
+  def getLightMatrix(world: IBlockAccess, x: Int, y: Int, z: Int): Option[LightMatrix] = {
+    val off = (-1 to 1).toArray
+    for {
+      id <- Option(world.getBlockId(x, y, z))
+      block =Block.blocksList(id)
+    } yield {
+      val cb = block.getMixedBrightnessForBlock(world, x, y, z)
+      off map { ox =>
+        off map { oy =>
+          off map { oz =>
+            val b = block.getMixedBrightnessForBlock(world, x + ox, y + oy, z + oz)
+            val rb = if(b == 0) cb else b
+            val sb = (rb >> 20) & 0xF
+            val bb = (rb >> 4) & 0xF
+            val a = block.getAmbientOcclusionLightValue(world, x + ox, y + oy, z + oz)
+            Vector3(sb, bb, a)
+          }
+        }
+      }
+    }
+  }
+
+  @inline final def light(m: LightMatrix)(x: Double, y: Double, z: Double): (Int, Float) = {
+
+    // trilinear interpolation
+    val sx = if(x < .5D) 1 else 2
+    val sy = if(y < .5D) 1 else 2
+    val sz = if(z < .5D) 1 else 2
+
+    val nx = if(x < .5D) x + .5D else x - .5D
+    val ny = if(y < .5D) y + .5D else y - .5D
+    val nz = if(z < .5D) z + .5D else z - .5D
+
+    val worldLight =
+      m(sx - 1)(sy - 1)(sz - 1) * (1D - nx) * (1D - ny) * (1D - nz) +
+      m(sx - 1)(sy - 1)(sz    ) * (1D - nx) * (1D - ny) * nz        +
+      m(sx - 1)(sy    )(sz - 1) * (1D - nx) * ny        * (1D - nz) +
+      m(sx - 1)(sy    )(sz    ) * (1D - nx) * ny        * nz        +
+      m(sx    )(sy - 1)(sz - 1) * nx        * (1D - ny) * (1D - nz) +
+      m(sx    )(sy - 1)(sz    ) * nx        * (1D - ny) * nz        +
+      m(sx    )(sy    )(sz - 1) * nx        * ny        * (1D - nz) +
+      m(sx    )(sy    )(sz    ) * nx        * ny        * nz
+
+    val brightness = (worldLight.x * 16).toInt << 16 | (worldLight.y * 16).toInt
+    (brightness, 1) //worldLight.z.toFloat)
+  }
+
+  @inline final def staticLight(x: Double, y: Double, z: Double): Double = {
+    val s2 = Math.pow(2, .5)
+    val y1 = y + 3 - 2 * s2
+    (x * x * 0.6 + (y1 * y1 * (3 + 2 * s2)) / 8 + z * z * 0.8) / (x * x + y * y + z * z)
+  }
 }

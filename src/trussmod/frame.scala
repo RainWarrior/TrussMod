@@ -173,7 +173,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     RenderHelper.disableStandardItemLighting()
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
-    model.render("Frame", "Frame", model.getIcon("block", "BlockFrame"))
+    model.render(dummyLightMatrix, "Frame", "Frame", model.getIcon("block", "BlockFrame"))
     tes.draw()
     RenderHelper.enableStandardItemLighting()
   }
@@ -188,10 +188,10 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       rb: RenderBlocks) = {
     //rb.setRenderBoundsFromBlock(block)
     //rb.renderStandardBlock(block, x, y, z)
-    tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
-    tes.setColorOpaque_F(1, 1, 1)
+    //tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
+    //tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.render("Frame", "Frame", model.getIcon("block", "BlockFrame"))
+    model.render(getLightMatrix(world, x, y, z).get, "Frame", "Frame", model.getIcon("block", "BlockFrame"))
     tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
     true
   }
@@ -210,7 +210,7 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
     tes.setBrightness(world.getLightBrightnessForSkyBlocks(x, y, z, Block.stone.getLightValue(world, x, y, z)))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
-    model.renderTransformed("Frame", "Frame", model.getIcon("block", "BlockFrame"), sideFixer(sideOffsets))
+    model.renderTransformed(getLightMatrix(world, x, y, z).get, "Frame", "Frame", model.getIcon("block", "BlockFrame"), sideFixer(sideOffsets))
     tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
   }
 

@@ -483,9 +483,9 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       glRotatef(angle, -1, 0, 0)
     }
     tes.startDrawingQuads()
-    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
-    tes.setColorOpaque_F(1, 1, 1)
-    model.render("Motor", "Gear", model.getIcon("block", "MotorGear"))
+    //tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
+    //tes.setColorOpaque_F(1, 1, 1)
+    model.render(getLightMatrix(te.worldObj, pos.x, pos.y, pos.z).get, "Motor", "Gear", model.getIcon("block", "MotorGear")) // slightly incorrect
     tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
@@ -503,14 +503,14 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
     glPushMatrix()
     RenderHelper.disableStandardItemLighting()
     tes.startDrawingQuads()
-    tes.setColorOpaque_F(1, 1, 1)
-    model.render("Motor", "Base", model.getIcon("block", "MotorBase"))
-    model.render("Motor", "Frame", model.getIcon("block", "MotorFrame"))
+    //tes.setColorOpaque_F(1, 1, 1)
+    model.render(dummyLightMatrix, "Motor", "Base", model.getIcon("block", "MotorBase"))
+    model.render(dummyLightMatrix, "Motor", "Frame", model.getIcon("block", "MotorFrame"))
     tes.draw()
     glTranslatef(0, 3F/14F, 0)
     tes.startDrawingQuads()
-    tes.setColorOpaque_F(1, 1, 1)
-    model.render("Motor", "Gear", model.getIcon("block", "MotorGear"))
+    //tes.setColorOpaque_F(1, 1, 1)
+    model.render(dummyLightMatrix, "Motor", "Gear", model.getIcon("block", "MotorGear"))
     tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
@@ -528,11 +528,12 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
       case te: TileEntityMotor if te.repr != null =>
         val meta = te.getBlockMetadata
         val or = te.repr.orientation
-        tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
-        tes.setColorOpaque_F(1, 1, 1)
+        val m = getLightMatrix(world, x, y, z).get
+        //tes.setBrightness(block.getMixedBrightnessForBlock(world, x, y, z))
+        //tes.setColorOpaque_F(1, 1, 1)
         tes.addTranslation(x + .5F, y + .5F, z + .5F)
-        model.renderTransformed("Motor", "Base", model.getIcon("block", "MotorBase"), rotator2(meta, or))
-        model.renderTransformed("Motor", "Frame", model.getIcon("block", "MotorFrame"), rotator2(meta, or))
+        model.renderTransformed(m, "Motor", "Base", model.getIcon("block", "MotorBase"), rotator2(meta, or))
+        model.renderTransformed(m, "Motor", "Frame", model.getIcon("block", "MotorFrame"), rotator2(meta, or))
         tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
         true
       case _ => false
