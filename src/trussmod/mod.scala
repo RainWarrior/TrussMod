@@ -135,11 +135,12 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
   }
 
   val power = config.getCategory("Power")
-  power.setComment("Power consumption and conversion coefficients")
+  power.setComment("Power consumption and conversion coefficients. The cost of moving n blocks is moveCost + n * moveCostMultiplier")
 
   val defaultPowers = Map(
     "motorCapacity" -> 5000D,
-    "moveCost" -> 1600D,
+    "moveCost" -> 200D,
+    "moveCostMultiplier" -> 50D,
     "bcRatio" -> 1.0,
     "cofhRatio" -> 1.0,
     "ic2Ratio" -> 0.5
@@ -148,8 +149,8 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
   for((k, v) <- defaultPowers if !power.containsKey(k))
     power.put(k, new Property(k, v.toString, Property.Type.DOUBLE))
 
-  val Seq(motorCapacity, moveCost, bcRatio, cofhRatio, ic2Ratio) =
-    Seq("motorCapacity", "moveCost", "bcRatio", "cofhRatio", "ic2Ratio") map { k =>
+  val Seq(motorCapacity, moveCost, moveCostMultiplier, bcRatio, cofhRatio, ic2Ratio) =
+    Seq("motorCapacity", "moveCost", "moveCostMultiplier", "bcRatio", "cofhRatio", "ic2Ratio") map { k =>
       val p = power.get(k).getDouble(defaultPowers(k)).max(0D)
       power.put(k, new Property(k, p.toString, Property.Type.DOUBLE))
       p

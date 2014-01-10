@@ -216,7 +216,8 @@ final class MotorBean(
     if(stripHolder.isMoving) stripHolder.preMove()
   }
 
-  val moveEnergy = CommonProxy.moveCost
+  val moveCost = CommonProxy.moveCost
+  val moveCostMultiplier = CommonProxy.moveCostMultiplier
 
   lazy val side = EffectiveSide(world)
 
@@ -259,8 +260,6 @@ final class MotorBean(
 
     if(!world.isBlockIndirectlyGettingPowered(x, y, z)) return false
 
-    if(energy < moveEnergy - eps) return false
-
     val meta = parent.getBlockMetadata
     val pos = WorldPos(parent) + ForgeDirection.values()(meta)
     //log.info(s"shouldUpdate! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(world)}")
@@ -272,6 +271,10 @@ final class MotorBean(
 
     //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(world)}")
     val blocks = bfs(Queue(pos))
+
+    val moveEnergy = moveCost + moveCostMultiplier * blocks.size
+    if(energy < moveEnergy - eps) return false
+
     val map = new MHashMap[Tuple2[Int, Int], MSet[Int]] with MultiMap[Tuple2[Int, Int], Int]
     for (c <- blocks) {
       //log.info(s"c: $c")
