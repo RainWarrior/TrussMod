@@ -602,13 +602,13 @@ object utils {
   @inline final def light(m: LightMatrix)(x: Double, y: Double, z: Double): (Int, Float) = {
 
     // trilinear interpolation
-    val sx = if(x < .5D) 1 else 2
-    val sy = if(y < .5D) 1 else 2
-    val sz = if(z < .5D) 1 else 2
+    val sx = if(x < 0) 1 else 2
+    val sy = if(y < 0) 1 else 2
+    val sz = if(z < 0) 1 else 2
 
-    val nx = if(x < .5D) x + .5D else x - .5D
-    val ny = if(y < .5D) y + .5D else y - .5D
-    val nz = if(z < .5D) z + .5D else z - .5D
+    val nx = if(x < 0) x + 1 else x
+    val ny = if(y < 0) y + 1 else y
+    val nz = if(z < 0) z + 1 else z
 
     val worldLight =
       m(sx - 1)(sy - 1)(sz - 1) * (1D - nx) * (1D - ny) * (1D - nz) +
@@ -621,7 +621,7 @@ object utils {
       m(sx    )(sy    )(sz    ) * nx        * ny        * nz
 
     val brightness = (worldLight.x * 16).toInt << 16 | (worldLight.y * 16).toInt
-    (brightness, 1) //worldLight.z.toFloat)
+    (brightness, 1F) // worldLight.z.toFloat)
   }
 
   @inline final def staticLight(x: Double, y: Double, z: Double): Double = {
