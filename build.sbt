@@ -8,7 +8,7 @@ mcVersion := "1.6.4"
 
 wrapperVersion := "1.7"
 
-packageRegex := """(assets/trussmod/(models/(Motor|Frame)\.obj|textures/.*)|rainwarrior/(trussmod/.*|hooks/.*|[^/]*)|gnu/.*)"""
+packageRegex := """(assets/trussmod/(models/(Motor|Frame)\.obj|textures/.*)|rainwarrior/(trussmod/.*|hooks/.*|serial/.*|[^/]*)|gnu/.*)"""
 
 buildName := "TrussMod-beta-%s-%s"
 
