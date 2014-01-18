@@ -142,7 +142,7 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
     "moveCost" -> 200D,
     "moveCostMultiplier" -> 50D,
     "bcRatio" -> 1.0,
-    "cofhRatio" -> 1.0,
+    "cofhRatio" -> 0.1,
     "ic2Ratio" -> 0.5
   )
 
