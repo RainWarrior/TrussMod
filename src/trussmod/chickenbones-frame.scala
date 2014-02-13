@@ -35,19 +35,19 @@ import net.minecraft._,
   block.{ Block, BlockContainer },
   block.material.Material,
   client.Minecraft.{ getMinecraft => mc },
-  client.renderer.texture.IconRegister,
+  client.renderer.texture.IIconRegister,
   client.renderer.Tessellator.{ instance => tes },
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
   item.{ Item, ItemBlock, ItemStack },
   world.World,
   util.{ MovingObjectPosition, Vec3 }
-import net.minecraftforge.common.ForgeDirection
+import net.minecraftforge.common.util.ForgeDirection
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import TrussMod._
 import rainwarrior.utils.{ Vector3 => MyVector3, _}
 
-import codechicken.lib.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
+/*import codechicken.lib.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
 import codechicken.lib.lighting.{ LazyLightMatrix, LC }
 import codechicken.lib.raytracer.{ ExtendedMOP, RayTracer, IndexedCuboid6 }
 import codechicken.multipart.{
@@ -196,4 +196,4 @@ object ChickenBonesPartConverter extends MultiPartRegistry.IPartConverter {
         null
     }
   }
-}
+}*/

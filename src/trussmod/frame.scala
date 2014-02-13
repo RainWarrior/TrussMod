@@ -39,15 +39,14 @@ import net.minecraft._,
   client.Minecraft.{ getMinecraft => mc },
   client.renderer.tileentity.TileEntitySpecialRenderer,
   client.renderer.Tessellator.{ instance => tes },
-  client.renderer.texture.IconRegister,
+  client.renderer.texture.IIconRegister,
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.Entity,
   entity.player.EntityPlayer,
+  init.{ Blocks, Items },
   item.{ Item, ItemBlock, ItemStack },
   nbt.{ NBTTagCompound, NBTTagList },
-  network.INetworkManager,
-  network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
   util.{ AxisAlignedBB, MovingObjectPosition, Vec3 },
   world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
@@ -57,14 +56,14 @@ import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.{ common, client, relauncher }
 import common.{ Mod, event, network, registry, FMLCommonHandler, SidedProxy }
-import network.NetworkMod
-import registry.{ GameRegistry, LanguageRegistry, TickRegistry }
+import registry.{ GameRegistry, LanguageRegistry }
 import client.registry.{ ClientRegistry, RenderingRegistry, ISimpleBlockRenderingHandler }
 import relauncher.{ FMLRelaunchLog, Side }
-import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
+import net.minecraftforge.common.MinecraftForge
+import net.minecraftforge.common.util.ForgeDirection
 import TrussMod._
 import rainwarrior.utils._
-import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
+//import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 trait Frame {
   def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection): Boolean
@@ -75,19 +74,19 @@ trait TraitFrame extends Block with Frame {
 
   setHardness(5f)
   setResistance(10f)
-  setStepSound(Block.soundMetalFootstep)
-  setUnlocalizedName(s"$modId:BlockFrame")
-  setTextureName(s"$modId:BlockFrame")
+  setStepSound(Block.soundTypeMetal)
+  setBlockName(s"$modId:BlockFrame")
+  setBlockTextureName(s"$modId:BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
 
   import cpw.mods.fml.common.registry._
-  LanguageRegistry.addName(this, "Frame Block")
+  //LanguageRegistry.addName(this, "Frame Block")
   GameRegistry.registerBlock(this, CommonProxy.frameItemClass, "Frame_Block");
   {
     val frame = new ItemStack(this, 8)
-    val iron = new ItemStack(Block.blockIron)
-    val redstone = new ItemStack(Item.redstone)
-    val slime = new ItemStack(Item.slimeBall)
+    val iron = new ItemStack(Blocks.iron_block)
+    val redstone = new ItemStack(Items.redstone)
+    val slime = new ItemStack(Items.slime_ball)
     GameRegistry.addRecipe(
       frame,
       "rsr",
@@ -99,11 +98,11 @@ trait TraitFrame extends Block with Frame {
   }
 
   @SideOnly(Side.CLIENT)
-  override def registerIcons(registry: IconRegister) {}
+  override def registerBlockIcons(registry: IIconRegister) {}
 
   //override def createNewTileEntity(world: World): TileEntity = null // new TileEntityFrame
   override def isOpaqueCube = false
-  override def isBlockSolidOnSide(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
+  override def isSideSolid(world: IBlockAccess, x: Int, y: Int, z: Int, side: ForgeDirection) = {
     true
   }
   override def renderAsNormalBlock = false
@@ -120,13 +119,13 @@ trait TraitFrame extends Block with Frame {
     //world.setBlockMetadata(x, y, z, 13)
   }
 
-  override def breakBlock(world: World, x: Int, y: Int, z: Int, id: Int, metadata: Int) {
+  override def breakBlock(world: World, x: Int, y: Int, z: Int, block: Block, metadata: Int) {
     //TileEntity t = world.getBlockTileEntity(x, y, z)
     //if(t instanceof TileEntityProxy)
     //{
       //((TileEntityProxy)t).invalidate
     //}
-    super.breakBlock(world, x, y, z, id, metadata)
+    super.breakBlock(world, x, y, z, block, metadata)
     //world.notifyBlocksOfNeighborChange(x, y, z, this.blockID)
   }
 
@@ -153,8 +152,8 @@ trait TraitFrame extends Block with Frame {
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = true
 }
 
-class BlockFrame(id: Int)
-  extends Block(id, Material.iron)
+class BlockFrame
+  extends Block(Material.iron)
   with TraitFrame
 
 @SideOnly(Side.CLIENT)
@@ -207,13 +206,13 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       case true => 1
       case false => -1
     }
-    tes.setBrightness(world.getLightBrightnessForSkyBlocks(x, y, z, Block.stone.getLightValue(world, x, y, z)))
+    tes.setBrightness(world.getLightBrightnessForSkyBlocks(x, y, z, Block.blockRegistry.getObject("iron_block").asInstanceOf[Block].getLightValue(world, x, y, z)))
     tes.setColorOpaque_F(1, 1, 1)
     tes.addTranslation(x + .5F, y + .5F, z + .5F)
     model.renderTransformed(getLightMatrix(world, x, y, z).get, "Frame", "Frame", model.getIcon("block", "BlockFrame"), sideFixer(sideOffsets))
     tes.addTranslation(-x - .5F, -y - .5F, -z - .5F)
   }
 
-  override val shouldRender3DInInventory = true
+  override def shouldRender3DInInventory(modelId: Int) = true
   override lazy val getRenderId = RenderingRegistry.getNextAvailableRenderId()
 }

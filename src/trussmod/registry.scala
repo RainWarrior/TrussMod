@@ -41,9 +41,8 @@ import gnu.trove.impl.sync.{
 }
 //import gnu.trove.set.TLongHashSet
 import scala.collection.mutable.OpenHashMap
-import net.minecraftforge.event.ForgeSubscribe
 import net.minecraftforge.client.event.RenderWorldLastEvent
-import net.minecraftforge.common.ForgeDirection
+import net.minecraftforge.common.util.ForgeDirection
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.block.Block
 import net.minecraft.world.{ World, IBlockAccess, EnumSkyBlock }
@@ -51,11 +50,13 @@ import net.minecraft.client.Minecraft
 import Minecraft.{ getMinecraft => mc }
 import net.minecraft.client.renderer.{ tileentity, texture, RenderBlocks, RenderHelper, Tessellator, OpenGlHelper }
 import texture.TextureMap
-import tileentity.{ TileEntityRenderer, TileEntitySpecialRenderer }
+import tileentity.{ TileEntityRendererDispatcher, TileEntitySpecialRenderer }
 import Tessellator.{ instance => tes }
 import java.util.{ EnumSet, Set, HashSet }
 import cpw.mods.fml.{ common, relauncher }
-import common.{ ITickHandler, TickType, registry }
+import common.{ eventhandler, gameevent, registry }
+import eventhandler.SubscribeEvent
+import gameevent.TickEvent
 import relauncher.{ Side, SideOnly }
 import Math.max
 import rainwarrior.utils._
@@ -77,10 +78,10 @@ object HelperRenderer {
     val oldOcclusion = mc.gameSettings.ambientOcclusion
     mc.gameSettings.ambientOcclusion = 0
 
-    val block = Block.blocksList(world.getBlockId(x, y, z))
+    val block = world.getBlock(x, y, z)
     if(block == null) return
 
-    val engine = TileEntityRenderer.instance.renderEngine
+    val engine = TileEntityRendererDispatcher.instance.field_147553_e
     if(engine != null) engine.bindTexture(TextureMap.locationBlocksTexture)
     mc.entityRenderer.enableLightmap(partialTickTime)
     val light = world.getLightBrightnessForSkyBlocks(x, y, z, block.getLightValue(world, x, y, z))
@@ -97,9 +98,9 @@ object HelperRenderer {
     for(pass <- 0 to 1) {
       tes.startDrawingQuads()
       tes.setTranslation(
-        -TileEntityRenderer.staticPlayerX + clamp(-1F, 1F, d.x + d.dirTo.x * tick / 16F),
-        -TileEntityRenderer.staticPlayerY + clamp(-1F, 1F, d.y + d.dirTo.y * tick / 16F),
-        -TileEntityRenderer.staticPlayerZ + clamp(-1F, 1F, d.z + d.dirTo.z * tick / 16F))
+        -TileEntityRendererDispatcher.staticPlayerX + clamp(-1F, 1F, d.x + d.dirTo.x * tick / 16F),
+        -TileEntityRendererDispatcher.staticPlayerY + clamp(-1F, 1F, d.y + d.dirTo.y * tick / 16F),
+        -TileEntityRendererDispatcher.staticPlayerZ + clamp(-1F, 1F, d.z + d.dirTo.z * tick / 16F))
       tes.setColorOpaque(1, 1, 1)
 
       block.getRenderBlockPass()
@@ -119,7 +120,7 @@ object HelperRenderer {
     mc.gameSettings.ambientOcclusion = oldOcclusion
   }
 
-  @ForgeSubscribe
+  @SubscribeEvent
   def onRenderWorld(e: RenderWorldLastEvent) {
     //mc.gameSettings.showDebugInfo = false
     //MovingRegistry.debugOffset.y = Math.sin(System.nanoTime / 0x4000000).toFloat / 2 + .5F
@@ -185,9 +186,9 @@ object MovingRegistry {
     if(world.isRemote) {
       //moving += ((Key(world, pos), offset))
       clientMap.put(packCoords(c.x, c.y, c.z), offset)
-      world.updateAllLightTypes(c.x, c.y, c.z)
+      world.func_147451_t(c.x, c.y, c.z)
       for(d <- ForgeDirection.values) {
-        world.markBlockForRenderUpdate(c.x + d.offsetX, c.y + d.offsetY, c.z + d.offsetZ)
+        world.func_147479_m(c.x + d.offsetX, c.y + d.offsetY, c.z + d.offsetZ)
         //println(f"Update: (${c.x + d.offsetX}, ${c.y + d.offsetY}, ${c.z + d.offsetZ})")
       }
     } else {
@@ -204,9 +205,9 @@ object MovingRegistry {
     if(world.isRemote) {
       //moving -= Key(world, pos)
       clientMap.remove(packCoords(c.x, c.y, c.z))
-      world.updateAllLightTypes(c.x, c.y, c.z)
+      world.func_147451_t(c.x, c.y, c.z)
       for(d <- ForgeDirection.values) {
-        world.markBlockForRenderUpdate(c.x + d.offsetX, c.y + d.offsetY, c.z + d.offsetZ)
+        world.func_147479_m(c.x + d.offsetX, c.y + d.offsetY, c.z + d.offsetZ)
       }
     } else {
       val dim = world.provider.dimensionId
@@ -218,37 +219,36 @@ object MovingRegistry {
   }
 }
 
-object RenderTickHandler extends ITickHandler {
-  override def ticks = EnumSet.of(TickType.RENDER)
-  override def getLabel = "MovingRegistry Render Handler"
-  override def tickStart(tp: EnumSet[TickType], tickData: AnyRef*) {
-    if(tp contains TickType.RENDER) HelperRenderer.onPreRenderTick(tickData(0).asInstanceOf[Float])
-  }
-  override def tickEnd(tp: EnumSet[TickType], tickData: AnyRef*) {
-    if(tp contains TickType.RENDER) HelperRenderer.onPostRenderTick()
+object RenderTickHandler {
+  @SubscribeEvent
+  def onRenderTick(e: TickEvent.RenderTickEvent) {
+    if(e.phase == TickEvent.Phase.START)
+      HelperRenderer.onPreRenderTick(e.renderTickTime)
+    else
+      HelperRenderer.onPostRenderTick()
   }
 }
 
 @SideOnly(Side.CLIENT)
-class MovingTileEntityRenderer extends TileEntityRenderer {
+class MovingTileEntityRenderer extends TileEntityRendererDispatcher {
   import org.lwjgl.opengl.GL11._
-  import TileEntityRenderer._
+  import TileEntityRendererDispatcher._
   import collection.JavaConversions._
   val oldRenderer = instance
-  specialRendererMap = oldRenderer.specialRendererMap
-  for(tesr <- specialRendererMap.asInstanceOf[java.util.HashMap[Class[_], TileEntitySpecialRenderer]].values) {
-    tesr.setTileEntityRenderer(this)
+  mapSpecialRenderers = oldRenderer.mapSpecialRenderers
+  for(tesr <- mapSpecialRenderers.asInstanceOf[java.util.HashMap[Class[_], TileEntitySpecialRenderer]].values) {
+    tesr.func_147497_a(this)
   }
-  TileEntityRenderer.instance = this
+  TileEntityRendererDispatcher.instance = this
   override def renderTileEntity(te: TileEntity, tick: Float) {
-    if (te.getDistanceFrom(this.playerX, this.playerY, this.playerZ) < te.getMaxRenderDistanceSquared()) {
-      val i = this.worldObj.getLightBrightnessForSkyBlocks(te.xCoord, te.yCoord, te.zCoord, 0)
+    if (te.getDistanceFrom(this.field_147560_j, this.field_147561_k, this.field_147558_l) < te.getMaxRenderDistanceSquared()) {
+      val i = this.field_147550_f.getLightBrightnessForSkyBlocks(te.xCoord, te.yCoord, te.zCoord, 0)
       val j = i % 0x10000
       val k = i / 0x10000
       OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, j / 1.0F, k / 1.0F)
       glColor4f(1.0F, 1.0F, 1.0F, 1.0F)
-      if(MovingRegistry.isMoving(te.worldObj, te.xCoord, te.yCoord, te.zCoord)) {
-        val o = MovingRegistry.getData(te.worldObj, (te.xCoord, te.yCoord, te.zCoord))
+      if(MovingRegistry.isMoving(te.getWorldObj, te.xCoord, te.yCoord, te.zCoord)) {
+        val o = MovingRegistry.getData(te.getWorldObj, (te.xCoord, te.yCoord, te.zCoord))
         this.renderTileEntityAt(
           te,
           te.xCoord.toDouble - staticPlayerX + clamp(-1F, 1F, o.x + o.dirTo.x * tick / 16F),
@@ -285,13 +285,14 @@ class MovingRenderBlocks(world: IBlockAccess) extends RenderBlocks(world)
 }
 
 class MovingWorldProxy(val world: World) extends IBlockAccess {
+  override def getBlock(x: Int, y: Int, z: Int) = world.getBlock(x, y, z)
+
+  override def getTileEntity(x: Int, y: Int, z: Int) = world.getTileEntity(x, y, z)
+
   def computeLightValue(x: Int, y: Int, z: Int, tpe: EnumSkyBlock) = {
     (for(dir <- ForgeDirection.VALID_DIRECTIONS; c = (x, y, z) + dir)
       yield world.getSavedLightValue(tpe, c.x, c.y, c.z)).max
   }
-  override def getBlockId(x: Int, y: Int, z: Int) = world.getBlockId(x, y, z)
-
-  override def getBlockTileEntity(x: Int, y: Int, z: Int) = world.getBlockTileEntity(x, y, z)
 
   @SideOnly(Side.CLIENT)
   override def getLightBrightnessForSkyBlocks(x: Int, y: Int, z: Int, light: Int) = 
@@ -305,21 +306,21 @@ class MovingWorldProxy(val world: World) extends IBlockAccess {
 
   override def getBlockMetadata(x: Int, y: Int, z: Int) = world.getBlockMetadata(x, y, z)
 
-  @SideOnly(Side.CLIENT)
-  override def getBrightness(x: Int, y: Int, z: Int, light: Int) = world.getBrightness(x, y, z, light)
+  /*@SideOnly(Side.CLIENT)
+  override def getBrightness(x: Int, y: Int, z: Int, light: Int) = world.getBrightness(x, y, z, light)*/
 
-  @SideOnly(Side.CLIENT)
-  override def getLightBrightness(x: Int, y: Int, z: Int) = world.getLightBrightness(x, y, z)
+  /*@SideOnly(Side.CLIENT)
+  override def getLightBrightness(x: Int, y: Int, z: Int) = world.getLightBrightness(x, y, z)*/
 
-  override def getBlockMaterial(x: Int, y: Int, z: Int) = world.getBlockMaterial(x, y, z)
+  //override def getBlockMaterial(x: Int, y: Int, z: Int) = world.getBlockMaterial(x, y, z)
 
-  @SideOnly(Side.CLIENT)
+  /*@SideOnly(Side.CLIENT)
   override def isBlockOpaqueCube(x: Int, y: Int, z: Int) = MovingRegistry.isMoving(mc.theWorld, x, y, z) match {
     case true => false
     case false => world.isBlockOpaqueCube(x, y, z)
-  }
+  }*/
 
-  override def isBlockNormalCube(x: Int, y: Int, z: Int) = world.isBlockNormalCube(x, y, z)
+  //override def isBlockNormalCube(x: Int, y: Int, z: Int) = world.isBlockNormalCube(x, y, z)
 
   @SideOnly(Side.CLIENT)
   override def isAirBlock(x: Int, y: Int, z: Int) = world.isAirBlock(x, y, z)
@@ -333,15 +334,15 @@ class MovingWorldProxy(val world: World) extends IBlockAccess {
   @SideOnly(Side.CLIENT)
   override def extendedLevelsInChunkCache() = world.extendedLevelsInChunkCache()
 
-  @SideOnly(Side.CLIENT)
+  /*@SideOnly(Side.CLIENT)
   override def doesBlockHaveSolidTopSurface(x: Int, y: Int, z: Int) =
-    world.doesBlockHaveSolidTopSurface(x, y, z)
+    world.doesBlockHaveSolidTopSurface(x, y, z)*/
 
   override def getWorldVec3Pool() = world.getWorldVec3Pool()
 
   override def isBlockProvidingPowerTo(x: Int, y: Int, z: Int, side: Int) =
     world.isBlockProvidingPowerTo(x, y, z, side)
 
-  override def isBlockSolidOnSide(x: Int, y:Int, z:Int, side: ForgeDirection, _default: Boolean) = 
-    world.isBlockSolidOnSide(x, y, z, side, _default)
+  override def isSideSolid(x: Int, y:Int, z:Int, side: ForgeDirection, _default: Boolean) = 
+    world.isSideSolid(x, y, z, side, _default)
 }

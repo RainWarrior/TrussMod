@@ -40,15 +40,15 @@ import net.minecraft._,
   client.Minecraft.{ getMinecraft => mc },
   client.renderer.tileentity.TileEntitySpecialRenderer,
   client.renderer.Tessellator.{ instance => tes },
-  client.renderer.texture.IconRegister,
+  client.renderer.texture.IIconRegister,
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.Entity,
   entity.player.EntityPlayer,
+  init.Blocks,
   item.{ Item, ItemStack },
   nbt.{ NBTTagCompound, NBTTagList },
-  network.INetworkManager,
-  network.packet.{ Packet, Packet132TileEntityData, Packet250CustomPayload },
+  network.NetworkManager,
   tileentity.TileEntity,
   util.AxisAlignedBB,
   world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
@@ -57,12 +57,12 @@ import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.{ common, client, relauncher }
-import common.{ Mod, event, ITickHandler, network, registry, FMLCommonHandler, TickType, SidedProxy }
-import network.{ IPacketHandler, NetworkMod, NetworkRegistry, Player => DPlayer }
-import registry.{ GameRegistry, LanguageRegistry, TickRegistry }
+import common.{ Mod, event, network, registry, FMLCommonHandler }
+import network.{ NetworkRegistry }
+import registry.{ GameRegistry, LanguageRegistry }
 import client.registry.{ ClientRegistry, RenderingRegistry, ISimpleBlockRenderingHandler }
 import relauncher.{ FMLRelaunchLog, Side }
-import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
+import net.minecraftforge.common.util.ForgeDirection
 import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.serial._
@@ -70,39 +70,39 @@ import Serial._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
 
-class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, material) {
+class BlockMovingStrip(material: Material) extends BlockContainer(material) {
   setHardness(-1F)
-  setStepSound(Block.soundGravelFootstep)
-  setUnlocalizedName(modId + ":BlockMovingStrip")
+  setStepSound(Block.soundTypeGravel)
+  setBlockName(modId + ":BlockMovingStrip")
   setCreativeTab(null)
   //setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
 
   import cpw.mods.fml.common.registry._
-  LanguageRegistry.addName(this, "Moving Strip Block")
+  //LanguageRegistry.addName(this, "Moving Strip Block")
   GameRegistry.registerBlock(this, "Moving_Strip_Block")
   GameRegistry.registerTileEntity(classOf[TileEntityMovingStrip], "Moving_Strip_TileEntity")
 
   @SideOnly(Side.CLIENT)
-  override def registerIcons(registry: IconRegister) {}
+  override def registerBlockIcons(registry: IIconRegister) {}
 
-  override def createNewTileEntity(world: World) = new TileEntityMovingStrip(new MovingStripBean(None))
+  override def createNewTileEntity(world: World, meta: Int) = new TileEntityMovingStrip(new MovingStripBean(None))
   override def isOpaqueCube = false
   override def renderAsNormalBlock = false
   override def getRenderType = -1
 
   override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
-    Option(world.getBlockTileEntity(x, y, z)).collect {
+    Option(world.getTileEntity(x, y, z)).collect {
       case te: TileEntityMovingStrip if !te.repr.parentPos.isEmpty =>
-        Option((te.worldObj.getBlockTileEntity _).tupled(te.repr.parentPos.get.toTuple)).map(p => (te, p))
+        Option((te.getWorldObj.getTileEntity _).tupled(te.repr.parentPos.get.toTuple)).map(p => (te, p))
     }.flatten.collect {
       case (te, parent: StripHolderTile) =>
         val pos = te - parent.dirTo
-        val block = Block.blocksList(world.getBlockId(pos.x, pos.y, pos.z))
+        val block = world.getBlock(pos.x, pos.y, pos.z)
         if(parent.stripHolder.offset == 0 || block == null) {
           setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
         } else {
           val shift = (16 - parent.stripHolder.offset).toFloat / 16F
-          //log.info(s"SBBBOS: ${te.worldObj.isClient}, ${(block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat}")
+          //log.info(s"SBBBOS: ${te.getWorldObj.isClient}, ${(block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat}")
           setBlockBounds(
             (block.getBlockBoundsMinX - parent.dirTo.x * shift).toFloat,
             (block.getBlockBoundsMinY - parent.dirTo.y * shift).toFloat,
@@ -116,13 +116,13 @@ class BlockMovingStrip(id: Int, material: Material) extends BlockContainer(id, m
 
   override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
     setBlockBoundsBasedOnState(world, x, y, z)
-    Option(world.getBlockTileEntity(x, y, z)).collect {
+    Option(world.getTileEntity(x, y, z)).collect {
       case te: TileEntityMovingStrip if !te.repr.parentPos.isEmpty =>
-        Option((te.worldObj.getBlockTileEntity _).tupled(te.repr.parentPos.get.toTuple))
+        Option((te.getWorldObj.getTileEntity _).tupled(te.repr.parentPos.get.toTuple))
     }.flatten.collect {
       case te: StripHolderTile =>
         val aabb = te.stripHolder.getAabb((x, y, z))
-        //log.info(s"GCBBFP: ${te.worldObj.isClient}, ${aabb.maxY}")
+        //log.info(s"GCBBFP: ${te.getWorldObj.isClient}, ${aabb.maxY}")
         aabb
     }.orNull
   }
@@ -139,10 +139,10 @@ final class MovingStripBean(
   ) extends BeanTE[MovingStripBean, TileEntityMovingStrip] {
 
   override def update() {
-    if(!parentPos.isEmpty) (world.getBlockTileEntity _).tupled(parentPos.get.toTuple) match {
+    if(!parentPos.isEmpty) (world.getTileEntity _).tupled(parentPos.get.toTuple) match {
       case parent: StripHolderTile =>
-      case _ => world.setBlock(x, y, z, 0, 0, 3)
-    } else world.setBlock(x, y, z, 0, 0, 3)
+      case _ => world.setBlock(x, y, z, Blocks.air, 0, 3)
+    } else world.setBlock(x, y, z, Blocks.air, 0, 3)
   }
 }
 
@@ -177,14 +177,14 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
   def cycle(world: World) {
     val c = pos - dirTo * size
     if(pos.y < 0 || pos.y >= 256) return
-/*    world.getBlockTileEntity(pos.x, pos.y, pos.z) match {
+/*    world.getTileEntity(pos.x, pos.y, pos.z) match {
       case te: TileEntityMovingStrip => te
       case te => 
         log.severe(s"Tried to cycle invalid TE: $te, $pos, ${EffectiveSide(world)}, id: ${world.getBlockId(pos.x, pos.y, pos.z)}")
         //Thread.dumpStack()
     }*/
-    world.removeBlockTileEntity(pos.x, pos.y, pos.z)
-    uncheckedSetBlock(world, pos.x, pos.y, pos.z, 0, 0)
+    world.removeTileEntity(pos.x, pos.y, pos.z)
+    uncheckedSetBlock(world, pos.x, pos.y, pos.z, Blocks.air, 0)
     //world.setBlock(pos.x, pos.y, pos.z, 0, 0, 0)
     for(i <- 1 to size) {
       val c = pos - dirTo * i
@@ -212,7 +212,7 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
       //log.info(s"NOTIFY, pos: $c")
       //world.notifyBlockOfNeighborChange(c.x, c.y, c.z, 0)
       for(d <- ForgeDirection.values()) {
-        world.notifyBlockChange(c.x + d.x, c.y + d.y, c.z + d.z, 0)
+        world.notifyBlockChange(c.x + d.x, c.y + d.y, c.z + d.z, Blocks.air)
       }
     }
   }
@@ -247,28 +247,29 @@ class StripHolder(
 
   def postMove() {
     //log.info(s"postMove, strips: ${strips.toString}, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
-    if(parent.worldObj.isServer) {
-      val players = parent.worldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(parent.xCoord >> 4, parent.zCoord >> 4, false)
+    if(parent.getWorldObj.isServer) {
+      val players = parent.getWorldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(parent.xCoord >> 4, parent.zCoord >> 4, false)
       if(players != null) {
         val data = ByteBuffer allocate 12 putInt parent.xCoord putInt parent.yCoord putInt parent.zCoord
-        val packet = new Packet250CustomPayload(StatePacketHandler.channel, data.array)
-        players.sendToAllPlayersWatchingChunk(packet)
+        // TODO 1.7
+        //val packet = new Packet250CustomPayload(StatePacketHandler.channel, data.array)
+        //players.sendToAllPlayersWatchingChunk(packet)
       }
     }
     //var t = System.currentTimeMillis
-    for(s <- strips) s.cycle(parent.worldObj)
+    for(s <- strips) s.cycle(parent.getWorldObj)
     //println(s"1: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
-    for(s <- strips) s.postCycle(parent.worldObj)
+    for(s <- strips) s.postCycle(parent.getWorldObj)
     //println(s"1: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
-    for(s <- strips) s.stopMoving(parent.worldObj)
+    for(s <- strips) s.stopMoving(parent.getWorldObj)
     //println(s"2: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
     fixScheduledTicks()
     //println(s"3: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
-    for(s <- strips) s.notifyOfChanges(parent.worldObj)
+    for(s <- strips) s.notifyOfChanges(parent.getWorldObj)
     //println(s"4: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
     notifyOfRenderChanges()
@@ -281,7 +282,7 @@ class StripHolder(
   }
 
   def fixScheduledTicks() {
-    parent.worldObj match {
+    parent.getWorldObj match {
       case world: WorldServer =>
         val hash = world.pendingTickListEntriesHashSet.asInstanceOf[JSet[NextTickListEntry]]
         val tree = world.pendingTickListEntriesTreeSet.asInstanceOf[JTreeSet[NextTickListEntry]]
@@ -333,7 +334,7 @@ class StripHolder(
 
   def notifyOfRenderChanges() {
     // fix for WorldRenderer filtering TEs out
-    if(parent.worldObj.isClient) {
+    if(parent.getWorldObj.isClient) {
       /*val coords = for(s <- strips; i <- 0 to s.size) yield s.pos - dirTo * i
       val xs = coords.map(_.x)
       val ys = coords.map(_.y)
@@ -343,7 +344,7 @@ class StripHolder(
       for(pass <- 0 to 1) {
         for {
           c <- allBlocks
-          te = parent.worldObj.getBlockTileEntity(c.x, c.y, c.z)
+          te = parent.getWorldObj.getTileEntity(c.x, c.y, c.z)
         } {
           //log.info(s"NOTIFY RENDER, pos: $c")
           if(te != null)  pass match {
@@ -362,9 +363,9 @@ class StripHolder(
   }
 
   def preMove() {
-    //log.info(s"stripHolder marking, p: ${WorldPos(parent)}, sd: ${EffectiveSide(parent.worldObj)}")
-    if(parent.worldObj != null) for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
-      MovingRegistry.addMoving(parent.worldObj, c, renderOffset)
+    //log.info(s"stripHolder marking, p: ${WorldPos(parent)}, sd: ${EffectiveSide(parent.getWorldObj)}")
+    if(parent.getWorldObj != null) for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
+      MovingRegistry.addMoving(parent.getWorldObj, c, renderOffset)
       //mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
     }
   }
@@ -384,7 +385,7 @@ class StripHolder(
       }
     }
       /*for(s <- strips) {
-        worldObj.getBlockTileEntity(s.pos.x, s.pos.y, s.pos.z) match {
+        worldObj.getTileEntity(s.pos.x, s.pos.y, s.pos.z) match {
           case te: TileEntityMovingStrip => te.parent = this
           case _ =>
         }
@@ -407,7 +408,7 @@ class StripHolder(
     for (s <- strips) {
       val aabb = getAabb(s.pos)
       //log.info(s"Yup2, ${worldObj.isClient}, $aabb")
-      if(aabb != null) parent.worldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
+      if(aabb != null) parent.getWorldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
         case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
           //log.info(s"Yup, ${dirTo}, $e")
           //e.isAirBorne = true
@@ -431,12 +432,12 @@ class StripHolder(
 
   def getAabb(spos: WorldPos) = {
     val pos = spos - parent.dirTo
-    val block = Block.blocksList(parent.worldObj.getBlockId(pos.x, pos.y, pos.z))
+    val block = parent.getWorldObj.getBlock(pos.x, pos.y, pos.z)
     if(!isMoving || block == null) {
       null
     } else {
       val shift = offset.toFloat / 16F
-      block.getCollisionBoundingBoxFromPool(parent.worldObj, pos.x, pos.y, pos.z) match {
+      block.getCollisionBoundingBoxFromPool(parent.getWorldObj, pos.x, pos.y, pos.z) match {
         case aabb: AxisAlignedBB => 
           val dirTo = parent.dirTo
           aabb.minX += shift * Math.min(0, dirTo.x)
@@ -482,17 +483,17 @@ object StripHolder {
   }
 }
 
-
-object StatePacketHandler extends IPacketHandler {
+// TODO 1.7
+/*object StatePacketHandler extends IPacketHandler {
   final val channel = modId + "State"
   NetworkRegistry.instance.registerChannel(this, channel)
   def onPacketData(nameger: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
     val world = player.asInstanceOf[Entity].worldObj
     val buf = ByteBuffer.wrap(packet.data, 0, 12)
     val (x, y, z) = (buf.getInt, buf.getInt, buf.getInt)
-    world.getBlockTileEntity(x, y, z) match {
+    world.getTileEntity(x, y, z) match {
       case te: StripHolderTile => te.stripHolder.clientPostMove()
       case _ => log.severe(s"stray packet for coords: ($x, $y, $z)")
     }
   }
-}
+}*/

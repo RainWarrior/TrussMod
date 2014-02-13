@@ -29,6 +29,8 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.trussmod
 
+import org.apache.logging.log4j.Logger
+
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.Map
 import scala.collection.JavaConversions._
@@ -36,23 +38,22 @@ import scala.collection.JavaConversions._
 import net.minecraft.client.renderer.Tessellator.{ instance => tes }
 import net.minecraft.client.renderer.texture.TextureMap
 import net.minecraft.client.Minecraft.{ getMinecraft => mc }
-import net.minecraft.util.{ Icon, ResourceLocation }
+import net.minecraft.util.IIcon
 
 import cpw.mods.fml.relauncher.{ Side, SideOnly }
 import Side.CLIENT
 
 import rainwarrior.obj
 import rainwarrior.utils.{ filterQuads, TexturedQuad, LightMatrix, light, staticLight }
-import TrussMod._
 
 object model {
   var models = Map.empty[String, Map[String, ArrayBuffer[TexturedQuad]]]
-  var icons = Map.empty[String, Icon]
+  var icons = Map.empty[String, IIcon]
 
-  def loadModel(name: String) {
+  def loadModel(log: Logger, modId: String, name: String) {
     val model = obj.readObj(log, s"/assets/${modId.toLowerCase}/models/$name.obj")
     val partNames = for(o <- model.objects.keys) yield o
-    log.info(s"Loaded model $name with parts ${partNames.mkString}")
+    log.trace(s"Loaded model $name with parts ${partNames.mkString}")
     models += name -> (model.objects.mapValues(filterQuads))
   }
 
@@ -61,18 +62,18 @@ object model {
     case None => throw new RuntimeException(s"Texture $tpe : $name wasn't loaded")
   }
 
-  def loadIcon(map: TextureMap, name: String) = if(map.textureType == 0) {
+  def loadIcon(log: Logger, map: TextureMap, modId: String, name: String) = if(map.getTextureType == 0) {
       val icon = map.registerIcon(s"${modId.toLowerCase}:$name")
       icons += name -> icon
       //tmap.refreshTextures()
-      println((name, icon, s"$modId:$name"))
+      log.trace((name, icon, s"$modId:$name").toString)
   }
 
   def getPartFaces(modelName: String, partName: String) =
     models(modelName)(partName)
 
   @SideOnly(CLIENT)
-  def render(m: LightMatrix, modelName: String, partName: String, icon: Icon) {
+  def render(m: LightMatrix, modelName: String, partName: String, icon: IIcon) {
     assert(icon != null)
     for {
       f <- getPartFaces(modelName, partName)
@@ -100,7 +101,7 @@ object model {
       m: LightMatrix,
       modelName: String,
       partName: String,
-      icon: Icon,
+      icon: IIcon,
       rotator: (Double, Double, Double) => (Double, Double, Double)) {
     for {
       f <- getPartFaces(modelName, partName)

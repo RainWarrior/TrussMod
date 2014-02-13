@@ -89,18 +89,18 @@ object SerialFormats {
     def toSerialList(list: NBTBase*): NBTBase = {
       if(list.forall(t => t.isInstanceOf[NBTTagInt])) {
         val arr = new ArrayBuilder.ofInt
-        list.foreach { case t: NBTTagInt => arr += t.data }
-        new NBTTagIntArray(null, arr.result)
+        list.foreach { case t: NBTTagInt => arr += t.func_150287_d }
+        new NBTTagIntArray(arr.result)
       } else if(list.forall(t => t.isInstanceOf[NBTTagByte])) {
         val arr = new ArrayBuilder.ofByte
-        list.foreach { case t: NBTTagByte => arr += t.data }
-        new NBTTagByteArray(null, arr.result)
+        list.foreach { case t: NBTTagByte => arr += t.func_150290_f }
+        new NBTTagByteArray(arr.result)
       } else {
         val res = new NBTTagCompound
         res.setString("$serial.type", "list")
         var i = 0
         list.foreach { t =>
-          res.setString(s"t$i", t.getName)
+          //res.setString(s"t$i", t.getName)
           res.setTag(s"$i", t)
           i += 1
         }
@@ -119,9 +119,9 @@ object SerialFormats {
         res.setString("$serial.type", "map")
         var i = 0
         map.foreach { case (k, v) =>
-          res.setString(s"tk$i", k.getName)
+          //res.setString(s"tk$i", k.getName)
           res.setTag(s"k$i", k)
-          res.setString(s"tv$i", v.getName)
+          //res.setString(s"tv$i", v.getName)
           res.setTag(s"v$i", v)
           i += 1
         }
@@ -130,24 +130,24 @@ object SerialFormats {
     }
 
     def toSerial[A](v: A): NBTBase = v match { // ugly-ish
-      case v: Byte    => new NBTTagByte(null, v)
-      case v: Short   => new NBTTagShort(null, v)
-      case v: Int     => new NBTTagInt(null, v)
-      case v: Long    => new NBTTagLong(null, v)
-      case v: Float   => new NBTTagFloat(null, v)
-      case v: Double  => new NBTTagDouble(null, v)
-      case v: Boolean => new NBTTagByte(null, if(v) 1 else 0)
-      case v: Char    => new NBTTagString(null, v.toString)
-      case v: String  => new NBTTagString(null, v)
+      case v: Byte    => new NBTTagByte(v)
+      case v: Short   => new NBTTagShort(v)
+      case v: Int     => new NBTTagInt(v)
+      case v: Long    => new NBTTagLong(v)
+      case v: Float   => new NBTTagFloat(v)
+      case v: Double  => new NBTTagDouble(v)
+      case v: Boolean => new NBTTagByte(if(v) 1 else 0)
+      case v: Char    => new NBTTagString(v.toString)
+      case v: String  => new NBTTagString(v)
       case _ => ???
     }
 
     def addTag(t: NBTBase, tag: String) = {
-      if (t.getName == "") {
+      /*if (t.getName == "") {
         val res = t.copy
         res.setName(tag)
         res
-      } else ???
+      } else*/ ???
     }
 
     /*def append(seq: NBTBase, f: NBTBase): NBTBase = seq match {
@@ -178,17 +178,17 @@ object SerialFormats {
 
     def fromSerialList(list: NBTBase): Seq[NBTBase] = list match {
       case list: NBTTagByteArray =>
-        list.byteArray.map(t => new NBTTagByte(null, t).asInstanceOf[NBTBase]).toVector
+        list.func_150292_c.map(t => new NBTTagByte(t).asInstanceOf[NBTBase]).toVector
       case list: NBTTagIntArray =>
-        list.intArray.map(t => new NBTTagInt(null, t).asInstanceOf[NBTBase]).toVector
+        list.func_150302_c.map(t => new NBTTagInt(t).asInstanceOf[NBTBase]).toVector
       case list: NBTTagCompound if list.getString("$serial.type") == "list" =>
         var res = Seq.empty[NBTBase]
         //for(tag <- list.getTags.asInstanceOf[Collection[NBTBase]]) println(tag.getName)
-        for(i <- 0 until ((list.getTags.size - 1) / 2)) {
+        for(i <- 0 until ((list.func_150296_c.size - 1) / 2)) {
           //println(i)
-          val t = list.getString(s"t$i")
+          //val t = list.getString(s"t$i")
           val v = list.getTag(s"$i").copy
-          v.setName(t)
+          //v.setName(t)
           res :+= v
         }
         res
@@ -199,37 +199,38 @@ object SerialFormats {
     def fromSerialMap(map: NBTBase): Seq[(NBTBase, NBTBase)] = map match {
       case map: NBTTagCompound if map.getString("$serial.type") == "map" =>
         var res = Seq.empty[(NBTBase, NBTBase)]
-        for(i <- 0 until ((map.getTags.size - 1) / 4)) {
-          val kn = map.getString(s"tk$i")
+        for(i <- 0 until ((map.func_150296_c.size - 1) / 4)) {
+          //val kn = map.getString(s"tk$i")
           val k = map.getTag(s"k$i").copy
-          k.setName(kn)
-          val vn = map.getString(s"tv$i")
+          //k.setName(kn)
+          //val vn = map.getString(s"tv$i")
           val v = map.getTag(s"v$i").copy
-          v.setName(vn)
+          //v.setName(vn)
           res :+= (k -> v)
         }
         res
       case map: NBTTagCompound if map.getString("$serial.type") == "mapCompact" =>
-        map.getTags.asInstanceOf[Collection[NBTBase]].map { t =>
-          new NBTTagString(null, t.getName).asInstanceOf[NBTBase] -> t.copy
+        map.func_150296_c.asInstanceOf[Set[String]].map { k =>
+          val t = map.getTag(k)
+          new NBTTagString(k).asInstanceOf[NBTBase] -> t.copy
         }.toVector
       case _ =>
         throw new IllegalArgumentException(s"can't read map from tag $map")
     }
 
-    def fromSerialByte(t: NBTBase): Byte = t.asInstanceOf[NBTTagByte].data
-    def fromSerialShort(t: NBTBase): Short = t.asInstanceOf[NBTTagShort].data
-    def fromSerialInt(t: NBTBase): Int = t.asInstanceOf[NBTTagInt].data
-    def fromSerialLong(t: NBTBase): Long = t.asInstanceOf[NBTTagLong].data
-    def fromSerialFloat(t: NBTBase): Float = t.asInstanceOf[NBTTagFloat].data
-    def fromSerialDouble(t: NBTBase): Double = t.asInstanceOf[NBTTagDouble].data
-    def fromSerialBoolean(t: NBTBase): Boolean = t.asInstanceOf[NBTTagByte].data > 0
-    def fromSerialChar(t: NBTBase): Char = t.asInstanceOf[NBTTagString].data(0)
-    def fromSerialString(t: NBTBase): String = t.asInstanceOf[NBTTagString].data
+    def fromSerialByte(t: NBTBase): Byte = t.asInstanceOf[NBTTagByte].func_150290_f
+    def fromSerialShort(t: NBTBase): Short = t.asInstanceOf[NBTTagShort].func_150289_e
+    def fromSerialInt(t: NBTBase): Int = t.asInstanceOf[NBTTagInt].func_150287_d
+    def fromSerialLong(t: NBTBase): Long = t.asInstanceOf[NBTTagLong].func_150291_c
+    def fromSerialFloat(t: NBTBase): Float = t.asInstanceOf[NBTTagFloat].func_150288_h
+    def fromSerialDouble(t: NBTBase): Double = t.asInstanceOf[NBTTagDouble].func_150286_g
+    def fromSerialBoolean(t: NBTBase): Boolean = t.asInstanceOf[NBTTagByte].func_150290_f > 0
+    def fromSerialChar(t: NBTBase): Char = t.asInstanceOf[NBTTagString].func_150285_a_()(0)
+    def fromSerialString(t: NBTBase): String = t.asInstanceOf[NBTTagString].func_150285_a_
 
     def removeTag(t: NBTBase) = {
-      if(t.getName != "") (t.copy.setName(null), t.getName)
-      else ???
+      /*if(t.getName != "") (t.copy.setName(null), t.getName)
+      else*/ ???
     }
 
     /*def extract(list: NBTBase): (NBTBase, NBTBase) = list match {
@@ -515,29 +516,29 @@ trait Copyable[T] {
 
 trait IsCopySerial[T] extends IsSerializable[T] with Copyable[T]
 
+import net.minecraft.block.Block
 import net.minecraft.entity.Entity
 import net.minecraft.nbt.{ NBTBase, NBTTagCompound }
-import net.minecraft.network.INetworkManager
-import net.minecraft.network.packet.{ Packet, Packet132TileEntityData }
+import net.minecraft.network.NetworkManager
+import net.minecraft.network.Packet
+import net.minecraft.network.play.server.S35PacketUpdateTileEntity
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.world.World
-import cpw.mods.fml.common.network.{ IPacketHandler, NetworkRegistry, Player => DPlayer}
-import com.google.common.collect.Multimap
 
 trait BeanTE[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] { self: Repr =>
   private[this] var _parent: Parent = _
   def parent: Parent = _parent
   def parent_=(parent: Parent): Unit = _parent = parent
   def update(): Unit = {}
-  def onInventoryChanged(): Unit = {}
+  def markDirty(): Unit = {}
   def getMaxRenderDistanceSquared: Double = 4096D
   def receiveClientEvent(num: Int, arg: Int): Boolean = false
   def canUpdate: Boolean = true
-  def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) =
-    oldId != newId
+  def shouldRefresh(oldBlock: Block, newBlock: Block, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) =
+    oldBlock ne newBlock
   def onChunkUnload(): Unit = {}
 
-  @inline final def world = parent.worldObj
+  @inline final def world = parent.getWorldObj()
   @inline final def x = parent.xCoord
   @inline final def y = parent.yCoord
   @inline final def z = parent.zCoord
@@ -545,14 +546,11 @@ trait BeanTE[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileE
 
 trait SerialTileEntityWrapper[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] extends TileEntity { self: Parent =>
 
-  def channel: String
   implicit def WriteRepr: IsSerialWritable[Repr]
   implicit def ReadRepr: IsSerialReadable[Repr]
 
   implicit def ByteVector: IsSerialFormat[Vector[Byte]] = SerialFormats.vectorSerialInstance
   implicit def NBT: IsSerialFormat[NBTBase] = SerialFormats.nbtSerialInstance
-
-  //NetworkRegistry.instance.registerChannel(this, channel)
 
   def repr: Repr
   def repr_=(repr: Repr): Unit
@@ -574,17 +572,14 @@ trait SerialTileEntityWrapper[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity
   }
 
   override def getDescriptionPacket(): Packet = { // TODO maybe split if too big
-    /*val header = ByteBuffer allocate 12 putInt xCoord putInt yCoord putInt zCoord
-    val data = header.array.to[Vector] ++ P(ByteVector, repr)
-    new Packet250CustomPayload(channel, data.toArray)*/
     if(repr == null) throw new RuntimeException("WAT")
     val cmp = new NBTTagCompound
     cmp.setByteArray("$", P(ByteVector, repr).toArray)
-    new Packet132TileEntityData(xCoord, yCoord, zCoord, 0, cmp)
+    new S35PacketUpdateTileEntity(xCoord, yCoord, zCoord, 0, cmp)
   }
 
-  override def onDataPacket(manager: INetworkManager, packet: Packet132TileEntityData): Unit = {
-    repr = ReadRepr.unpickle(packet.data.getByteArray("$").to[Vector])
+  override def onDataPacket(manager: NetworkManager, packet: S35PacketUpdateTileEntity): Unit = {
+    repr = ReadRepr.unpickle(packet.func_148857_g.getByteArray("$").to[Vector])
     repr.parent = this
   }
 
@@ -594,19 +589,19 @@ trait SerialTileEntityWrapper[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity
     else repr.update()
   }
 
-  override def onInventoryChanged(): Unit = {
-    super.onInventoryChanged()
-    repr.onInventoryChanged()
+  override def markDirty(): Unit = {
+    super.markDirty()
+    repr.markDirty()
   }
 
-  override def getMaxRenderDistanceSquared = if(repr == null) 4096D else repr.getMaxRenderDistanceSquared
+  //override def getMaxRenderDistanceSquared = if(repr == null) 4096D else repr.getMaxRenderDistanceSquared
 
-  override def receiveClientEvent(num: Int, arg: Int) = if(repr == null) false else repr.receiveClientEvent(num, arg)
+  //override def receiveClientEvent(num: Int, arg: Int) = if(repr == null) false else repr.receiveClientEvent(num, arg)
 
   override def canUpdate = repr == null || repr.canUpdate
 
-  override def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
-    repr == null || repr.shouldRefresh(oldId, newId, oldMeta, newMeta, world, x, y, z)
+  override def shouldRefresh(oldBlock: Block, newBlock: Block, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
+    repr == null || repr.shouldRefresh(oldBlock, newBlock, oldMeta, newMeta, world, x, y, z)
   }
   override def onChunkUnload(): Unit = {
     super.onChunkUnload()

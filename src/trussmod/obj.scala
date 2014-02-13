@@ -29,7 +29,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior
 
-import java.util.logging.Logger
+import org.apache.logging.log4j.Logger
 import scala.util.parsing.combinator._
 import scala.io.Source
 import scala.collection.mutable.{ ArrayBuffer, Map => MMap }
@@ -181,7 +181,7 @@ object obj {
 
     def lod: Parser[LodLevel] = line("lod", int ^? ({ case l if(l >= 0 && l <= 100) => LodLevel(l) }, l => s"lod level $l is out of range"))
 
-    def unsupported: Parser[Null] = """^(maplib|usemap|usemtl|mtllib|shadow_obj|trace_obj|deg|bmat|step|curv|curv2|surf|parm|trim|hole|scrv|sp|end|con|mg|ctech|stech).*""".r <~ """\n""".r ^^ { l => log.warning(s"Ignoring statement: '$l'"); null }
+    def unsupported: Parser[Null] = """^(maplib|usemap|usemtl|mtllib|shadow_obj|trace_obj|deg|bmat|step|curv|curv2|surf|parm|trim|hole|scrv|sp|end|con|mg|ctech|stech).*""".r <~ """\n""".r ^^ { l => log.warn(s"Ignoring statement: '$l'"); null }
 
     def obj: Parser[List[ResultElement]] = rep(v|vn|vt|p|l|f|g|s|o|bevel|c_interp|d_interp|lod|unsupported)
   }

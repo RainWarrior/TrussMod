@@ -45,8 +45,6 @@ import net.minecraft._,
   entity.player.EntityPlayer,
   item.{ Item, ItemStack },
   nbt.{ NBTTagCompound, NBTTagList },
-  network.INetworkManager,
-  network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
   util.{ AxisAlignedBB, MovingObjectPosition, Vec3 },
   world.{ ChunkPosition, chunk, EnumSkyBlock, IBlockAccess, NextTickListEntry, World, WorldServer },
@@ -55,17 +53,16 @@ import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.{ common, client, relauncher }
-import common.{ Mod, event, network, registry, FMLCommonHandler, SidedProxy }
-import network.NetworkMod
-import registry.{ GameRegistry, LanguageRegistry, TickRegistry }
+import common.{ Mod, event, registry, FMLCommonHandler, SidedProxy }
+import registry.{ GameRegistry, LanguageRegistry }
 import client.registry.{ ClientRegistry, RenderingRegistry, ISimpleBlockRenderingHandler }
 import relauncher.{ FMLRelaunchLog, Side }
-import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
+import net.minecraftforge.common.util.ForgeDirection
 import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
-import mods.immibis.core.api.multipart.util.BlockMultipartBase
+/*import mods.immibis.core.api.multipart.util.BlockMultipartBase
 import mods.immibis.microblocks.api.util.TileCoverableBase
 import mods.immibis.microblocks.api.{ EnumPosition, EnumPositionClass, IMicroblockCoverSystem, PartType }
 
@@ -188,5 +185,4 @@ class TileEntityImmibisFrame extends TileCoverableBase {
 
   override def getNumTileOwnedParts() = 1
 
-}
-
+}*/

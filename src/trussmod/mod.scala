@@ -36,19 +36,20 @@ import net.minecraft.{ block, item },
 import collection.mutable.ListBuffer
 import collection.JavaConversions._
 import annotation.meta.{ companionClass, companionObject }
-import java.util.logging.Logger
+//import java.util.logging.Logger
+import org.apache.logging.log4j.{ Logger, LogManager }
 import java.io.File
 import cpw.mods.fml.{ common, relauncher }
-import common.{ Mod, event, Loader, network, Optional, FMLCommonHandler, SidedProxy }
+import common.{ Mod, event, eventhandler, Loader, Optional, FMLCommonHandler, SidedProxy }
+import eventhandler.SubscribeEvent
 import relauncher.{ FMLRelaunchLog, Side }
-import network.NetworkMod
-import net.minecraftforge.common.{ Configuration, Property }
+import net.minecraftforge.common.config.{ Configuration, Property }
 import rainwarrior.hooks.{
   ITileHandler,
   MovingRegistry,
   MovingTileRegistry,
   TileHandlerIdDispatcher,
-  TMultipartTileHandler,
+  //TMultipartTileHandler,
   HelperRenderer
 }
 import rainwarrior.utils._
@@ -63,18 +64,18 @@ object CommonProxy extends LoadLater {
   
   val structureLimit = config.get("Main", "structure_limit", 4096, "Maximum number of blocks in one structure").getInt()
 
-  val blockFrameId = config.getBlock("frame", 501).getInt()
+  //val blockFrameId = config.getBlock("frame", 501).getInt()
   val frameItemClass = proxy.genFrameItem()
   val frameBlock = proxy.genFrameBlock()
 
-  val blockMotorId = config.getBlock("motor", 502).getInt()
-  val blockMotor = new BlockMotor(blockMotorId)
+  //val blockMotorId = config.getBlock("motor", 502).getInt()
+  val blockMotor = new BlockMotor
 
-  val blockMovingStripId = config.getBlock("movingStrip", 503, "Util block, shouldn't be used in the normal game").getInt()
-  val blockMovingStrip = new BlockMovingStrip(blockMovingStripId, Material.iron)
+  //val blockMovingStripId = config.getBlock("movingStrip", 503, "Util block, shouldn't be used in the normal game").getInt()
+  val blockMovingStrip = new BlockMovingStrip(Material.iron)
 
   //val debugItemId = config.getItem("debug", 504).getInt
-  //val debugItem = new DebugItem(debugItemId)
+  val debugItem = new DebugItem
 
   val handlers = config.getCategory("Mod Handlers")
   handlers.setComment("""
@@ -112,7 +113,7 @@ Other keys can be:
     MovingTileRegistry.setHandler(k, v)
   }
 
-  MovingTileRegistry.setHandler(blockMovingStripId.toString, "immovable")
+  //MovingTileRegistry.setHandler(blockMovingStripId.toString, "immovable")
 
   val sets = config.getCategory("Sticky Sets")
   sets.setComment("""
@@ -158,20 +159,19 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
 
   config.save()
 
-  model.loadModel("Frame")
-  model.loadModel("Motor")
+  model.loadModel(log, modId, "Frame")
+  model.loadModel(log, modId, "Motor")
 
-  StatePacketHandler
+  //StatePacketHandler
 }
 
 object ClientProxy extends LoadLater {
   import cpw.mods.fml.common.registry._
   import cpw.mods.fml.client.registry._
-  import net.minecraftforge.event.ForgeSubscribe
   import net.minecraftforge.client.event.TextureStitchEvent
   import net.minecraftforge.common.MinecraftForge.EVENT_BUS
 
-  TickRegistry.registerTickHandler(rainwarrior.hooks.RenderTickHandler, Side.CLIENT)
+  FMLCommonHandler.instance.bus.register(rainwarrior.hooks.RenderTickHandler)
   ClientRegistry.bindTileEntitySpecialRenderer(classOf[TileEntityMotor], TileEntityMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockMotorRenderer)
   RenderingRegistry.registerBlockHandler(BlockFrameRenderer)
@@ -180,16 +180,16 @@ object ClientProxy extends LoadLater {
 
   val motorIconNames = Array(List("Base", "Gear", "Frame").map("Motor" + _): _*)
 
-  @ForgeSubscribe
-  def registerIcons(e: TextureStitchEvent.Pre) = if(e.map.textureType == 0) {
-    for (name <- motorIconNames) model.loadIcon(e.map, name)
-    model.loadIcon(e.map, "BlockFrame")
+  @SubscribeEvent
+  def registerIcons(e: TextureStitchEvent.Pre) = if(e.map.getTextureType == 0) {
+    for (name <- motorIconNames) model.loadIcon(log, e.map, modId, name)
+    model.loadIcon(log, e.map, modId, "BlockFrame")
   }
 }
 
 class ProxyParent {
   def genFrameBlock(): Block =
-    new BlockFrame(CommonProxy.blockFrameId)
+    new BlockFrame
 
   def genFrameItem(): Class[_ <: ItemBlock] =
     classOf[ItemBlock]
@@ -200,7 +200,7 @@ class ProxyParent {
 
 @Optional.InterfaceList(Array())
 class CommonProxyImpl extends ProxyParent {
-  @Optional.Method(modid = "ImmibisMicroblocks")
+  /*@Optional.Method(modid = "ImmibisMicroblocks")
   override def genFrameBlock(): Block =
     new BlockImmibisFrame(CommonProxy.blockFrameId)
 
@@ -216,7 +216,7 @@ class CommonProxyImpl extends ProxyParent {
 
   @Optional.Method(modid = "ForgeMultipart")
   override def genTileHandler(): ITileHandler =
-    new TMultipartTileHandler
+    new TMultipartTileHandler*/
 
   def renderer() {}
 }
@@ -234,18 +234,18 @@ class ClientProxyImpl extends CommonProxyImpl {
   version = "beta",
   dependencies = "required-after:Forge@[7.8.0.923,);required-after:FML@[5.2.6.923,);after:ImmibisMicroblocks;after:ForgeMultipart"
 )
-@NetworkMod(
+/*@NetworkMod(
   channels = Array(modId, tileChannel, StatePacketHandler.channel),
   clientSideRequired = true,
   serverSideRequired = false
-)
+)*/
 object TrussMod {
   @inline final val modId = "TrussMod"
   @inline final val tileChannel = "TrussModTileData"
   @inline final val modName = modId
 
-  val log = Logger.getLogger(modId)
-  log.setParent(FMLRelaunchLog.log.getLogger)
+  val log = LogManager.getLogger(modId)
+  //log.setParent(FMLRelaunchLog.log.getLogger)
 
   lazy val config = new Configuration(new File(Loader.instance.getConfigDir, modId + ".cfg"))
   def isServer() = FMLCommonHandler.instance.getEffectiveSide.isServer
@@ -263,7 +263,10 @@ object TrussMod {
     log.info("There is NO WARRANTY, to the extent permitted by law.")
   }
 
-  @Mod.EventHandler def preinit(e: event.FMLPreInitializationEvent) { proxy.renderer }
-  @Mod.EventHandler def init(e: event.FMLInitializationEvent) = CommonProxy.init()
+  @Mod.EventHandler def preinit(e: event.FMLPreInitializationEvent) = {
+    CommonProxy.init()
+    proxy.renderer()
+  }
+  //@Mod.EventHandler def init(e: event.FMLInitializationEvent) = CommonProxy.init()
 }
 

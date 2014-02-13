@@ -29,11 +29,14 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.hooks
 
+import java.util.{ Set => JSet }
 import java.security.InvalidKeyException
 import collection.JavaConversions._
-import net.minecraftforge.common.ForgeDirection
+import cpw.mods.fml.common.registry.GameData
+import net.minecraftforge.common.util.ForgeDirection
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.block.Block
+import net.minecraft.init.Blocks
 import net.minecraft.world.World
 import net.minecraft.nbt.NBTTagCompound
 import rainwarrior.utils._
@@ -50,22 +53,13 @@ trait ITileHandler {
 
 object MovingTileRegistry {
 
-  val rId = raw"(\d+)".r
-  val rIdMeta = raw"(\d+):(\d+)".r
-  val rIdMetaM = raw"(\d+)m(\d+)".r
+  val rName = raw"([\w:]+)".r
+  val rNameMeta = raw"([\w:]+):(\d+)".r
+  val rNameMetaM = raw"([\w:]+)m(\d+)".r
 
-  lazy val blockRegistry = {
-    import cpw.mods.fml.common.{ ModContainer, registry } 
-    import registry.{ BlockProxy, GameRegistry }
-    import com.google.common.collect.Multimap
-    val field = classOf[GameRegistry].getDeclaredField("blockRegistry")
-    field.setAccessible(true)
-    field.get(null).asInstanceOf[Multimap[ModContainer, BlockProxy]]
-  }
+  var stickyMap = Map.empty[(String, Int), Set[(String, Int)]]
 
-  var stickyMap = Map.empty[Int, Set[Int]]
-
-  def addStickySet(set: Set[Int]) {
+  def addStickySet(set: Set[(String, Int)]) {
     for(i <- set) stickyMap += i -> set
   }
 
@@ -74,13 +68,12 @@ object MovingTileRegistry {
   }
 
   def parseStickyString(string: String) = {
-    var set = Set.empty[Int]
+    var set = Set.empty[(String, Int)]
     for(s <- string.stripPrefix("\"").stripSuffix("\"").split(',')) s match {
-      case rId(ids) =>
-        val id = ids.toInt
-        for(m <- 0 until 16) set += packIdMeta(id, m)
-      case rIdMeta(ids, ms) =>
-        set += packIdMeta(ids.toInt, ms.toInt)
+      case rName(name) =>
+        for(m <- 0 until 16) set += ((name, m))
+      case rNameMeta(name, ms) =>
+        set += ((name, ms.toInt))
       case s =>
         throw new MatchError(s"Illegal set part: $s")
     }
@@ -90,21 +83,21 @@ object MovingTileRegistry {
 
   def stickyHook(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) = {
     val c = (x, y, z) + dirTo
-    val id1 = packIdMeta(world.getBlockId(x, y, z), world.getBlockMetadata(x, y, z))
-    val id2 = packIdMeta(world.getBlockId(c.x, c.y, c.z), world.getBlockMetadata(c.x, c.y, c.z))
-    stickyMap.get(id1) match {
-      case Some(set) => set(id2)
+    val block1 = (Block.blockRegistry.getNameForObject(world.getBlock(x, y, z)), world.getBlockMetadata(x, y, z))
+    val block2 = (Block.blockRegistry.getNameForObject(world.getBlock(c.x, c.y, c.z)), world.getBlockMetadata(c.x, c.y, c.z))
+    stickyMap.get(block1) match {
+      case Some(set) => set(block2)
       case None => false
     }
   }
 
-  lazy val blockMap = 
-    (for(e <- blockRegistry.entries; k = e.getKey; v = e.getValue) yield {
-      (v.asInstanceOf[Block], k.getModId)
+  lazy val modBlockMap = 
+    (for(k <- GameData.blockRegistry.getKeys.asInstanceOf[JSet[String]]) yield {
+      (GameData.blockRegistry.getObject(k).asInstanceOf[Block], k.take(k.indexOf(':')))
     }).toMap
 
-  var idMap = Map.empty[Int, ITileHandler]
-  var idMetaMap = Map.empty[Tuple2[Int, Int], ITileHandler]
+  var blockMap = Map.empty[String, ITileHandler]
+  var blockMetaMap = Map.empty[(String, Int), ITileHandler]
   var modMap = Map.empty[Option[String], ITileHandler]
 
   var handlerNameMap = Map(
@@ -131,10 +124,10 @@ object MovingTileRegistry {
   def setHandler(mod: String, handler: String) {
     val h = resolveHandler(handler)
     mod match {
-      case rId(id) =>
-        idMap += id.toInt -> h
-      case rIdMetaM(id, meta) =>
-        idMetaMap += (id.toInt, meta.toInt) -> h
+      case rName(name) =>
+        blockMap += name -> h
+      case rNameMetaM(name, meta) =>
+        blockMetaMap += (name, meta.toInt) -> h
       case "default" =>
         defaultHandler = h
       case "vanilla" =>
@@ -144,46 +137,44 @@ object MovingTileRegistry {
     }
   }
 
-  def getHandler(id: Int, meta: Int) = 
-    idMetaMap.getOrElse((id, meta),
-      idMap.getOrElse(id, {
-        val block = Block.blocksList(id)
-        modMap.getOrElse(blockMap.get(block), defaultHandler)
+  def getHandler(block: Block, meta: Int) =  {
+    val name = GameData.blockRegistry.getNameForObject(block)
+    blockMetaMap.getOrElse((name, meta),
+      blockMap.getOrElse(name, {
+        modMap.getOrElse(modBlockMap.get(block), defaultHandler)
       })
     )
+  }
 }
 
 class TileHandlerIdDispatcher extends ITileHandler {
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
     //log.info(s"canMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
-    val id = world.getBlockId(x, y, z)
     val meta = world.getBlockMetadata(x, y, z)
-    Block.blocksList(id) match {
+    world.getBlock(x, y, z) match {
       case block: Block =>
-        MovingTileRegistry.getHandler(id, meta).canMove(world, x, y, z)
-      case block => log.severe(s"canMove: invalid block: $block"); false
+        MovingTileRegistry.getHandler(block, meta).canMove(world, x, y, z)
+      case block => log.fatal(s"canMove: invalid block: $block"); false
     }
   }
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
     //log.info(s"move: ($x, $y, $z), side: ${EffectiveSide(world)}")
-    val id = world.getBlockId(x, y, z)
     val meta = world.getBlockMetadata(x, y, z)
-    Block.blocksList(id) match {
+    world.getBlock(x, y, z) match {
       case block: Block =>
-        MovingTileRegistry.getHandler(id, meta).move(world, x, y, z, dirTo)
-      case block => log.severe(s"move: invalid block: $block")
+        MovingTileRegistry.getHandler(block, meta).move(world, x, y, z, dirTo)
+      case block => log.fatal(s"move: invalid block: $block")
     }
   }
 
   override def postMove(world: World, x: Int, y: Int, z: Int) {
     //log.info(s"postMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
-    val id = world.getBlockId(x, y, z)
     val meta = world.getBlockMetadata(x, y, z)
-    Block.blocksList(id) match {
+    world.getBlock(x, y, z) match {
       case block: Block =>
-        MovingTileRegistry.getHandler(id, meta).postMove(world, x, y, z)
-      case block => log.severe(s"postMove: invalid block: $block")
+        MovingTileRegistry.getHandler(block, meta).postMove(world, x, y, z)
+      case block => log.fatal(s"postMove: invalid block: $block")
     }
   }
 }
@@ -192,14 +183,14 @@ class DefaultTileHandler extends ITileHandler {
   override def canMove(world: World, x: Int, y: Int, z: Int) = true
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
-    val (id, meta, te) = getBlockInfo(world, x, y, z)
+    val (block, meta, te) = getBlockInfo(world, x, y, z)
     val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
     if(te != null) {
       te.invalidate()
       uncheckedRemoveTileEntity(world, x, y, z)
     }
-    uncheckedSetBlock(world, x, y, z, 0, 0)
-    uncheckedSetBlock(world, nx, ny, nz, id, meta)
+    uncheckedSetBlock(world, x, y, z, Blocks.air, 0)
+    uncheckedSetBlock(world, nx, ny, nz, block, meta)
     if(te != null) {
       te.xCoord = nx
       te.yCoord = ny
@@ -217,7 +208,7 @@ class DefaultModTileHandler extends ITileHandler {
   override def canMove(world: World, x: Int, y: Int, z: Int) = true
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
-    val (id, meta, te) = getBlockInfo(world, x, y, z)
+    val (block, meta, te) = getBlockInfo(world, x, y, z)
     val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
     val cmp = if(te != null) {
       val cmp = new NBTTagCompound
@@ -228,11 +219,11 @@ class DefaultModTileHandler extends ITileHandler {
       //te.invalidate()
       te.onChunkUnload()
       //uncheckedRemoveTileEntity(world, x, y, z)
-      world.removeBlockTileEntity(x, y, z)
+      world.removeTileEntity(x, y, z)
       cmp
     } else null
-    uncheckedSetBlock(world, x, y, z, 0, 0)
-    uncheckedSetBlock(world, nx, ny, nz, id, meta)
+    uncheckedSetBlock(world, x, y, z, Blocks.air, 0)
+    uncheckedSetBlock(world, nx, ny, nz, block, meta)
     if(cmp != null) {
       TileEntity.createAndLoadEntity(cmp) match {
         case te: TileEntity =>
@@ -306,7 +297,7 @@ class ImmovableTileHandler extends ITileHandler {
   }
 }*/
 
-class TMultipartTileHandler extends TileHandlerIdDispatcher {
+/*class TMultipartTileHandler extends TileHandlerIdDispatcher {
   import codechicken.multipart.TileMultipart
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
     //log.info(s"TcanMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
@@ -347,4 +338,4 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
       case _ => super.postMove(world, x, y, z)
     }
   }
-}
+}*/

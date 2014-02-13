@@ -28,20 +28,22 @@ of this Program grant you additional permission to convey the resulting work.
 */
 package rainwarrior.trussmod
 
-import net.minecraft.{ block, creativetab, entity, item, world },
+import net.minecraft.{ block, creativetab, entity, item, world, util },
   block.Block,
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
   item.{ Item, ItemStack },
-  world.World
+  world.World,
+  util.ChatComponentText
 import cpw.mods.fml.common.{ Loader, registry }
 import registry.GameRegistry
 import cpw.mods.fml.client.FMLClientHandler.{ instance => FMLClientHandler }
+import net.minecraftforge.common.util.ForgeDirection
 
 import rainwarrior.utils._
 import TrussMod._
 
-class DebugItem(id: Int) extends Item(id) {
+class DebugItem extends Item {
   setMaxStackSize(1)
   setCreativeTab(CreativeTabs.tabMisc)
   setUnlocalizedName("trussmod:DebugItem")
@@ -55,18 +57,19 @@ class DebugItem(id: Int) extends Item(id) {
       x: Int, y: Int, z: Int,
       side: Int,
       hitX: Float, hitY: Float, hitZ: Float): Boolean = {
-    val id = world.getBlockId(x, y, z)
+    val block = world.getBlock(x, y, z)
     if(world.isClient) {
-      val name = Block.blocksList(id).getUnlocalizedName
-      val msg = s"USE: ($x,$y,$z), Block: $id, $name"
+      val name = block.getUnlocalizedName
+      val msg = s"USE: ($x,$y,$z), Block: $name"
       //log.info(msg)
-      FMLClientHandler.getClient.ingameGUI.getChatGUI.printChatMessage(msg)
+      FMLClientHandler.getClient.ingameGUI.getChatGUI.printChatMessage(new ChatComponentText(msg))
+      rainwarrior.hooks.MovingRegistry.addMoving(world, (x, y, z), new BlockData(0F, .5F, 0F, ForgeDirection.UP))
     } else {
-      world.getBlockTileEntity(x, y, z) match {
-        case te: TileEntityMotor =>
+      world.getTileEntity(x, y, z) match {
+        /*case te: TileEntityMotor =>
           var msg = s"($x, $y, $z): ${te.energy} "
           if(Loader.isModLoaded(Power.bcid)) msg += te.powerHandler.getEnergyStored
-          log.info(msg)
+          log.info(msg)*/
         case _ =>
       }
     }

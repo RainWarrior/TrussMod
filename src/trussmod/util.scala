@@ -39,7 +39,7 @@ import net.minecraft._,
   world.{ ChunkPosition, chunk, IBlockAccess, World },
   chunk.storage.ExtendedBlockStorage,
   util.{ MovingObjectPosition, Vec3, Vec3Pool }
-import net.minecraftforge.common.ForgeDirection
+import net.minecraftforge.common.util.ForgeDirection
 import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
 
@@ -94,7 +94,7 @@ object utils {
     }
   }
 
-  //@SideOnly(Side.CLIENT)
+  /*//@SideOnly(Side.CLIENT)
   def renderInventoryBlock(rb: RenderBlocks, block: Block, metadata: Int) {
     import net.minecraft.client.renderer.Tessellator.{ instance => tes }
     import org.lwjgl.opengl.GL11._
@@ -133,7 +133,7 @@ object utils {
     rb.renderFaceXPos(block, 0, 0, 0, rb.getBlockIconFromSideAndMetadata(block, 5, metadata))
     tes.draw()
     glPopMatrix()
-  }
+  }*/
 
   object BlockData {
     implicit object serialInstance extends IsCopySerial[BlockData] {
@@ -269,12 +269,12 @@ object utils {
   @inline def unpackY(c: Long): Int =
     ((c >> 52) & ((1 << 12) - 1)).toInt
 
-  def uncheckedSetBlock(world: World, x: Int, y: Int, z: Int, id: Int, meta: Int) {
+  def uncheckedSetBlock(world: World, x: Int, y: Int, z: Int, block: Block, meta: Int) {
     val ch = world.getChunkFromChunkCoords(x >> 4, z >> 4)
     val arr = ch.getBlockStorageArray()
     if(arr(y >> 4) == null)
       arr(y >> 4) = new ExtendedBlockStorage(y & (~0xF), !world.provider.hasNoSky)
-    arr(y >> 4).setExtBlockID(x & 0xF, y & 0xF, z & 0xF, id)
+    arr(y >> 4).func_150818_a(x & 0xF, y & 0xF, z & 0xF, block)
     arr(y >> 4).setExtBlockMetadata(x & 0xF, y & 0xF, z & 0xF, meta)
   }
 
@@ -295,9 +295,9 @@ object utils {
   }
 
   def getBlockInfo(world: World, x: Int, y: Int, z: Int) = (
-    world.getBlockId(x, y, z),
+    world.getBlock(x, y, z),
     world.getBlockMetadata(x, y, z),
-    world.getBlockTileEntity(x, y, z))
+    world.getTileEntity(x, y, z))
 
   /*object Util {
     object SmallCoords {
@@ -580,8 +580,7 @@ object utils {
   def getLightMatrix(world: IBlockAccess, x: Int, y: Int, z: Int): Option[LightMatrix] = {
     val off = (-1 to 1).toArray
     for {
-      id <- Option(world.getBlockId(x, y, z))
-      block =Block.blocksList(id)
+      block <- Option(world.getBlock(x, y, z))
     } yield {
       val cb = block.getMixedBrightnessForBlock(world, x, y, z)
       off map { ox =>
@@ -591,7 +590,7 @@ object utils {
             val rb = if(b == 0) cb else b
             val sb = (rb >> 20) & 0xF
             val bb = (rb >> 4) & 0xF
-            val a = block.getAmbientOcclusionLightValue(world, x + ox, y + oy, z + oz)
+            val a = block.getAmbientOcclusionLightValue
             Vector3(sb, bb, a)
           }
         }

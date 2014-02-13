@@ -37,22 +37,21 @@ import net.minecraft._,
   block.material.Material,
   client.renderer.tileentity.TileEntitySpecialRenderer,
   client.renderer.Tessellator.{ instance => tes },
-  client.renderer.texture.{ IconRegister, TextureMap },
+  client.renderer.texture.{ IIconRegister, TextureMap },
   client.renderer.{ OpenGlHelper, RenderHelper, RenderBlocks },
   creativetab.CreativeTabs,
   entity.player.EntityPlayer,
+  init.{ Blocks, Items},
   item.{ Item, ItemStack },
   nbt.NBTTagCompound,
-  network.INetworkManager,
-  network.packet.{ Packet, Packet132TileEntityData },
   tileentity.TileEntity,
   world.{ IBlockAccess, World, WorldServer }
-import net.minecraft.util.Icon
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side}
 import cpw.mods.fml.common.{ FMLCommonHandler, Loader, Optional }
 import cpw.mods.fml.client.registry.{ RenderingRegistry, ISimpleBlockRenderingHandler }
-import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
+import net.minecraftforge.common.{ MinecraftForge, util }
+import util.ForgeDirection
 import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.serial._
@@ -61,21 +60,21 @@ import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 trait TraitMotor extends BlockContainer {
   setHardness(5f)
   setResistance(10f)
-  setStepSound(Block.soundMetalFootstep)
-  setUnlocalizedName(s"$modId:BlockMotor")
+  setStepSound(Block.soundTypeMetal)
+  setBlockName(s"$modId:BlockMotor")
   setCreativeTab(CreativeTabs.tabBlock)
 
   var renderType = -1
   import cpw.mods.fml.common.registry._
-  LanguageRegistry.addName(this, "Motor Block")
-  net.minecraftforge.common.MinecraftForge.setBlockHarvestLevel(this, "shovel", 0)
+  //LanguageRegistry.addName(this, "Motor Block")
+  //net.minecraftforge.common.MinecraftForge.setBlockHarvestLevel(this, "shovel", 0)
   GameRegistry.registerBlock(this, "Motor_Block")
   GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity");
   {
     val motor = new ItemStack(this)
     val frame = new ItemStack(CommonProxy.frameBlock)
-    val redstone = new ItemStack(Block.blockRedstone)
-    val iron = new ItemStack(Item.ingotIron)
+    val redstone = new ItemStack(Blocks.redstone_block)
+    val iron = new ItemStack(Items.iron_ingot)
     GameRegistry.addRecipe(
       motor,
       "fif",
@@ -87,16 +86,16 @@ trait TraitMotor extends BlockContainer {
   }
 
   @SideOnly(Side.CLIENT)
-  override def registerIcons(registry: IconRegister) {}
+  override def registerBlockIcons(registry: IIconRegister) {}
 
-  override def createNewTileEntity(world: World): TileEntity = {
+  override def createNewTileEntity(world: World, meta: Int): TileEntity = {
     val bean = new MotorBean(new StripHolder(null), 0, 0)
     val tile = new TileEntityMotor(bean)
     bean.stripHolder.parent = tile
     tile
   }
   override def isOpaqueCube = false
-  override def isBlockSolidOnSide(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
+  override def isSideSolid(world: IBlockAccess, x: Int, y: Int, z: Int, side: ForgeDirection) = {
     side.ordinal != world.getBlockMetadata(x, y, z)
   }
   override def renderAsNormalBlock = false
@@ -132,13 +131,13 @@ trait TraitMotor extends BlockContainer {
     //world.setBlockMetadata(x, y, z, 13)
   }
 
-  override def breakBlock(world: World, x: Int, y: Int, z: Int, id: Int, metadata: Int) {
+  override def breakBlock(world: World, x: Int, y: Int, z: Int, block: Block, metadata: Int) {
     //TileEntity t = world.getBlockTileEntity(x, y, z)
     //if(t instanceof TileEntityProxy)
     //{
       //((TileEntityProxy)t).invalidate
     //}
-    super.breakBlock(world, x, y, z, id, metadata)
+    super.breakBlock(world, x, y, z, block, metadata)
     //world.notifyBlocksOfNeighborChange(x, y, z, this.blockID)
   }
 
@@ -153,7 +152,7 @@ trait TraitMotor extends BlockContainer {
       dy: Float,
       dz: Float): Boolean  = {
     //log.info(f"onBlockActivated: ($x,$y,$z), isServer: $isServer")
-    val te = world.getBlockTileEntity(x, y, z).asInstanceOf[TileEntityMotor]
+    val te = world.getTileEntity(x, y, z).asInstanceOf[TileEntityMotor]
     if(te == null)
       throw new RuntimeException("no tile entity!")
 //    FMLCommonHandler.instance.showGuiScreen(te.openGui())
@@ -178,8 +177,8 @@ trait TraitMotor extends BlockContainer {
   }*/
 }
 
-class BlockMotor(id: Int)
-  extends BlockContainer(id, Material.iron)
+class BlockMotor
+  extends BlockContainer(Material.iron)
   with TraitMotor
 
 import Power._
@@ -230,8 +229,8 @@ final class MotorBean(
     //log.info(s"updateEntity, ($xCoord, $yCoord, $zCoord), ${world.isClient}")
   }
   
-  override def shouldRefresh(oldId: Int, newId: Int, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
-    if(oldId == newId) false else true
+  override def shouldRefresh(oldBlock: Block, newBlock: Block, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
+    if(oldBlock eq newBlock) false else true
   }
 
   def rotate(isSneaking: Boolean) {
@@ -250,7 +249,7 @@ final class MotorBean(
       }
       //log.info(s"rotated2, m: $getBlockMetadata, o: $orientation")
     }
-    world.markBlockForRenderUpdate(x, y, z)
+    world.func_147479_m(x, y, z)
   }
 
   def dirTo = ForgeDirection.values()(moveDir(orientation)(parent.getBlockMetadata))
@@ -263,8 +262,8 @@ final class MotorBean(
     val meta = parent.getBlockMetadata
     val pos = WorldPos(parent) + ForgeDirection.values()(meta)
     //log.info(s"shouldUpdate! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(world)}")
-    val id = world.getBlockId(pos.x, pos.y, pos.z)
-    if ( id == 0
+    val block = world.getBlock(pos.x, pos.y, pos.z)
+    if ( block == Blocks.air
       || MovingRegistry.isMoving(world, pos.x, pos.y, pos.z)
       || !CommonProxy.movingTileHandler.canMove(world, pos.x, pos.y, pos.z)
     ) return false
@@ -298,12 +297,11 @@ final class MotorBean(
       val c = pair._1
       if(c.y < 0 || c.y >= 256) true
       else {
-        val id = world.getBlockId(c.x, c.y, c.z)
-        val block = Block.blocksList(id)
+        val block = world.getBlock(c.x, c.y, c.z)
         //log.info(s"block: $block")
         if(block == null) false
         else
-          !block.isBlockReplaceable(world, c.x, c.y, c.z)
+          !block.isReplaceable(world, c.x, c.y, c.z)
       }
     }
 
@@ -312,8 +310,8 @@ final class MotorBean(
       for ((c, size) <- strips) {
         //log.info(s"c: $c")
         //CommonProxy.blockMovingStrip.create(world, this, c.x, c.y, c.z, dirTo, size)
-        world.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStripId, 0, 3)
-        world.getBlockTileEntity(c.x, c.y, c.z) match {
+        world.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStrip, 0, 3)
+        world.getTileEntity(c.x, c.y, c.z) match {
           case te: TileEntityMovingStrip => te.repr.parentPos = Some(parent)
           case _ =>
         }
@@ -339,7 +337,7 @@ final class MotorBean(
     greyBlocks match {
       case _ if blackBlocks.size > CommonProxy.structureLimit => blackBlocks
       case Seq() => blackBlocks
-      case Seq(next, rest@ _*) => Block.blocksList(world.getBlockId(next.x, next.y, next.z)) match {
+      case Seq(next, rest@ _*) => world.getBlock(next.x, next.y, next.z) match {
         case block: Block =>
           val toCheck = for { // TODO: prettify
             dir <- ForgeDirection.VALID_DIRECTIONS.toList
@@ -347,7 +345,7 @@ final class MotorBean(
               (block.isInstanceOf[Frame]
                 && block.asInstanceOf[Frame].isSideSticky(world, next.x, next.y, next.z, dir))
               || {
-                val te = world.getBlockTileEntity(next.x, next.y, next.z)
+                val te = world.getTileEntity(next.x, next.y, next.z)
                 (te.isInstanceOf[Frame]
                 && te.asInstanceOf[Frame].isSideSticky(world, next.x, next.y, next.z, dir))
               } || MovingTileRegistry.stickyHook(world, next.x, next.y, next.z, dir))
@@ -410,7 +408,7 @@ class TileEntityMotor(var repr: MotorBean) extends SimpleSerialTile[MotorBean, T
 @SideOnly(Side.CLIENT)
 object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
   var rb: RenderBlocks = null
-  override def onWorldChange(world: World) {
+  override def func_147496_a(world: World) {
     rb = new RenderBlocks(world)
   }
 
@@ -488,7 +486,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     tes.startDrawingQuads()
     //tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.worldObj, pos.x, pos.y, pos.z))
     //tes.setColorOpaque_F(1, 1, 1)
-    model.render(getLightMatrix(te.worldObj, pos.x, pos.y, pos.z).get, "Motor", "Gear", model.getIcon("block", "MotorGear")) // slightly incorrect
+    model.render(getLightMatrix(te.getWorldObj, pos.x, pos.y, pos.z).get, "Motor", "Gear", model.getIcon("block", "MotorGear")) // slightly incorrect
     tes.draw()
     glPopMatrix()
     RenderHelper.enableStandardItemLighting()
@@ -527,7 +525,7 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
       block: Block,
       modelId: Int,
       rb: RenderBlocks) = {
-    world.getBlockTileEntity(x, y, z) match {
+    world.getTileEntity(x, y, z) match {
       case te: TileEntityMotor if te.repr != null =>
         val meta = te.getBlockMetadata
         val or = te.repr.orientation
@@ -542,6 +540,6 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
       case _ => false
     }
   }
-  override val shouldRender3DInInventory = true
+  override def shouldRender3DInInventory(modelId: Int) = true
   override lazy val getRenderId = RenderingRegistry.getNextAvailableRenderId()
 }

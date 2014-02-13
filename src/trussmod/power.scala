@@ -33,15 +33,16 @@ import net.minecraft._,
   nbt.NBTTagCompound,
   tileentity.TileEntity
 import cpw.mods.fml.common.{ Loader, Optional }
-import net.minecraftforge.common.{ MinecraftForge, ForgeDirection }
+import net.minecraftforge.common.{ MinecraftForge, util }
+import util.ForgeDirection
 
 import TrussMod._
 import rainwarrior.utils._
 
-import buildcraft.api.power.{ PowerHandler, IPowerReceptor }
-import cofh.api.energy.{ EnergyStorage, IEnergyHandler }
-import ic2.api.energy.tile.IEnergySink
-import ic2.api.energy.event.{ EnergyTileLoadEvent, EnergyTileUnloadEvent }
+//import buildcraft.api.power.{ PowerHandler, IPowerReceptor }
+//import cofh.api.energy.{ EnergyStorage, IEnergyHandler }
+//import ic2.api.energy.tile.IEnergySink
+//import ic2.api.energy.event.{ EnergyTileLoadEvent, EnergyTileUnloadEvent }
 
 object Power {
   final val bcid = "BuildCraft|Energy"
@@ -75,7 +76,7 @@ trait CommonTilePower extends TileEntity {
   }*/
 }
 
-@Optional.InterfaceList(Array(
+/*@Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIPowerReceptor, modid = bcid)
 ))
 trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
@@ -222,7 +223,7 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
       registered = false
     }
   }
-}
+}*/
 
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
@@ -231,5 +232,5 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
   //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid)
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
-trait PowerTile extends BuildcraftPowerReceptor with CofhEnergyHandler with Ic2EnergySink
+trait PowerTile extends CommonTilePower //with BuildcraftPowerReceptor with CofhEnergyHandler with Ic2EnergySink
 

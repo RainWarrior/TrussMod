@@ -46,11 +46,12 @@ import java.io.PrintWriter
 
 @IFMLLoadingPlugin.TransformerExclusions(value = Array("rainwarrior.hooks.plugin", "scala"))
 class Plugin extends IFMLLoadingPlugin with IFMLCallHook {
-  override def getLibraryRequestClass: Array[String] = null
+  //override def getLibraryRequestClass: Array[String] = null
   override def getASMTransformerClass = Array("rainwarrior.hooks.plugin.Transformer")
   override def getModContainerClass: String = null
   override def getSetupClass = "rainwarrior.hooks.plugin.Plugin"
   override def injectData(data: JMap[String, AnyRef]) {}
+  override def getAccessTransformerClass: String = null
   override def call(): Void = {
     //println("Hello, World! From CoreMod!")
     null
@@ -89,7 +90,7 @@ class Transformer extends IClassTransformer {
   lazy val deobfEnv = this.getClass.getClassLoader.getResource("net/minecraft/world/World.class") != null
   lazy val blockClass = mapper.unmap("net/minecraft/block/Block")
   def transformIsBlockOpaqueCube(isChunkCache: Boolean)(m: MethodNode) {
-    log.finest(s"TrussMod: FOUND isBlockOpaqueCube")
+    log.finer(s"TrussMod: FOUND isBlockOpaqueCube")
     val l1 = m.instructions.toArray.collectFirst{case i: JumpInsnNode if i.getOpcode == GOTO => i.label}.get
     val pos = m.instructions.toArray.collectFirst{case i: FrameNode => i}.get
     val list = new InsnList
@@ -118,8 +119,8 @@ class Transformer extends IClassTransformer {
     m.instructions.insert(pos, list)
   }
   def transformRenderBlockByRenderType(m: MethodNode) {
-    log.finest(s"TrussMod: FOUND renderBlockByRenderType")
-    //for(inst <- m.instructions.toArray) log.finest(inst)
+    log.finer(s"TrussMod: FOUND renderBlockByRenderType")
+    //for(inst <- m.instructions.toArray) log.finer(inst)
     val old = m.instructions.toArray.collectFirst{case i: MethodInsnNode => i}.get
     val list = new InsnList
     list.add(new VarInsnNode(ILOAD, 2))
@@ -153,20 +154,20 @@ class Transformer extends IClassTransformer {
       (_, m) => m.name == "<init>",
       (_, m) => m.name == "<init>",
       { m: MethodNode =>
-        log.finest("TrussMod: FOUND <init>")
+        log.finer("TrussMod: FOUND <init>")
         m.access &= ~ACC_PRIVATE
         m.access &= ~ACC_PROTECTED
         m.access |= ACC_PUBLIC
       }
     )))
   override def transform(name: String, tName: String, data: Array[Byte]) = {
-    //log.finest(s"checking: $name, $tName")
+    log.finer(s"checking: $name, $tName")
     //val getMethodMap = mapper.getClass.getDeclaredMethod("getMethodMap", classOf[String])
     //getMethodMap.setAccessible(true)
     //val classNameBiMap = mapper.getClass.getDeclaredField("classNameBiMap")
     //classNameBiMap.setAccessible(true)
     if(classData.keys.contains(tName)) { // patch table transformer
-      log.finest(s"TrussMod: transforming: $tName")
+      println(s"TrussMod: transforming: $tName")
       val (ch1, ch2, tr) = classData(tName)
       val node = new ClassNode
       val reader = new ClassReader(data)
@@ -185,7 +186,7 @@ class Transformer extends IClassTransformer {
       writer.toByteArray
       //data
     } else if(tName == "net.minecraft.world.WorldServer") { // access transformer
-      log.finest(s"TrussMod: transforming: $tName")
+      log.finer(s"TrussMod: transforming: $tName")
       val node = new ClassNode
       val reader = new ClassReader(data)
       reader.accept(node, 0)
@@ -193,19 +194,19 @@ class Transformer extends IClassTransformer {
       for(f@(_f: FieldNode) <- node.fields) {
         if(f.name == "pendingTickListEntriesHashSet"
         || mapper.mapFieldName(name, f.name, "Ljava/util/Set;") == "field_73064_N") {
-          log.finest("TrussMod: FOUND pendingTickListEntriesHashSet")
+          log.finer("TrussMod: FOUND pendingTickListEntriesHashSet")
           f.access &= ~ACC_PRIVATE
           f.access &= ~ACC_PROTECTED
           f.access |= ACC_PUBLIC
         } else if(f.name == "pendingTickListEntriesTreeSet"
         || mapper.mapFieldName(name, f.name, "Ljava/util/TreeSet;") == "field_73065_O") {
-          log.finest("TrussMod: FOUND pendingTickListEntriesTreeSet")
+          log.finer("TrussMod: FOUND pendingTickListEntriesTreeSet")
           f.access &= ~ACC_PRIVATE
           f.access &= ~ACC_PROTECTED
           f.access |= ACC_PUBLIC
         } else if(f.name == "pendingTickListEntriesThisTick"
         || mapper.mapFieldName(name, f.name, "Ljava/util/List;") == "field_94579_S") {
-          log.finest("TrussMod: FOUND pendingTickListEntriesThisTick")
+          log.finer("TrussMod: FOUND pendingTickListEntriesThisTick")
           f.access &= ~ACC_PRIVATE
           f.access &= ~ACC_PROTECTED
           f.access |= ACC_PUBLIC
@@ -239,7 +240,7 @@ class Transformer extends IClassTransformer {
         val newMethods = oldMethods filterNot { m => toRemove(m.name + m.desc) }
         node.methods = newMethods
 
-        //log.finest(s"TrussMod Optional removing: ${node.name} $toRemove ${oldMethods.map(m => m.name + m.desc)}, ${newMethods.map(m => m.name + m.desc)}")
+        //log.finer(s"TrussMod Optional removing: ${node.name} $toRemove ${oldMethods.map(m => m.name + m.desc)}, ${newMethods.map(m => m.name + m.desc)}")
 
         val writer = new ClassWriter(ClassWriter.COMPUTE_MAXS)
         node.accept(writer)
