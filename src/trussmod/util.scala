@@ -29,14 +29,18 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior
 
+import java.util.{ List => JList }
 import language.implicitConversions
-import scala.collection.mutable.{ ArrayBuffer, ListBuffer}
+import collection.mutable.{ ArrayBuffer, ListBuffer}
+import collection.JavaConversions._
 import net.minecraft._,
   block.Block,
   client.renderer.RenderBlocks,
+  entity.player.{ EntityPlayer, EntityPlayerMP },
   nbt.NBTTagCompound,
+  network.NetHandlerPlayServer,
   tileentity.TileEntity,
-  world.{ ChunkPosition, chunk, IBlockAccess, World },
+  world.{ ChunkPosition, chunk, IBlockAccess, World, WorldServer },
   chunk.storage.ExtendedBlockStorage,
   util.{ MovingObjectPosition, Vec3, Vec3Pool }
 import net.minecraftforge.common.util.ForgeDirection
@@ -627,5 +631,36 @@ object utils {
     val s2 = Math.pow(2, .5)
     val y1 = y + 3 - 2 * s2
     (x * x * 0.6 + (y1 * y1 * (3 + 2 * s2)) / 8 + z * z * 0.8) / (x * x + y * y + z * z)
+  }
+
+  import io.netty.channel.{ Channel, ChannelHandlerContext }
+  import cpw.mods.fml.common.network.NetworkRegistry._
+
+  def getSide(ctx: ChannelHandlerContext): Side = ctx.channel.attr(CHANNEL_SOURCE).get
+
+  def getPlayer(ctx: ChannelHandlerContext): EntityPlayer = {
+    (getSide(ctx): @unchecked) match {
+      case Side.CLIENT =>
+        cpw.mods.fml.client.FMLClientHandler.instance.getClient().thePlayer
+      case Side.SERVER =>
+        ctx.channel.attr(NET_HANDLER).get.asInstanceOf[NetHandlerPlayServer].playerEntity
+    }
+  }
+
+  def getPlayersWatchingChunk(world: WorldServer, x: Int, z: Int): Seq[EntityPlayerMP] = {
+    Option(world.getPlayerManager.getOrCreateChunkWatcher(x, z, false)).map(
+      _.playersWatchingChunk.asInstanceOf[JList[EntityPlayerMP]].toSeq
+    ).getOrElse(Seq.empty[EntityPlayerMP])
+  }
+
+  def sendToPlayer(channel: Channel, player: EntityPlayerMP, message: Object): Unit = {
+    import cpw.mods.fml.common.network.FMLOutboundHandler._
+    channel.attr(FML_MESSAGETARGET).set(OutboundTarget.PLAYER)
+    channel.attr(FML_MESSAGETARGETARGS).set(player)
+    channel.writeAndFlush(message)
+  }
+
+  def sendToPlayersWatchingChunk(channel: Channel, world: WorldServer, x: Int, z: Int, message: Object): Unit = {
+    getPlayersWatchingChunk(world, x, z).map(p => sendToPlayer(channel, p, message))
   }
 }

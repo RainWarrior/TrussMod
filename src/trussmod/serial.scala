@@ -30,11 +30,11 @@ package rainwarrior.serial
 
 import collection.mutable.ArrayBuilder
 import collection.JavaConversions._
-import scala.reflect._
+import scala.reflect.{io => _, _}
 import annotation.tailrec
 import language.higherKinds
 
-import java.util.Collection
+import java.util.{ Collection, List => JList }
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
@@ -257,59 +257,75 @@ object SerialFormats {
   }
 
   object vectorSerialInstance extends IsSerialFormat[Vector[Byte]] {
-    def getNextInputLength(f: Vector[Byte]): Int = f.head.toChar match {
-      case 'B' => 2
-      case 'W' => 3
-      case 'I' => 5
-      case 'L' => 9
-      case 'F' => 5
-      case 'D' => 9
-      case 't' => 1
-      case 'f' => 1
-      case 'C' => 3
+    def getNextInputLength(f: Vector[Byte]): Option[Int] = f.headOption.flatMap(_.toChar match {
+      case 'B' => Some(2)
+      case 'W' => Some(3)
+      case 'I' => Some(5)
+      case 'L' => Some(9)
+      case 'F' => Some(5)
+      case 'D' => Some(9)
+      case 't' => Some(1)
+      case 'f' => Some(1)
+      case 'C' => Some(3)
       case 'S' | 's' => getNextStringLength(f)
       case 'V' => getNextListLength(f)
       case 'M' => getNextMapLength(f)
       case _ => throw new IllegalArgumentException(s"Illegal start symbol: ${f.head} (${f.head.toChar})")
-    }
+    })
 
-    @tailrec final def getNextStringLength(f: Vector[Byte], res: Int = 0): Int = f.head.toChar match {
-      case 's' => getNextStringLength(f.drop(0x10001), res + 0x10000)
-      case 'S' => res + ByteBuffer.wrap(f.toArray, 1, 2).getShort
-    }
+    def getNextStringLength(f: Vector[Byte], res: Int = 0): Option[Int] = f.headOption.flatMap(_.toChar match {
+      case 's' if f.length >= 0x10001 => getNextStringLength(f.drop(0x10001), res + 0x10000)
+      case 'S' if f.length >= 3 => Some(res + ByteBuffer.wrap(f.toArray, 1, 2).getShort)
+      case 'S' | 's' => None
+      case _ => throw new IllegalArgumentException(s"Illegal start symbol: ${f.head} (${f.head.toChar})")
+    })
 
-    def getNextListLength(f: Vector[Byte]): Int = {
-      assert(f.head == 'V'.toByte)
-      var length = 1
-      var tail = f.tail
-      while(tail.head != 'z') {
-        val len = getNextInputLength(tail)
-        length += len
-        tail = tail.drop(len)
+    def getNextListLength(f: Vector[Byte]): Option[Int] = for {
+      h <- f.headOption
+      res <- {
+        assert(h == 'V'.toByte)
+        def r(f: Vector[Byte], res: Int): Option[Int] = for {
+          h2 <- f.headOption
+          res <- {
+            if(h2 == 'z') Some(res + 1)
+            else for {
+              len <- getNextInputLength(f)
+              res <- r(f.drop(len), res + len)
+            } yield res
+          }
+        } yield res
+        r(f.tail, 1)
       }
-      length + 1
-    }
+    } yield res
 
-    def getNextMapLength(f: Vector[Byte]): Int = {
-      assert(f.head == 'V'.toByte)
-      var length = 1
-      var tail = f.tail
-      while(tail.head != 'z') {
-        assert(tail.head == '('.toByte)
-        length += 1
-        tail = tail.tail
-        val lenk = getNextInputLength(tail)
-        length += lenk
-        tail = tail.drop(lenk)
-        val lenv = getNextInputLength(tail)
-        length += lenv
-        tail = tail.drop(lenv)
-        assert(tail.head == ')'.toByte)
-        length += 1
-        tail = tail.tail
+    def getNextMapLength(f: Vector[Byte]): Option[Int] = for {
+      h <- f.headOption
+      res <- {
+        assert(h == 'M'.toByte)
+        def r(f: Vector[Byte], res: Int): Option[Int] = for {
+          h2 <- f.headOption
+          res <- {
+            val t = f.tail
+            if(h2 == 'z') Some(res + 1)
+            else for {
+              lenk <- {
+                assert(h2 == '('.toByte)
+                getNextInputLength(t)
+              }
+              t1 = t.drop(lenk)
+              lenv <- getNextInputLength(t1)
+              t2 = t1.drop(lenv)
+              h3 <- t2.headOption
+              res <- {
+                assert(h3 == ')'.toByte)
+                r(t2.tail, res + 2 + lenk + lenv)
+              }
+            } yield res
+          }
+        } yield res
+        r(f.tail, 1)
       }
-      length + 1
-    }
+    } yield res
 
     def empty = Vector.empty[Byte]
 
@@ -348,7 +364,7 @@ object SerialFormats {
       var res = Seq.empty[Vector[Byte]]
       var tail = f.tail
       while(tail.head != 'z') {
-        val len = getNextInputLength(tail)
+        val len = getNextInputLength(tail).get
         //println(s"nextlen: $len")
         val (n, nt) = tail.splitAt(len)
         //println(n)
@@ -367,10 +383,10 @@ object SerialFormats {
       while(tail.head != 'z') {
         assert(tail.head == '('.toByte)
         tail = tail.tail
-        val lenk = getNextInputLength(tail)
+        val lenk = getNextInputLength(tail).get
         val (k, nt1) = tail.splitAt(lenk)
         tail = nt1
-        val lenv = getNextInputLength(tail)
+        val lenv = getNextInputLength(tail).get
         val (v, nt2) = tail.splitAt(lenv)
         tail = nt2
         assert(tail.head == ')'.toByte)
@@ -433,7 +449,7 @@ object SerialFormats {
     }
 
     def removeTag(t: Vector[Byte]) = {
-      val (tag, v) = t.splitAt(getNextInputLength(t))
+      val (tag, v) = t.splitAt(getNextInputLength(t).get)
       (v, fromSerialString(tag))
     }
   }
@@ -618,3 +634,34 @@ trait SimpleSerialTile[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with S
   implicit def ReadRepr: IsSerialReadable[Repr] = Repr
 }
 
+import cpw.mods.fml.common.network.internal.FMLProxyPacket
+import cpw.mods.fml.common.network.NetworkRegistry.FML_CHANNEL
+import io.netty.channel.{ ChannelHandler, ChannelHandlerContext }
+import io.netty.handler.codec.MessageToMessageCodec
+import io.netty.buffer.Unpooled
+import io.netty.util.AttributeKey
+
+@ChannelHandler.Sharable
+object VectorCodec extends MessageToMessageCodec[FMLProxyPacket, Vector[Byte]] {
+  import SerialFormats.vectorSerialInstance.getNextInputLength
+
+  val decodeBufKey = new AttributeKey[Vector[Byte]]("VectorCodec:decodeBuf");
+
+  protected def decode(ctx: ChannelHandlerContext, packet: FMLProxyPacket, out: JList[Object]): Unit = {
+    val decodeBuf = ctx.attr(decodeBufKey)
+    val oldBuf = Option(decodeBuf.get).getOrElse(Vector.empty)
+    decodeBuf set (oldBuf ++ packet.payload.array)
+    var len = getNextInputLength(decodeBuf.get)
+    while(!len.isEmpty) {
+      out add (decodeBuf.get take len.get)
+      decodeBuf set (decodeBuf.get drop len.get)
+      len = getNextInputLength(decodeBuf.get)
+    }
+  }
+
+  protected def encode(ctx: ChannelHandlerContext, data: Vector[Byte], out: JList[Object]): Unit = {
+    for(chunk <- data grouped 0x7FFF) { // max packet size
+      out add new FMLProxyPacket(Unpooled.wrappedBuffer(chunk.toArray), ctx.channel.attr(FML_CHANNEL).get)
+    }
+  }
+}

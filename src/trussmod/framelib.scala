@@ -232,6 +232,8 @@ class StripHolder(
     val renderOffset: BlockData = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
 ) {
 
+  StateHandler
+
   def +=(s: StripData) {
     //log.info(s"+=strip: $s, client: ${worldObj.isClient}")
     strips += s
@@ -248,13 +250,18 @@ class StripHolder(
   def postMove() {
     //log.info(s"postMove, strips: ${strips.toString}, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
     if(parent.getWorldObj.isServer) {
-      val players = parent.getWorldObj.asInstanceOf[WorldServer].getPlayerManager.getOrCreateChunkWatcher(parent.xCoord >> 4, parent.zCoord >> 4, false)
-      if(players != null) {
-        val data = ByteBuffer allocate 12 putInt parent.xCoord putInt parent.yCoord putInt parent.zCoord
-        // TODO 1.7
-        //val packet = new Packet250CustomPayload(StatePacketHandler.channel, data.array)
-        //players.sendToAllPlayersWatchingChunk(packet)
-      }
+      implicit val vi = SerialFormats.vectorSerialInstance
+      sendToPlayersWatchingChunk(
+        StateHandler.channels.get(Side.SERVER),
+        parent.getWorldObj.asInstanceOf[WorldServer],
+        parent.xCoord >> 4,
+        parent.zCoord >> 4,
+        P.list(
+          P(parent.xCoord),
+          P(parent.yCoord),
+          P(parent.zCoord)
+        )
+      )
     }
     //var t = System.currentTimeMillis
     for(s <- strips) s.cycle(parent.getWorldObj)
@@ -483,17 +490,19 @@ object StripHolder {
   }
 }
 
-// TODO 1.7
-/*object StatePacketHandler extends IPacketHandler {
-  final val channel = modId + "State"
-  NetworkRegistry.instance.registerChannel(this, channel)
-  def onPacketData(nameger: INetworkManager, packet: Packet250CustomPayload, player: DPlayer): Unit = {
-    val world = player.asInstanceOf[Entity].worldObj
-    val buf = ByteBuffer.wrap(packet.data, 0, 12)
-    val (x, y, z) = (buf.getInt, buf.getInt, buf.getInt)
+import io.netty.channel.{ ChannelHandler, ChannelHandlerContext, SimpleChannelInboundHandler }
+
+@ChannelHandler.Sharable
+object StateHandler extends SimpleChannelInboundHandler[Vector[Byte]] {
+  final val channel = modId + ":Move"
+  val channels = NetworkRegistry.INSTANCE.newChannel(channel, VectorCodec, this)
+  override def channelRead0(ctx: ChannelHandlerContext, msg: Vector[Byte]): Unit = {
+    implicit val vi = SerialFormats.vectorSerialInstance
+    val world = getPlayer(ctx).worldObj
+    val Seq(x, y, z) = P.unList(msg).map(P.unpickle[Vector[Byte], Int])
     world.getTileEntity(x, y, z) match {
       case te: StripHolderTile => te.stripHolder.clientPostMove()
-      case _ => log.severe(s"stray packet for coords: ($x, $y, $z)")
+      case _ => log.fatal(s"stray packet for coords: ($x, $y, $z)")
     }
   }
-}*/
+}
