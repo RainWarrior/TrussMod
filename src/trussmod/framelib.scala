@@ -139,10 +139,12 @@ final class MovingStripBean(
   ) extends BeanTE[MovingStripBean, TileEntityMovingStrip] {
 
   override def update() {
-    if(!parentPos.isEmpty) (world.getBlockTileEntity _).tupled(parentPos.get.toTuple) match {
-      case parent: StripHolderTile =>
-      case _ => world.setBlock(x, y, z, 0, 0, 3)
-    } else world.setBlock(x, y, z, 0, 0, 3)
+    val shouldStay = if(!parentPos.isEmpty) (world.getBlockTileEntity _).tupled(parentPos.get.toTuple) match {
+      case parent: StripHolderTile => false
+      case _ => true
+    } else true
+    if(shouldStay && world.getBlockId(x, y, z) == CommonProxy.blockMovingStripId)
+      world.setBlock(x, y, z, 0, 0, 3)
   }
 }
 

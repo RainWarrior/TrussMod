@@ -322,6 +322,7 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
     te match {
       case t: TileMultipart =>
         val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
+        //for(p <- t.partList) p.onWorldSeparate()
         //te.invalidate()
         uncheckedRemoveTileEntity(world, x, y, z)
         uncheckedSetBlock(world, x, y, z, 0, 0)
