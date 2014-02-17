@@ -184,7 +184,7 @@ object SerialFormats {
       case list: NBTTagCompound if list.getString("$serial.type") == "list" =>
         var res = Seq.empty[NBTBase]
         //for(tag <- list.getTags.asInstanceOf[Collection[NBTBase]]) println(tag.getName)
-        for(i <- 0 until ((list.func_150296_c.size - 1) / 2)) {
+        for(i <- 0 until (list.func_150296_c.size - 1)) {
           //println(i)
           //val t = list.getString(s"t$i")
           val v = list.getTag(s"$i").copy
@@ -199,7 +199,7 @@ object SerialFormats {
     def fromSerialMap(map: NBTBase): Seq[(NBTBase, NBTBase)] = map match {
       case map: NBTTagCompound if map.getString("$serial.type") == "map" =>
         var res = Seq.empty[(NBTBase, NBTBase)]
-        for(i <- 0 until ((map.func_150296_c.size - 1) / 4)) {
+        for(i <- 0 until ((map.func_150296_c.size - 1) / 2)) {
           //val kn = map.getString(s"tk$i")
           val k = map.getTag(s"k$i").copy
           //k.setName(kn)
@@ -284,13 +284,13 @@ object SerialFormats {
       h <- f.headOption
       res <- {
         assert(h == 'V'.toByte)
-        def r(f: Vector[Byte], res: Int): Option[Int] = for {
+        def r(f: Vector[Byte], len: Int): Option[Int] = for {
           h2 <- f.headOption
           res <- {
-            if(h2 == 'z') Some(res + 1)
+            if(h2 == 'z') Some(len + 1)
             else for {
-              len <- getNextInputLength(f)
-              res <- r(f.drop(len), res + len)
+              l <- getNextInputLength(f)
+              res <- r(f.drop(l), len + l)
             } yield res
           }
         } yield res
@@ -302,11 +302,11 @@ object SerialFormats {
       h <- f.headOption
       res <- {
         assert(h == 'M'.toByte)
-        def r(f: Vector[Byte], res: Int): Option[Int] = for {
+        def r(f: Vector[Byte], len: Int): Option[Int] = for {
           h2 <- f.headOption
           res <- {
             val t = f.tail
-            if(h2 == 'z') Some(res + 1)
+            if(h2 == 'z') Some(len + 1)
             else for {
               lenk <- {
                 assert(h2 == '('.toByte)
@@ -318,7 +318,7 @@ object SerialFormats {
               h3 <- t2.headOption
               res <- {
                 assert(h3 == ')'.toByte)
-                r(t2.tail, res + 2 + lenk + lenv)
+                r(t2.tail, len + 2 + lenk + lenv)
               }
             } yield res
           }
