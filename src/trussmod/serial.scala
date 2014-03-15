@@ -541,7 +541,15 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.world.World
 
-trait BeanTE[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] { self: Repr =>
+trait TEDesc[TD <: TEDesc[TD]] { this: TD =>
+  type Bean <: BeanTE[TD]
+  type Parent <: SerialTileEntityWrapper[TD]
+}
+
+trait BeanTE[TD <: TEDesc[TD]] { this: TD#Bean =>
+  type Bean = TD#Bean
+  type Parent = TD#Parent
+
   private[this] var _parent: Parent = _
   def parent: Parent = _parent
   def parent_=(parent: Parent): Unit = _parent = parent
@@ -560,18 +568,48 @@ trait BeanTE[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileE
   @inline final def z = parent.zCoord
 }
 
-trait SerialTileEntityWrapper[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] extends TileEntity { self: Parent =>
+trait TileEntityWrapper[TD <: TEDesc[TD]] extends TileEntity { this: TD#Parent =>
+  type Bean = TD#Bean
+  type Parent = TD#Parent
 
-  implicit def WriteRepr: IsSerialWritable[Repr]
-  implicit def ReadRepr: IsSerialReadable[Repr]
+  def repr: Bean
+  def repr_=(repr: Bean): Unit
+
+  if(repr != null) repr.parent = this
+
+  override def updateEntity(): Unit = {
+    super.updateEntity()
+    if(repr == null) println("Updating an empty TE wrapper!")
+    else repr.update()
+  }
+
+  override def markDirty(): Unit = {
+    super.markDirty()
+    if(repr != null) repr.markDirty()
+  }
+
+  //override def getMaxRenderDistanceSquared = if(repr == null) 4096D else repr.getMaxRenderDistanceSquared
+
+  //override def receiveClientEvent(num: Int, arg: Int) = if(repr == null) false else repr.receiveClientEvent(num, arg)
+
+  override def canUpdate = repr == null || repr.canUpdate
+
+  override def shouldRefresh(oldBlock: Block, newBlock: Block, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
+    repr == null || repr.shouldRefresh(oldBlock, newBlock, oldMeta, newMeta, world, x, y, z)
+  }
+  override def onChunkUnload(): Unit = {
+    super.onChunkUnload()
+    if(repr != null) repr.onChunkUnload()
+  }
+}
+
+trait SerialTileEntityWrapper[TD <: TEDesc[TD]] extends TileEntityWrapper[TD] { this: TD#Parent =>
+
+  implicit def WriteRepr: IsSerialWritable[Bean]
+  implicit def ReadRepr: IsSerialReadable[Bean]
 
   implicit def ByteVector: IsSerialFormat[Vector[Byte]] = SerialFormats.vectorSerialInstance
   implicit def NBT: IsSerialFormat[NBTBase] = SerialFormats.nbtSerialInstance
-
-  def repr: Repr
-  def repr_=(repr: Repr): Unit
-
-  if(repr != null) repr.parent = this
 
   override def readFromNBT(cmp: NBTTagCompound): Unit = {
     super.readFromNBT(cmp)
@@ -598,40 +636,14 @@ trait SerialTileEntityWrapper[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity
     repr = ReadRepr.unpickle(packet.func_148857_g.getByteArray("$").to[Vector])
     repr.parent = this
   }
-
-  override def updateEntity(): Unit = {
-    super.updateEntity()
-    if(repr == null) println("WAT")
-    else repr.update()
-  }
-
-  override def markDirty(): Unit = {
-    super.markDirty()
-    repr.markDirty()
-  }
-
-  //override def getMaxRenderDistanceSquared = if(repr == null) 4096D else repr.getMaxRenderDistanceSquared
-
-  //override def receiveClientEvent(num: Int, arg: Int) = if(repr == null) false else repr.receiveClientEvent(num, arg)
-
-  override def canUpdate = repr == null || repr.canUpdate
-
-  override def shouldRefresh(oldBlock: Block, newBlock: Block, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
-    repr == null || repr.shouldRefresh(oldBlock, newBlock, oldMeta, newMeta, world, x, y, z)
-  }
-  override def onChunkUnload(): Unit = {
-    super.onChunkUnload()
-    if(repr != null) repr.onChunkUnload()
-  }
-
 }
 
-trait SimpleSerialTile[Repr <: BeanTE[Repr, Parent], Parent <: TileEntity with SerialTileEntityWrapper[Repr, Parent]] extends SerialTileEntityWrapper[Repr, Parent] { self: Parent =>
+trait SimpleSerialTile[TD <: TEDesc[TD]] extends SerialTileEntityWrapper[TD] { this: TD#Parent =>
 
-  implicit def Repr: IsSerializable[Repr]
+  implicit def Repr: IsSerializable[Bean]
 
-  implicit def WriteRepr: IsSerialWritable[Repr] = Repr
-  implicit def ReadRepr: IsSerialReadable[Repr] = Repr
+  implicit def WriteRepr: IsSerialWritable[Bean] = Repr
+  implicit def ReadRepr: IsSerialReadable[Bean] = Repr
 }
 
 import cpw.mods.fml.common.network.internal.FMLProxyPacket

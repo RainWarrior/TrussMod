@@ -128,15 +128,19 @@ class BlockMovingStrip(material: Material) extends BlockContainer(material) {
   }
 }
 
-class TileEntityMovingStrip(var repr: MovingStripBean) extends SimpleSerialTile[MovingStripBean, TileEntityMovingStrip] {
-  def this() = this(null)
+trait MovingStripDesc extends TEDesc[MovingStripDesc] {
+  type Bean = MovingStripBean
+  type Parent = TileEntityMovingStrip
+}
+
+class TileEntityMovingStrip(var repr: MovingStripBean = null) extends SimpleSerialTile[MovingStripDesc] {
   final def channel = tileChannel
   final def Repr = MovingStripBean.serialInstance
 }
 
 final class MovingStripBean(
     var parentPos: Option[WorldPos] = None
-  ) extends BeanTE[MovingStripBean, TileEntityMovingStrip] {
+  ) extends BeanTE[MovingStripDesc] {
 
   override def update() {
     if(!parentPos.isEmpty) (world.getTileEntity _).tupled(parentPos.get.toTuple) match {

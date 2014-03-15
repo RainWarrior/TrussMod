@@ -183,6 +183,11 @@ class BlockMotor
 
 import Power._
 
+trait MotorDesc extends TEDesc[MotorDesc] {
+  type Bean = MotorBean
+  type Parent = TileEntityMotor
+}
+
 object MotorBean {
   implicit object serialInstance extends IsSerializable[MotorBean] {
     def pickle[F: IsSerialSink](t: MotorBean): F = {
@@ -207,7 +212,7 @@ final class MotorBean(
     val stripHolder: StripHolder,
     var energy: Double,
     var orientation: Int = 0
-) extends BeanTE[MotorBean, TileEntityMotor] {
+) extends BeanTE[MotorDesc] {
 
   override def parent_=(newParent: TileEntityMotor): Unit = {
     super.parent_=(newParent)
@@ -385,9 +390,8 @@ final class MotorBean(
   //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid),
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
-class TileEntityMotor(var repr: MotorBean) extends SimpleSerialTile[MotorBean, TileEntityMotor] with StripHolderTile with PowerTile {
+class TileEntityMotor(var repr: MotorBean = null) extends SimpleSerialTile[MotorDesc] with StripHolderTile with PowerTile {
 
-  def this() = this(null)
   final def channel = tileChannel
   final def Repr = MotorBean.serialInstance
 
