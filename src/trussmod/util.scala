@@ -140,7 +140,7 @@ object utils {
   }*/
 
   object BlockData {
-    implicit object serialInstance extends IsCopySerial[BlockData] {
+    implicit object serialInstance extends IsSerializable[BlockData] {
       def pickle[F](t: BlockData)(implicit F: IsSerialSink[F]): F = {
         P.list(P(t.x), P(t.y), P(t.z), P(t.dirTo.ordinal))
       }

@@ -85,23 +85,23 @@ class BlockMovingStrip(material: Material) extends BlockContainer(material) {
   @SideOnly(Side.CLIENT)
   override def registerBlockIcons(registry: IIconRegister) {}
 
-  override def createNewTileEntity(world: World, meta: Int) = new TileEntityMovingStrip(new MovingStripBean(None))
+  override def createNewTileEntity(world: World, meta: Int) = new TileEntityMovingStrip(None)
   override def isOpaqueCube = false
   override def renderAsNormalBlock = false
   override def getRenderType = -1
 
   override def setBlockBoundsBasedOnState(world: IBlockAccess, x: Int, y: Int, z: Int) {
     Option(world.getTileEntity(x, y, z)).collect {
-      case te: TileEntityMovingStrip if !te.repr.parentPos.isEmpty =>
-        Option((te.getWorldObj.getTileEntity _).tupled(te.repr.parentPos.get.toTuple)).map(p => (te, p))
+      case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
+        Option((te.getWorldObj.getTileEntity _).tupled(te.parentPos.get.toTuple)).map(p => (te, p))
     }.flatten.collect {
       case (te, parent: StripHolderTile) =>
         val pos = te - parent.dirTo
         val block = world.getBlock(pos.x, pos.y, pos.z)
-        if(parent.stripHolder.offset == 0 || block == null) {
+        if(parent.offset == 0 || block == null) {
           setBlockBounds(.5F, .5F, .5F, .5F, .5F, .5F)
         } else {
-          val shift = (16 - parent.stripHolder.offset).toFloat / 16F
+          val shift = (16 - parent.offset).toFloat / 16F
           //log.info(s"SBBBOS: ${te.getWorldObj.isClient}, ${(block.getBlockBoundsMaxY - parent.dirTo.y * shift).toFloat}")
           setBlockBounds(
             (block.getBlockBoundsMinX - parent.dirTo.x * shift).toFloat,
@@ -117,51 +117,44 @@ class BlockMovingStrip(material: Material) extends BlockContainer(material) {
   override def getCollisionBoundingBoxFromPool(world: World, x: Int, y: Int, z: Int) = {
     setBlockBoundsBasedOnState(world, x, y, z)
     Option(world.getTileEntity(x, y, z)).collect {
-      case te: TileEntityMovingStrip if !te.repr.parentPos.isEmpty =>
-        Option((te.getWorldObj.getTileEntity _).tupled(te.repr.parentPos.get.toTuple))
+      case te: TileEntityMovingStrip if !te.parentPos.isEmpty =>
+        Option((te.getWorldObj.getTileEntity _).tupled(te.parentPos.get.toTuple))
     }.flatten.collect {
       case te: StripHolderTile =>
-        val aabb = te.stripHolder.getAabb((x, y, z))
+        val aabb = te.getAabb((x, y, z))
         //log.info(s"GCBBFP: ${te.getWorldObj.isClient}, ${aabb.maxY}")
         aabb
     }.orNull
   }
 }
 
-trait MovingStripDesc extends TEDesc[MovingStripDesc] {
-  type Bean = MovingStripBean
-  type Parent = TileEntityMovingStrip
-}
-
-class TileEntityMovingStrip(var repr: MovingStripBean = null) extends SimpleSerialTile[MovingStripDesc] {
-  final def channel = tileChannel
-  final def Repr = MovingStripBean.serialInstance
-}
-
-final class MovingStripBean(
+final class TileEntityMovingStrip(
     var parentPos: Option[WorldPos] = None
-  ) extends BeanTE[MovingStripDesc] {
+  ) extends SimpleSerialTile[TileEntityMovingStrip] {
 
-  override def update() {
-    if(!parentPos.isEmpty) (world.getTileEntity _).tupled(parentPos.get.toTuple) match {
+  final def channel = tileChannel
+  final def Repr = TileEntityMovingStrip.serialInstance
+
+  override def updateEntity() {
+    if(!parentPos.isEmpty) (worldObj.getTileEntity _).tupled(parentPos.get.toTuple) match {
       case parent: StripHolderTile =>
-      case _ => world.setBlock(x, y, z, Blocks.air, 0, 3)
-    } else world.setBlock(x, y, z, Blocks.air, 0, 3)
+      case _ => worldObj.setBlock(xCoord, yCoord, zCoord, Blocks.air, 0, 3)
+    } else worldObj.setBlock(xCoord, yCoord, zCoord, Blocks.air, 0, 3)
   }
 }
 
-object MovingStripBean {
-  implicit object serialInstance extends IsSerializable[MovingStripBean] {
-    def pickle[F: IsSerialSink](b: MovingStripBean): F = {
+object TileEntityMovingStrip {
+  implicit object serialInstance extends IsMutableSerial[TileEntityMovingStrip] {
+    def pickle[F: IsSerialSink](b: TileEntityMovingStrip): F = {
       val (x, y, z) = b.parentPos match {
         case Some(pos) => pos.toTuple
         case None => (0, -10, 0)
       }
       P.list(P(x), P(y), P(z))
     }
-    def unpickle[F: IsSerialSource](f: F): MovingStripBean = {
+    def unpickle[F: IsSerialSource](t: TileEntityMovingStrip, f: F): Unit = {
       val Seq(x, y, z) = P.unList(f).map(c => P.unpickle[F, Int](c))
-      new MovingStripBean(Some((x, y, z)))
+      t.parentPos = Some((x, y, z))
     }
   }
 }
@@ -223,64 +216,59 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
 }
 
 trait StripHolderTile extends TileEntity {
-  def dirTo: ForgeDirection
-  def shouldContinue: Boolean
-  def stripHolder: StripHolder
-}
-
-class StripHolder(
-    var parent: StripHolderTile,
-    private var strips: Set[StripData] = HashSet.empty[StripData],
-    var isMoving: Boolean = false,
-    var offset: Int = 0,
-    val renderOffset: BlockData = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
-) {
+  private var strips: Set[StripData] = HashSet.empty[StripData]
+  var isMoving: Boolean = false
+  var offset: Int = 0
+  var renderOffset: BlockData = new BlockData(0, 0, 0, ForgeDirection.UNKNOWN)
 
   StateHandler
+
+  def dirTo: ForgeDirection
+  def shouldContinue: Boolean
 
   def +=(s: StripData) {
     //log.info(s"+=strip: $s, client: ${worldObj.isClient}")
     strips += s
-    renderOffset.dirTo = parent.dirTo
+    renderOffset.dirTo = dirTo
     /*for(i <- 1 to s.size; c = s.pos - s.dirTo * i) {
       MovingRegistry.addMoving(worldObj, c, renderOffset)
     }*/
     //worldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
   }
 
-  def blocks() = { val d = parent.dirTo; for(s <- strips; i <- 1 to s.size) yield s.pos - d * i }
-  def allBlocks() = { val d = parent.dirTo; for(s <- strips; i <- 0 to s.size) yield s.pos - d * i }
+  def blocks() = { val d = dirTo; for(s <- strips; i <- 1 to s.size) yield s.pos - d * i }
+  def allBlocks() = { val d = dirTo; for(s <- strips; i <- 0 to s.size) yield s.pos - d * i }
 
   def postMove() {
     //log.info(s"postMove, strips: ${strips.toString}, pos: ${WorldPos(this)}, side: ${EffectiveSide(worldObj)}")
-    if(parent.getWorldObj.isServer) {
+    if(getWorldObj.isServer) {
       implicit val vi = SerialFormats.vectorSerialInstance
       sendToPlayersWatchingChunk(
         StateHandler.channels.get(Side.SERVER),
-        parent.getWorldObj.asInstanceOf[WorldServer],
-        parent.xCoord >> 4,
-        parent.zCoord >> 4,
+        getWorldObj.asInstanceOf[WorldServer],
+        xCoord >> 4,
+        zCoord >> 4,
         P.list(
-          P(parent.xCoord),
-          P(parent.yCoord),
-          P(parent.zCoord)
+          P(xCoord),
+          P(yCoord),
+          P(zCoord)
         )
       )
     }
     //var t = System.currentTimeMillis
-    for(s <- strips) s.cycle(parent.getWorldObj)
+    for(s <- strips) s.cycle(getWorldObj)
     //println(s"1: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
-    for(s <- strips) s.postCycle(parent.getWorldObj)
+    for(s <- strips) s.postCycle(getWorldObj)
     //println(s"1: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
-    for(s <- strips) s.stopMoving(parent.getWorldObj)
+    for(s <- strips) s.stopMoving(getWorldObj)
     //println(s"2: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
     fixScheduledTicks()
     //println(s"3: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
-    for(s <- strips) s.notifyOfChanges(parent.getWorldObj)
+    for(s <- strips) s.notifyOfChanges(getWorldObj)
     //println(s"4: ${System.currentTimeMillis - t}")
     //t = System.currentTimeMillis
     notifyOfRenderChanges()
@@ -293,7 +281,7 @@ class StripHolder(
   }
 
   def fixScheduledTicks() {
-    parent.getWorldObj match {
+    getWorldObj match {
       case world: WorldServer =>
         val hash = world.pendingTickListEntriesHashSet.asInstanceOf[JSet[NextTickListEntry]]
         val tree = world.pendingTickListEntriesTreeSet.asInstanceOf[JTreeSet[NextTickListEntry]]
@@ -328,9 +316,9 @@ class StripHolder(
           }
         }
         for(tick <- scheduledTicks if blocks((tick.xCoord, tick.yCoord, tick.zCoord))) {
-          tick.xCoord += parent.dirTo.x
-          tick.yCoord += parent.dirTo.y
-          tick.zCoord += parent.dirTo.z
+          tick.xCoord += dirTo.x
+          tick.yCoord += dirTo.y
+          tick.zCoord += dirTo.z
         }
         //log.info(s"ticks: ${scheduledTicks.mkString}")
         for(tick <- scheduledTicks) {
@@ -345,7 +333,7 @@ class StripHolder(
 
   def notifyOfRenderChanges() {
     // fix for WorldRenderer filtering TEs out
-    if(parent.getWorldObj.isClient) {
+    if(getWorldObj.isClient) {
       /*val coords = for(s <- strips; i <- 0 to s.size) yield s.pos - dirTo * i
       val xs = coords.map(_.x)
       val ys = coords.map(_.y)
@@ -355,7 +343,7 @@ class StripHolder(
       for(pass <- 0 to 1) {
         for {
           c <- allBlocks
-          te = parent.getWorldObj.getTileEntity(c.x, c.y, c.z)
+          te = getWorldObj.getTileEntity(c.x, c.y, c.z)
         } {
           //log.info(s"NOTIFY RENDER, pos: $c")
           if(te != null)  pass match {
@@ -374,14 +362,15 @@ class StripHolder(
   }
 
   def preMove() {
-    //log.info(s"stripHolder marking, p: ${WorldPos(parent)}, sd: ${EffectiveSide(parent.getWorldObj)}")
-    if(parent.getWorldObj != null) for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
-      MovingRegistry.addMoving(parent.getWorldObj, c, renderOffset)
+    //log.info(s"stripHolder marking, p: ${WorldPos(parent)}, sd: ${EffectiveSide(getWorldObj)}")
+    if(getWorldObj != null) for(s <- strips; i <- 1 to s.size; c = s.pos - s.dirTo * i) {
+      MovingRegistry.addMoving(getWorldObj, c, renderOffset)
       //mc.renderGlobal.markBlockForRenderUpdate(c.x, c.y, c.z)
     }
   }
 
-  def update() {
+  abstract override def updateEntity() {
+    super.updateEntity()
     //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, m: $isMoving, o: $offset, dirTo: $dirTo, sd: ${EffectiveSide(worldObj)}, ro: $renderOffset")
     if(isServer) {
       if(offset >= 16) {
@@ -390,7 +379,7 @@ class StripHolder(
         isMoving = false
         offset = 0
       }
-      if(offset == 0 && parent.shouldContinue) {
+      if(offset == 0 && shouldContinue) {
         //isMoving = true
         preMove()
       }
@@ -402,7 +391,7 @@ class StripHolder(
         }
       }*/
     if(isMoving && offset <= 16) {
-      val dirTo = this.parent.dirTo
+      val dirTo = this.dirTo
 
       offset = (offset + 1)
       val shift = ((offset).toFloat / 0x10)
@@ -419,19 +408,19 @@ class StripHolder(
     for (s <- strips) {
       val aabb = getAabb(s.pos)
       //log.info(s"Yup2, ${worldObj.isClient}, $aabb")
-      if(aabb != null) parent.getWorldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
+      if(aabb != null) getWorldObj.getEntitiesWithinAABBExcludingEntity(null, aabb) match {
         case list: JList[_] => for(e <- list.asInstanceOf[JList[Entity]]) {
           //log.info(s"Yup, ${dirTo}, $e")
           //e.isAirBorne = true
           /*e.moveEntity(
-            sh2 * parent.dirTo.x,
-            sh2 * parent.dirTo.y,
-            sh2 * parent.dirTo.z)*/
-          e.moveEntity(0, (sh2 * parent.dirTo.y) max 0, 0)
+            sh2 * dirTo.x,
+            sh2 * dirTo.y,
+            sh2 * dirTo.z)*/
+          e.moveEntity(0, (sh2 * dirTo.y) max 0, 0)
           e.addVelocity(
-            sh2 * parent.dirTo.x,
-            sh2 * parent.dirTo.y,
-            sh2 * parent.dirTo.z)
+            sh2 * dirTo.x,
+            sh2 * dirTo.y,
+            sh2 * dirTo.z)
           /*e.posX += sh2 * dirTo.x
           e.posY += sh2 * dirTo.y
           e.posZ += sh2 * dirTo.z*/
@@ -442,15 +431,14 @@ class StripHolder(
   }
 
   def getAabb(spos: WorldPos) = {
-    val pos = spos - parent.dirTo
-    val block = parent.getWorldObj.getBlock(pos.x, pos.y, pos.z)
+    val pos = spos - dirTo
+    val block = getWorldObj.getBlock(pos.x, pos.y, pos.z)
     if(!isMoving || block == null) {
       null
     } else {
       val shift = offset.toFloat / 16F
-      block.getCollisionBoundingBoxFromPool(parent.getWorldObj, pos.x, pos.y, pos.z) match {
+      block.getCollisionBoundingBoxFromPool(getWorldObj, pos.x, pos.y, pos.z) match {
         case aabb: AxisAlignedBB => 
-          val dirTo = parent.dirTo
           aabb.minX += shift * Math.min(0, dirTo.x)
           aabb.minY += shift * Math.min(0, dirTo.y)
           aabb.minZ += shift * Math.min(0, dirTo.z)
@@ -470,9 +458,9 @@ class StripHolder(
     offset = 0
   }
 }
-object StripHolder {
-  implicit object serialInstance extends IsSerializable[StripHolder] {
-    def pickle[F: IsSerialSink](t: StripHolder): F = {
+object StripHolderTile {
+  implicit object serialInstance extends IsMutableSerial[StripHolderTile] {
+    def pickle[F: IsSerialSink](t: StripHolderTile): F = {
       val strips = P.list(t.strips.toSeq.map(s => P(s)): _*)
       P.list(
         strips,
@@ -481,15 +469,13 @@ object StripHolder {
         P(t.renderOffset)
       )
     }
-    def unpickle[F](f: F)(implicit F: IsSerialSource[F]): StripHolder = {
+    def unpickle[F](t: StripHolderTile, f: F)(implicit F: IsSerialSource[F]): Unit = {
       val Seq(strips, isMoving, offset, renderOffset) = P.unList(f)
-      new StripHolder(
-        null,
-        P.unList(strips).map(P.unpickle[F, StripData]).to[HashSet],
-        P.unpickle[F, Boolean](isMoving),
-        P.unpickle[F, Int](offset),
-        P.unpickle[F, BlockData](renderOffset)
-      )
+      t.strips = P.unList(strips).map(P.unpickle[F, StripData]).to[HashSet]
+      t.isMoving = P.unpickle[F, Boolean](isMoving)
+      t.offset = P.unpickle[F, Int](offset)
+      t.renderOffset = P.unpickle[F, BlockData](renderOffset)
+      if(t.isMoving) t.preMove()
     }
   }
 }
@@ -505,7 +491,7 @@ object StateHandler extends SimpleChannelInboundHandler[Vector[Byte]] {
     val world = getPlayer(ctx).worldObj
     val Seq(x, y, z) = P.unList(msg).map(P.unpickle[Vector[Byte], Int])
     world.getTileEntity(x, y, z) match {
-      case te: StripHolderTile => te.stripHolder.clientPostMove()
+      case te: StripHolderTile => te.clientPostMove()
       case _ => log.fatal(s"stray packet for coords: ($x, $y, $z)")
     }
   }

@@ -524,13 +524,13 @@ trait IsSerialReadable[T] {
   def unpickle[F: IsSerialSource](f: F): T // read t from f
 }
 
-trait IsSerializable[T] extends IsSerialWritable[T] with IsSerialReadable[T]
-
-trait Copyable[T] {
-  def copy(from: T, to: T): Unit
+trait IsMutableSerialReadable[T] {
+  def unpickle[F: IsSerialSource](t: T, f: F): Unit
 }
 
-trait IsCopySerial[T] extends IsSerializable[T] with Copyable[T]
+trait IsSerializable[T] extends IsSerialWritable[T] with IsSerialReadable[T]
+
+trait IsMutableSerial[T] extends IsSerialWritable[T] with IsMutableSerialReadable[T]
 
 import net.minecraft.block.Block
 import net.minecraft.entity.Entity
@@ -541,72 +541,10 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity
 import net.minecraft.tileentity.TileEntity
 import net.minecraft.world.World
 
-trait TEDesc[TD <: TEDesc[TD]] { this: TD =>
-  type Bean <: BeanTE[TD]
-  type Parent <: SerialTileEntityWrapper[TD]
-}
+trait SerialTileEntity[T <: TileEntity] extends TileEntity { this: T =>
 
-trait BeanTE[TD <: TEDesc[TD]] { this: TD#Bean =>
-  type Bean = TD#Bean
-  type Parent = TD#Parent
-
-  private[this] var _parent: Parent = _
-  def parent: Parent = _parent
-  def parent_=(parent: Parent): Unit = _parent = parent
-  def update(): Unit = {}
-  def markDirty(): Unit = {}
-  def getMaxRenderDistanceSquared: Double = 4096D
-  def receiveClientEvent(num: Int, arg: Int): Boolean = false
-  def canUpdate: Boolean = true
-  def shouldRefresh(oldBlock: Block, newBlock: Block, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) =
-    oldBlock ne newBlock
-  def onChunkUnload(): Unit = {}
-
-  @inline final def world = parent.getWorldObj()
-  @inline final def x = parent.xCoord
-  @inline final def y = parent.yCoord
-  @inline final def z = parent.zCoord
-}
-
-trait TileEntityWrapper[TD <: TEDesc[TD]] extends TileEntity { this: TD#Parent =>
-  type Bean = TD#Bean
-  type Parent = TD#Parent
-
-  def repr: Bean
-  def repr_=(repr: Bean): Unit
-
-  if(repr != null) repr.parent = this
-
-  override def updateEntity(): Unit = {
-    super.updateEntity()
-    if(repr == null) println("Updating an empty TE wrapper!")
-    else repr.update()
-  }
-
-  override def markDirty(): Unit = {
-    super.markDirty()
-    if(repr != null) repr.markDirty()
-  }
-
-  //override def getMaxRenderDistanceSquared = if(repr == null) 4096D else repr.getMaxRenderDistanceSquared
-
-  //override def receiveClientEvent(num: Int, arg: Int) = if(repr == null) false else repr.receiveClientEvent(num, arg)
-
-  override def canUpdate = repr == null || repr.canUpdate
-
-  override def shouldRefresh(oldBlock: Block, newBlock: Block, oldMeta: Int, newMeta: Int, world: World, x: Int, y: Int, z: Int) = {
-    repr == null || repr.shouldRefresh(oldBlock, newBlock, oldMeta, newMeta, world, x, y, z)
-  }
-  override def onChunkUnload(): Unit = {
-    super.onChunkUnload()
-    if(repr != null) repr.onChunkUnload()
-  }
-}
-
-trait SerialTileEntityWrapper[TD <: TEDesc[TD]] extends TileEntityWrapper[TD] { this: TD#Parent =>
-
-  implicit def WriteRepr: IsSerialWritable[Bean]
-  implicit def ReadRepr: IsSerialReadable[Bean]
+  implicit def WriteRepr: IsSerialWritable[T]
+  implicit def ReadRepr: IsMutableSerialReadable[T]
 
   implicit def ByteVector: IsSerialFormat[Vector[Byte]] = SerialFormats.vectorSerialInstance
   implicit def NBT: IsSerialFormat[NBTBase] = SerialFormats.nbtSerialInstance
@@ -614,36 +552,30 @@ trait SerialTileEntityWrapper[TD <: TEDesc[TD]] extends TileEntityWrapper[TD] { 
   override def readFromNBT(cmp: NBTTagCompound): Unit = {
     super.readFromNBT(cmp)
     val realCmp = cmp.getTag("$serial.data")
-    repr = ReadRepr.unpickle(realCmp)
-    repr.parent_=(this)
+    ReadRepr.unpickle(this, realCmp)
   }
 
   override def writeToNBT(cmp: NBTTagCompound): Unit = {
     super.writeToNBT(cmp)
-    if(repr == null) throw new RuntimeException("WAT")
-    val realCmp = P(NBT, repr)
+    val realCmp = P[NBTBase, T](NBT, this)
     cmp.setTag("$serial.data", realCmp)
   }
 
   override def getDescriptionPacket(): Packet = { // TODO maybe split if too big
-    if(repr == null) throw new RuntimeException("WAT")
     val cmp = new NBTTagCompound
-    cmp.setByteArray("$", P(ByteVector, repr).toArray)
+    cmp.setByteArray("$", P[Vector[Byte], T](ByteVector, this).toArray)
     new S35PacketUpdateTileEntity(xCoord, yCoord, zCoord, 0, cmp)
   }
 
   override def onDataPacket(manager: NetworkManager, packet: S35PacketUpdateTileEntity): Unit = {
-    repr = ReadRepr.unpickle(packet.func_148857_g.getByteArray("$").to[Vector])
-    repr.parent = this
+    ReadRepr.unpickle(this, packet.func_148857_g.getByteArray("$").to[Vector])
   }
 }
 
-trait SimpleSerialTile[TD <: TEDesc[TD]] extends SerialTileEntityWrapper[TD] { this: TD#Parent =>
-
-  implicit def Repr: IsSerializable[Bean]
-
-  implicit def WriteRepr: IsSerialWritable[Bean] = Repr
-  implicit def ReadRepr: IsSerialReadable[Bean] = Repr
+trait SimpleSerialTile[T <: TileEntity] extends SerialTileEntity[T] { this: T =>
+  implicit def Repr: IsMutableSerial[T]
+  implicit def WriteRepr: IsSerialWritable[T] = Repr
+  implicit def ReadRepr: IsMutableSerialReadable[T] = Repr
 }
 
 import cpw.mods.fml.common.network.internal.FMLProxyPacket
