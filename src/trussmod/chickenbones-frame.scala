@@ -47,8 +47,7 @@ import cpw.mods.fml.relauncher.{ SideOnly, Side }
 import TrussMod._
 import rainwarrior.utils.{ Vector3 => MyVector3, _}
 
-/*import codechicken.lib.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
-import codechicken.lib.lighting.{ LazyLightMatrix, LC }
+import codechicken.lib.vec.{ BlockCoord, Vector3, Rotation, Cuboid6 }
 import codechicken.lib.raytracer.{ ExtendedMOP, RayTracer, IndexedCuboid6 }
 import codechicken.multipart.{
   MultiPartRegistry,
@@ -62,14 +61,14 @@ import codechicken.multipart.{
 import scalatraits.TSlottedTile
 import codechicken.microblock.CommonMicroblock
 
-class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPartialOcclusion with TNormalOcclusion {
+class ChickenBonesFramePart extends TMultiPart with Frame with JPartialOcclusion with TNormalOcclusion {
   override val getType = "Frame"
 
   override def getStrength(mop: MovingObjectPosition, player: EntityPlayer) =
-    player.getCurrentPlayerStrVsBlock(CommonProxy.frameBlock, false, 0) /
+    player.getBreakSpeed(CommonProxy.frameBlock, false, 0, mop.blockX, mop.blockY, mop.blockZ) /
       CommonProxy.frameBlock.getBlockHardness(player.worldObj, mop.blockX, mop.blockY, mop.blockZ)
 
-  override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(id, 1, 0))
+  override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(tile.blockType, 1, 0))
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
 
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(0, 0, 0, 1, 1, 1)))
@@ -103,13 +102,15 @@ class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPar
   override val doesTick = false
 
   @SideOnly(Side.CLIENT)
-  override def renderStatic(pos: Vector3, olm: LazyLightMatrix, pass: Int) = if(pass == 0) {
+  override def renderStatic(pos: Vector3, pass: Int) = if(pass == 0) {
     BlockFrameRenderer.renderWithSides(
-      tile.worldObj,
+      tile.getWorldObj,
       x, y, z,
       tile.blockType,
-      for(s <- ForgeDirection.VALID_DIRECTIONS) yield isSideSticky(s))
-  }
+      for(s <- ForgeDirection.VALID_DIRECTIONS) yield isSideSticky(s)
+    )
+    true
+  } else false
 
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) =
     isSideSticky(side)
@@ -127,16 +128,13 @@ class ChickenBonesFramePart(val id: Int) extends TMultiPart with Frame with JPar
   }
 }
 
-class ChickenBonesFrameItem(id: Int) extends ItemBlock(id) with ChickenBonesFrameTrait
+class ChickenBonesFrameItem(block: Block) extends ItemBlock(block) with ChickenBonesFrameTrait
 
 trait ChickenBonesFrameTrait extends ItemBlock {
   setCreativeTab(CreativeTabs.tabMisc)
   setUnlocalizedName(modId + ":FrameItem")
 
-  import cpw.mods.fml.common.registry._
-  LanguageRegistry.addName(this, "FrameItem")
-
-  override def registerIcons(reg: IconRegister) {}
+  override def registerIcons(reg: IIconRegister) {}
 
   def getTile(world: World, pos: BlockCoord) = 
     TileMultipart.getOrConvertTile(world, pos) match {
@@ -153,7 +151,7 @@ trait ChickenBonesFrameTrait extends ItemBlock {
     hitX: Float, hitY:Float, hitZ:Float
   ) = {
     //log.info(s"($x, $y, $z), $side, ($hitX, $hitY, $hitZ)")
-    val newPart = new ChickenBonesFramePart(this.itemID)
+    val newPart = new ChickenBonesFramePart
     val pos = new BlockCoord(x, y, z)
 
     def canPlace = 
@@ -176,7 +174,7 @@ trait ChickenBonesFrameTrait extends ItemBlock {
     } else false
   }
 
-  override def canPlaceItemBlockOnSide(
+  override def func_150936_a(
     world: World,
     x: Int, y: Int, z: Int,
     side: Int,
@@ -185,15 +183,15 @@ trait ChickenBonesFrameTrait extends ItemBlock {
 }
 
 object ChickenBonesPartConverter extends MultiPartRegistry.IPartConverter {
-  override def canConvert(blockId: Int): Boolean = blockId == CommonProxy.blockFrameId
+  override val blockTypes: JIterable[Block] = Seq(CommonProxy.frameBlock)
 
   override def convert(world: World, pos: BlockCoord): TMultiPart = {
-    world.getBlockId(pos.x, pos.y, pos.z) match {
-      case CommonProxy.blockFrameId =>
-        new ChickenBonesFramePart(CommonProxy.blockFrameId)
-      case id =>
-        log.warning(s"Called CB converter for wrong block ID: $id")
+    world.getBlock(pos.x, pos.y, pos.z) match {
+      case CommonProxy.frameBlock =>
+        new ChickenBonesFramePart
+      case block =>
+        log.warn(s"Called CB converter for wrong block: $block")
         null
     }
   }
-}*/
+}
