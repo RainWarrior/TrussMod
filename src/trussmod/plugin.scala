@@ -89,6 +89,7 @@ class Transformer extends IClassTransformer {
   type InsTransformer = MethodNode => Unit
   lazy val deobfEnv = this.getClass.getClassLoader.getResource("net/minecraft/world/World.class") != null
   lazy val blockClass = mapper.unmap("net/minecraft/block/Block")
+  lazy val teClass = mapper.unmap("net/minecraft/tileentity/TileEntity")
   def transformIsBlockOpaqueCube(isChunkCache: Boolean)(m: MethodNode) {
     log.finer(s"TrussMod: FOUND isBlockOpaqueCube")
     val l1 = m.instructions.toArray.collectFirst{case i: JumpInsnNode if i.getOpcode == GOTO => i.label}.get
@@ -134,6 +135,18 @@ class Transformer extends IClassTransformer {
     m.instructions.insert(old, list)
     m.instructions.remove(old)
   }
+  def transformRenderTileEntity(m: MethodNode) {
+    log.finer(s"TrussMod: FOUND renderTileEntity")
+    val old = m.instructions.toArray.collect { case i: MethodInsnNode => i }.last
+    m.instructions.insert(old, new InsnNode(POP))
+    m.instructions.insert(old, new MethodInsnNode(
+      INVOKESTATIC,
+      "rainwarrior/hooks/TileEntityDispatcherHook",
+      "renderTileEntityAt",
+      old.desc
+    ))
+    m.instructions.remove(old)
+  }
   val classData = Map[String, Tuple3[MethodChecker, MethodChecker, InsTransformer]](
     "net.minecraft.world.World" -> ((
       (_, m) => m.name == "isBlockOpaqueCube",
@@ -150,15 +163,10 @@ class Transformer extends IClassTransformer {
       (n, m) => mapper.mapMethodName(n, m.name, s"(L$blockClass;III)Z") == "func_78612_b" && m.desc == s"(L$blockClass;III)Z",
       transformRenderBlockByRenderType
     )),
-    "net.minecraft.client.renderer.tileentity.TileEntityRenderer" -> ((
-      (_, m) => m.name == "<init>",
-      (_, m) => m.name == "<init>",
-      { m: MethodNode =>
-        log.finer("TrussMod: FOUND <init>")
-        m.access &= ~ACC_PRIVATE
-        m.access &= ~ACC_PROTECTED
-        m.access |= ACC_PUBLIC
-      }
+    "net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher" -> ((
+      (_, m) => m.name == "renderTileEntity",
+      (n, m) => mapper.mapMethodName(n, m.name, s"(L$teClass;F)V") == "func_147544_a",
+      transformRenderTileEntity
     )))
   override def transform(name: String, tName: String, data: Array[Byte]) = {
     log.finer(s"checking: $name, $tName")

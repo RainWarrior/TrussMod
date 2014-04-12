@@ -192,8 +192,6 @@ object TrussModClient {
   EVENT_BUS.register(HelperRenderer)
   EVENT_BUS.register(this)
 
-  (new rainwarrior.hooks.MovingTileEntityRenderer)
-
   val motorIconNames = Array(List("Base", "Gear", "Frame").map("Motor" + _): _*)
 
   @SubscribeEvent

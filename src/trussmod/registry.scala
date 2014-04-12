@@ -230,40 +230,18 @@ object RenderTickHandler {
 }
 
 @SideOnly(Side.CLIENT)
-class MovingTileEntityRenderer extends TileEntityRendererDispatcher {
-  import org.lwjgl.opengl.GL11._
-  import TileEntityRendererDispatcher._
-  import collection.JavaConversions._
-  val oldRenderer = instance
-  mapSpecialRenderers = oldRenderer.mapSpecialRenderers
-  for(tesr <- mapSpecialRenderers.asInstanceOf[java.util.HashMap[Class[_], TileEntitySpecialRenderer]].values) {
-    tesr.func_147497_a(this)
-  }
-  TileEntityRendererDispatcher.instance = this
-  override def renderTileEntity(te: TileEntity, tick: Float) {
-    if (te.getDistanceFrom(this.field_147560_j, this.field_147561_k, this.field_147558_l) < te.getMaxRenderDistanceSquared()) {
-      val i = this.field_147550_f.getLightBrightnessForSkyBlocks(te.xCoord, te.yCoord, te.zCoord, 0)
-      val j = i % 0x10000
-      val k = i / 0x10000
-      OpenGlHelper.setLightmapTextureCoords(OpenGlHelper.lightmapTexUnit, j / 1.0F, k / 1.0F)
-      glColor4f(1.0F, 1.0F, 1.0F, 1.0F)
-      if(MovingRegistry.isMoving(te.getWorldObj, te.xCoord, te.yCoord, te.zCoord)) {
-        val o = MovingRegistry.getData(te.getWorldObj, (te.xCoord, te.yCoord, te.zCoord))
-        this.renderTileEntityAt(
-          te,
-          te.xCoord.toDouble - staticPlayerX + clamp(-1F, 1F, o.x + o.dirTo.x * tick / 16F),
-          te.yCoord.toDouble - staticPlayerY + clamp(-1F, 1F, o.y + o.dirTo.y * tick / 16F),
-          te.zCoord.toDouble - staticPlayerZ + clamp(-1F, 1F, o.z + o.dirTo.z * tick / 16F),
-          tick)
-      } else {
-        this.renderTileEntityAt(
-          te,
-          te.xCoord.toDouble - staticPlayerX,
-          te.yCoord.toDouble - staticPlayerY,
-          te.zCoord.toDouble - staticPlayerZ,
-          tick)
-      }
-    }
+object TileEntityDispatcherHook {
+  def renderTileEntityAt(te: TileEntity, x: Double, y: Double, z: Double, tick: Float): Unit = {
+    if(MovingRegistry.isMoving(te.getWorldObj, te.xCoord, te.yCoord, te.zCoord)) {
+      val o = MovingRegistry.getData(te.getWorldObj, (te.xCoord, te.yCoord, te.zCoord))
+      TileEntityRendererDispatcher.instance.renderTileEntityAt(
+        te,
+        x + clamp(-1F, 1F, o.x + o.dirTo.x * tick / 16F),
+        y + clamp(-1F, 1F, o.y + o.dirTo.y * tick / 16F),
+        z + clamp(-1F, 1F, o.z + o.dirTo.z * tick / 16F),
+        tick
+      )
+    } else TileEntityRendererDispatcher.instance.renderTileEntityAt(te, x, y, z, tick)
   }
 }
 
