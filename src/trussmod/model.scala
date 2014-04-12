@@ -47,7 +47,7 @@ import rainwarrior.obj
 import rainwarrior.utils.{ filterQuads, TexturedQuad, LightMatrix, light, staticLight }
 
 object model {
-  var models = Map.empty[String, Map[String, ArrayBuffer[TexturedQuad]]]
+  var models = Map.empty[String, Map[String, Seq[TexturedQuad]]]
   var icons = Map.empty[String, IIcon]
 
   def loadModel(log: Logger, modId: String, name: String) {
@@ -73,10 +73,14 @@ object model {
     models(modelName)(partName)
 
   @SideOnly(CLIENT)
-  def render(m: LightMatrix, modelName: String, partName: String, icon: IIcon) {
+  def render(m: LightMatrix, modelName: String, partName: String, icon: IIcon) : Unit =
+    render(m, getPartFaces(modelName, partName), icon)
+
+  @SideOnly(CLIENT)
+  def render(m: LightMatrix, faces: Seq[TexturedQuad], icon: IIcon): Unit = {
     assert(icon != null)
     for {
-      f <- getPartFaces(modelName, partName)
+      f <- faces
       n = f.normal
     } {
       tes.setNormal(n.x.toFloat, n.y.toFloat, n.z.toFloat)

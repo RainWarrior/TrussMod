@@ -443,7 +443,7 @@ object utils {
     lazy val normal = utils.normal(_1, _2, _3)
   }
 
-  def filterQuads(part: ArrayBuffer[Element]): ArrayBuffer[TexturedQuad] = part collect {
+  def filterQuads(part: Seq[Element]): Seq[TexturedQuad] = part collect {
     case f: TexturedFace if f.vs.length == 4 => TexturedQuad(f.vs(0)._1, f.vs(1)._1, f.vs(2)._1, f.vs(3)._1, Quad(f.vs(0)._2, f.vs(1)._2, f.vs(2)._2, f.vs(3)._2))
     case f: TexturedNormaledFace if f.vs.length == 4 => TexturedQuad(f.vs(0)._1, f.vs(1)._1, f.vs(2)._1, f.vs(3)._1, Quad(f.vs(0)._2, f.vs(1)._2, f.vs(2)._2, f.vs(3)._2))
   }
