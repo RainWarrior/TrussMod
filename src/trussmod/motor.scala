@@ -72,7 +72,7 @@ trait TraitMotor extends BlockContainer {
   GameRegistry.registerTileEntity(classOf[TileEntityMotor], "Motor_TileEntity");
   {
     val motor = new ItemStack(this)
-    val frame = new ItemStack(CommonProxy.frameBlock)
+    val frame = new ItemStack(frameBlock)
     val redstone = new ItemStack(Blocks.redstone_block)
     val iron = new ItemStack(Items.iron_ingot)
     GameRegistry.addRecipe(
@@ -200,9 +200,6 @@ trait MotorTile extends TileEntity with StripHolderTile {
   var energy: Double
   var orientation: Int = 0
 
-  val moveCost = CommonProxy.moveCost
-  val moveCostMultiplier = CommonProxy.moveCostMultiplier
-
   lazy val side = EffectiveSide(getWorldObj)
 
   //log.info(s"new TileEntityMotor, isServer: $isServer")
@@ -243,7 +240,7 @@ trait MotorTile extends TileEntity with StripHolderTile {
     val block = getWorldObj.getBlock(pos.x, pos.y, pos.z)
     if ( block == Blocks.air
       || MovingRegistry.isMoving(getWorldObj, pos.x, pos.y, pos.z)
-      || !CommonProxy.movingTileHandler.canMove(getWorldObj, pos.x, pos.y, pos.z)
+      || !movingTileHandler.canMove(getWorldObj, pos.x, pos.y, pos.z)
     ) return false
 
     //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(getWorldObj)}")
@@ -271,7 +268,7 @@ trait MotorTile extends TileEntity with StripHolderTile {
       (c, size)
     }
 
-    val canMove = (blocks.size <= CommonProxy.structureLimit) && !strips.exists { (pair) =>
+    val canMove = (blocks.size <= structureLimit) && !strips.exists { (pair) =>
       val c = pair._1
       if(c.y < 0 || c.y >= 256) true
       else {
@@ -287,8 +284,8 @@ trait MotorTile extends TileEntity with StripHolderTile {
       isMoving = true
       for ((c, size) <- strips) {
         //log.info(s"c: $c")
-        //CommonProxy.blockMovingStrip.create(getWorldObj, this, c.x, c.y, c.z, dirTo, size)
-        getWorldObj.setBlock(c.x, c.y, c.z, CommonProxy.blockMovingStrip, 0, 3)
+        //blockMovingStrip.create(getWorldObj, this, c.x, c.y, c.z, dirTo, size)
+        getWorldObj.setBlock(c.x, c.y, c.z, blockMovingStrip, 0, 3)
         getWorldObj.getTileEntity(c.x, c.y, c.z) match {
           case te: TileEntityMovingStrip => te.parentPos = Some(this)
           case _ =>
@@ -313,7 +310,7 @@ trait MotorTile extends TileEntity with StripHolderTile {
       greyBlocks: Seq[WorldPos], // frames to visit
       blackBlocks: Set[WorldPos] = Set.empty): Set[WorldPos] = { // all blocks to move
     greyBlocks match {
-      case _ if blackBlocks.size > CommonProxy.structureLimit => blackBlocks
+      case _ if blackBlocks.size > structureLimit => blackBlocks
       case Seq() => blackBlocks
       case Seq(next, rest@ _*) => getWorldObj.getBlock(next.x, next.y, next.z) match {
         case block: Block =>
@@ -333,8 +330,8 @@ trait MotorTile extends TileEntity with StripHolderTile {
             if !greyBlocks.contains(c)
             if !(MovingRegistry.isMoving(getWorldObj, c.x, c.y, c.z))
             if !getWorldObj.isAirBlock(c.x, c.y, c.z)
-            if CommonProxy.movingTileHandler.canMove(getWorldObj, c.x, c.y, c.z)
-            /*if !(id == CommonProxy.blockMotorId && {
+            if movingTileHandler.canMove(getWorldObj, c.x, c.y, c.z)
+            /*if !(id == blockMotorId && {
               val meta = getWorldObj.getBlockMetadata(c.x, c.y, c.z)
               c == next - ForgeDirection.values()(meta)
             })*/
@@ -371,11 +368,11 @@ class TileEntityMotor(
   final def channel = tileChannel
   final def Repr = TileEntityMotor.serialInstance
 
-  val maxEnergy = CommonProxy.motorCapacity
+  val maxEnergy = motorCapacity
 
-  val bcRatio = CommonProxy.bcRatio
-  val cofhRatio = CommonProxy.cofhRatio
-  val ic2Ratio = CommonProxy.ic2Ratio
+  val bcRatio = TrussMod.bcRatio
+  val cofhRatio = TrussMod.cofhRatio
+  val ic2Ratio = TrussMod.ic2Ratio
 }
 
 @SideOnly(Side.CLIENT)
@@ -410,7 +407,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     import net.minecraft.client.Minecraft.{ getMinecraft => mc }
     //val rb = mc.renderGlobal.globalRenderBlocks
     val te = tile.asInstanceOf[TileEntityMotor]
-    val block = CommonProxy.blockMotor
+    val block = blockMotor
     if(te == null) return
 
     /*val pos = WorldPos(
@@ -445,7 +442,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       else (te.offset - 1 + partialTick) * astep
 
     /*tes.startDrawingQuads()
-    tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.world, pos.x, pos.y, pos.z))
+    tes.setBrightness(blockMotor.getMixedBrightnessForBlock(tile.world, pos.x, pos.y, pos.z))
     tes.setColorOpaque_F(1, 1, 1)
     model.render("Motor", "Base")
     model.render("Motor", "Frame")
@@ -456,7 +453,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
       glRotatef(angle, -1, 0, 0)
     }
     tes.startDrawingQuads()
-    //tes.setBrightness(CommonProxy.blockMotor.getMixedBrightnessForBlock(tile.getWorldObj, pos.x, pos.y, pos.z))
+    //tes.setBrightness(blockMotor.getMixedBrightnessForBlock(tile.getWorldObj, pos.x, pos.y, pos.z))
     //tes.setColorOpaque_F(1, 1, 1)
     model.render(getLightMatrix(te.getWorldObj, pos.x, pos.y, pos.z).get, "Motor", "Gear", model.getIcon("block", "MotorGear")) // slightly incorrect
     tes.draw()
@@ -466,7 +463,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
 }
 
 object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
-  CommonProxy.blockMotor.renderType = getRenderId
+  blockMotor.renderType = getRenderId
 
   override def renderInventoryBlock(
       block: Block,

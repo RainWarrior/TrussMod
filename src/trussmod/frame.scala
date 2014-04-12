@@ -81,7 +81,7 @@ trait TraitFrame extends Block with Frame {
 
   import cpw.mods.fml.common.registry._
   //LanguageRegistry.addName(this, "Frame Block")
-  GameRegistry.registerBlock(this, CommonProxy.frameItemClass, "Frame_Block");
+  GameRegistry.registerBlock(this, frameItemClass, "Frame_Block");
   {
     val frame = new ItemStack(this, 8)
     val iron = new ItemStack(Blocks.iron_block)
@@ -158,7 +158,7 @@ class BlockFrame
 
 @SideOnly(Side.CLIENT)
 object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
-  CommonProxy.frameBlock match {
+  frameBlock match {
     case block: TraitFrame => block.renderType = getRenderId
     case _ =>
   }

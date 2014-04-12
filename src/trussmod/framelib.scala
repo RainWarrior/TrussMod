@@ -185,13 +185,13 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
     for(i <- 1 to size) {
       val c = pos - dirTo * i
       //log.info(s"c: $c")
-      CommonProxy.movingTileHandler.move(world, c.x, c.y, c.z, dirTo)
+      movingTileHandler.move(world, c.x, c.y, c.z, dirTo)
     }
   }
   def postCycle(world: World) {
     for(i <- 0 until size) {
       val c = pos - dirTo * i
-      CommonProxy.movingTileHandler.postMove(world, c.x, c.y, c.z)
+      movingTileHandler.postMove(world, c.x, c.y, c.z)
     }
   }
   def stopMoving(world: World) {
@@ -386,7 +386,7 @@ trait StripHolderTile extends TileEntity {
   abstract override def updateEntity() {
     super.updateEntity()
     //log.info(s"stripHolder onUpdate, p: ${WorldPos(this)}, m: $isMoving, o: $offset, dirTo: $dirTo, sd: ${EffectiveSide(worldObj)}, ro: $renderOffset")
-    if(isServer) {
+    if(getWorldObj.isServer) {
       if(offset >= 16) {
         pushEntities()
         postMove()

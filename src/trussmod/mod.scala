@@ -55,11 +55,25 @@ import rainwarrior.hooks.{
 import rainwarrior.utils._
 import TrussMod._
 
-object CommonProxy extends LoadLater {
+object TrussMod {
+  import TrussModInstance.proxy
+
+  val log = LogManager.getLogger(modId)
+
+  log.info("Copyright (C) 2013 RainWarrior")
+  log.info("See included LICENSE file for the license (GPLv3+ with additional terms)")
+  log.info("TrussMod is free software: you are free to change and redistribute it.")
+  log.info("There is NO WARRANTY, to the extent permitted by law.")
+
+  @inline final val modId = "TrussMod"
+  @inline final val tileChannel = "TrussModTileData"
+  @inline final val modName = modId
+
   import cpw.mods.fml.common.registry._
 
   val movingTileHandler = proxy.genTileHandler()
 
+  val config = new Configuration(new File(Loader.instance.getConfigDir, modId + ".cfg"))
   config.load()
   
   val structureLimit = config.get("Main", "structure_limit", 4096, "Maximum number of blocks in one structure").getInt()
@@ -165,7 +179,7 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
   //StatePacketHandler
 }
 
-object ClientProxy extends LoadLater {
+object TrussModClient {
   import cpw.mods.fml.common.registry._
   import cpw.mods.fml.client.registry._
   import net.minecraftforge.client.event.TextureStitchEvent
@@ -177,6 +191,8 @@ object ClientProxy extends LoadLater {
   RenderingRegistry.registerBlockHandler(BlockFrameRenderer)
   EVENT_BUS.register(HelperRenderer)
   EVENT_BUS.register(this)
+
+  (new rainwarrior.hooks.MovingTileEntityRenderer)
 
   val motorIconNames = Array(List("Base", "Gear", "Frame").map("Motor" + _): _*)
 
@@ -199,7 +215,10 @@ class ProxyParent {
 }
 
 @Optional.InterfaceList(Array())
-class CommonProxyImpl extends ProxyParent {
+class CommonProxy extends ProxyParent {
+
+  def preInit(): Unit = TrussMod
+
   /*@Optional.Method(modid = "ImmibisMicroblocks")
   override def genFrameBlock(): Block =
     new BlockImmibisFrame(CommonProxy.blockFrameId)
@@ -217,14 +236,11 @@ class CommonProxyImpl extends ProxyParent {
   @Optional.Method(modid = "ForgeMultipart")
   override def genTileHandler(): ITileHandler =
     new TMultipartTileHandler*/
-
-  def renderer() {}
 }
 
 @Optional.InterfaceList(Array())
-class ClientProxyImpl extends CommonProxyImpl {
-  override lazy val renderer: Unit = new rainwarrior.hooks.MovingTileEntityRenderer
-  CommonProxy.delayedInit(ClientProxy.init())
+class ClientProxy extends CommonProxy {
+  override def preInit(): Unit = TrussModClient
 }
 
 @Mod(
@@ -234,39 +250,13 @@ class ClientProxyImpl extends CommonProxyImpl {
   version = "beta",
   dependencies = "required-after:Forge@[7.8.0.923,);required-after:FML@[5.2.6.923,);after:ImmibisMicroblocks;after:ForgeMultipart"
 )
-/*@NetworkMod(
-  channels = Array(modId, tileChannel, StatePacketHandler.channel),
-  clientSideRequired = true,
-  serverSideRequired = false
-)*/
-object TrussMod {
-  @inline final val modId = "TrussMod"
-  @inline final val tileChannel = "TrussModTileData"
-  @inline final val modName = modId
-
-  val log = LogManager.getLogger(modId)
-  //log.setParent(FMLRelaunchLog.log.getLogger)
-
-  lazy val config = new Configuration(new File(Loader.instance.getConfigDir, modId + ".cfg"))
-  def isServer() = FMLCommonHandler.instance.getEffectiveSide.isServer
-
+object TrussModInstance {
   @SidedProxy(
-    clientSide = "rainwarrior.trussmod.ClientProxyImpl",
-    serverSide = "rainwarrior.trussmod.CommonProxyImpl",
+    clientSide = "rainwarrior.trussmod.ClientProxy",
+    serverSide = "rainwarrior.trussmod.CommonProxy",
     modId = modId)
-  var proxy: CommonProxyImpl = null
+  var proxy: CommonProxy = null
 
-  CommonProxy.delayedInit {
-    log.info("Copyright (C) 2013 RainWarrior")
-    log.info("See included LICENSE file for the license (GPLv3+ with additional terms)")
-    log.info("TrussMod is free software: you are free to change and redistribute it.")
-    log.info("There is NO WARRANTY, to the extent permitted by law.")
-  }
-
-  @Mod.EventHandler def preinit(e: event.FMLPreInitializationEvent) = {
-    CommonProxy.init()
-    proxy.renderer()
-  }
-  //@Mod.EventHandler def init(e: event.FMLInitializationEvent) = CommonProxy.init()
+  @Mod.EventHandler def preinit(e: event.FMLPreInitializationEvent) = proxy.preInit()
 }
 

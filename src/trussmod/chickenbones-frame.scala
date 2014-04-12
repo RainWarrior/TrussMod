@@ -65,8 +65,8 @@ class ChickenBonesFramePart extends TMultiPart with Frame with JPartialOcclusion
   override val getType = "Frame"
 
   override def getStrength(mop: MovingObjectPosition, player: EntityPlayer) =
-    player.getBreakSpeed(CommonProxy.frameBlock, false, 0, mop.blockX, mop.blockY, mop.blockZ) /
-      CommonProxy.frameBlock.getBlockHardness(player.worldObj, mop.blockX, mop.blockY, mop.blockZ)
+    player.getBreakSpeed(frameBlock, false, 0, mop.blockX, mop.blockY, mop.blockZ) /
+      frameBlock.getBlockHardness(player.worldObj, mop.blockX, mop.blockY, mop.blockZ)
 
   override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(tile.blockType, 1, 0))
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
@@ -183,11 +183,11 @@ trait ChickenBonesFrameTrait extends ItemBlock {
 }
 
 object ChickenBonesPartConverter extends MultiPartRegistry.IPartConverter {
-  override val blockTypes: JIterable[Block] = Seq(CommonProxy.frameBlock)
+  override val blockTypes: JIterable[Block] = Seq(frameBlock)
 
   override def convert(world: World, pos: BlockCoord): TMultiPart = {
     world.getBlock(pos.x, pos.y, pos.z) match {
-      case CommonProxy.frameBlock =>
+      case `frameBlock` =>
         new ChickenBonesFramePart
       case block =>
         log.warn(s"Called CB converter for wrong block: $block")
