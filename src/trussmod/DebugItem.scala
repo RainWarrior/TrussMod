@@ -47,6 +47,7 @@ class DebugItem extends Item {
   setMaxStackSize(1)
   setCreativeTab(CreativeTabs.tabMisc)
   setUnlocalizedName("trussmod:DebugItem")
+  setTextureName("iron_shovel")
 
   GameRegistry.registerItem(this, "debugItem")
 
