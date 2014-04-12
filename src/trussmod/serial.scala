@@ -604,7 +604,7 @@ object VectorCodec extends MessageToMessageCodec[FMLProxyPacket, Vector[Byte]] {
   }
 
   protected def encode(ctx: ChannelHandlerContext, data: Vector[Byte], out: JList[Object]): Unit = {
-    for(chunk <- data grouped 0x7FFF) { // max packet size
+    for(chunk <- data grouped 0x1FFFF0) { // max packet size
       out add new FMLProxyPacket(Unpooled.wrappedBuffer(chunk.toArray), ctx.channel.attr(FML_CHANNEL).get)
     }
   }
