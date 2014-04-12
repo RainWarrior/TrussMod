@@ -38,9 +38,9 @@ import net.minecraft._,
   client.renderer.RenderBlocks,
   entity.player.{ EntityPlayer, EntityPlayerMP },
   nbt.NBTTagCompound,
-  network.NetHandlerPlayServer,
+  network.{ NetHandlerPlayServer, Packet },
   tileentity.TileEntity,
-  world.{ ChunkPosition, chunk, IBlockAccess, World, WorldServer },
+  world.{ ChunkCoordIntPair, ChunkPosition, chunk, IBlockAccess, World, WorldServer },
   chunk.storage.ExtendedBlockStorage,
   util.{ MovingObjectPosition, Vec3, Vec3Pool }
 import net.minecraftforge.common.util.ForgeDirection
@@ -654,14 +654,14 @@ object utils {
   }
 
   def getPlayersWatchingChunk(world: WorldServer, x: Int, z: Int): Seq[EntityPlayerMP] = {
-    Option(world.getPlayerManager.getOrCreateChunkWatcher(x, z, false)).map( w =>
+    Option[AnyRef](world.getPlayerManager.getOrCreateChunkWatcher(x, z, false)).map( w =>
       ObfuscationReflectionHelper.getPrivateValue(
-        playerInstanceClass.asInstanceOf[Class[_ >: Any]],
+        playerInstanceClass.asInstanceOf[Class[_ >: AnyRef]],
         w,
         "field_73263_b",
         "playersWatchingChunk"
       ).asInstanceOf[JList[EntityPlayerMP]].toSeq
-    ).getOrElse(Seq.empty[EntityPlayerMP])
+    ).getOrElse(Seq.empty)
   }
 
   def sendToPlayer(channel: Channel, player: EntityPlayerMP, message: Object): Unit = {
@@ -672,6 +672,15 @@ object utils {
   }
 
   def sendToPlayersWatchingChunk(channel: Channel, world: WorldServer, x: Int, z: Int, message: Object): Unit = {
-    getPlayersWatchingChunk(world, x, z).map(p => sendToPlayer(channel, p, message))
+    for(p <- getPlayersWatchingChunk(world, x, z)) {
+      sendToPlayer(channel, p, message)
+    }
+  }
+
+  def sendToPlayersWatchingChunk(world: WorldServer, x: Int, z: Int, packet: Packet): Unit = {
+    val loc = new ChunkCoordIntPair(x, z)
+    for(p <- getPlayersWatchingChunk(world, x, z) if p.loadedChunks contains loc) {
+      p.playerNetServerHandler.sendPacket(packet)
+    }
   }
 }
