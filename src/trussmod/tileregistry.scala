@@ -92,8 +92,8 @@ object MovingTileRegistry {
   }
 
   lazy val modBlockMap = 
-    (for(k <- GameData.blockRegistry.getKeys.asInstanceOf[JSet[String]]) yield {
-      (GameData.blockRegistry.getObject(k).asInstanceOf[Block], k.take(k.indexOf(':')))
+    (for(k <- GameData.getBlockRegistry.getKeys.asInstanceOf[JSet[String]]) yield {
+      (GameData.getBlockRegistry.getObject(k).asInstanceOf[Block], k.take(k.indexOf(':')))
     }).toMap
 
   var blockMap = Map.empty[String, ITileHandler]
@@ -138,7 +138,7 @@ object MovingTileRegistry {
   }
 
   def getHandler(block: Block, meta: Int) =  {
-    val name = GameData.blockRegistry.getNameForObject(block)
+    val name = GameData.getBlockRegistry.getNameForObject(block)
     blockMetaMap.getOrElse((name, meta),
       blockMap.getOrElse(name, {
         modMap.getOrElse(modBlockMap.get(block), defaultHandler)
