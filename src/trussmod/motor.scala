@@ -293,12 +293,7 @@ trait MotorTile extends TileEntity with StripHolderTile {
         getWorldObj.markBlockForUpdate(c.x, c.y, c.z)
         this += StripData(c, dirTo, size)
       }
-      sendToPlayersWatchingChunk(
-        getWorldObj.asInstanceOf[WorldServer],
-        xCoord >> 4,
-        zCoord >> 4,
-        getDescriptionPacket
-      ) // TODO check if this is needed/convert to markBlock
+      getWorldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
     }
     //println(s"Motor activation took: ${System.currentTimeMillis - t}")
     //getWorldObj.markBlockForUpdate(xCoord, yCoord, zCoord)
