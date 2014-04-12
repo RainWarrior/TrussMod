@@ -49,7 +49,7 @@ import rainwarrior.hooks.{
   MovingRegistry,
   MovingTileRegistry,
   TileHandlerIdDispatcher,
-  //TMultipartTileHandler,
+  TMultipartTileHandler,
   HelperRenderer
 }
 import rainwarrior.utils._
@@ -219,13 +219,13 @@ class CommonProxy extends ProxyParent {
 
   /*@Optional.Method(modid = "ImmibisMicroblocks")
   override def genFrameBlock(): Block =
-    new BlockImmibisFrame(CommonProxy.blockFrameId)
+    new BlockImmibisFrame(CommonProxy.blockFrameId)*/
 
   @Optional.Method(modid = "ForgeMultipart")
   override def genFrameItem(): Class[_ <: ItemBlock] = {
     import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
     MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
-    MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart(CommonProxy.blockFrameId - 256), "Frame")
+    MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")
     MultiPartRegistry.registerConverter(ChickenBonesPartConverter)
 
     classOf[ChickenBonesFrameItem]
@@ -233,7 +233,7 @@ class CommonProxy extends ProxyParent {
 
   @Optional.Method(modid = "ForgeMultipart")
   override def genTileHandler(): ITileHandler =
-    new TMultipartTileHandler*/
+    new TMultipartTileHandler
 }
 
 @Optional.InterfaceList(Array())

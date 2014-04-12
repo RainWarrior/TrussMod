@@ -297,11 +297,11 @@ class ImmovableTileHandler extends ITileHandler {
   }
 }*/
 
-/*class TMultipartTileHandler extends TileHandlerIdDispatcher {
+class TMultipartTileHandler extends TileHandlerIdDispatcher {
   import codechicken.multipart.TileMultipart
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
     //log.info(s"TcanMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
-    world.getBlockTileEntity(x, y, z) match {
+    world.getTileEntity(x, y, z) match {
       case t: TileMultipart => true
       case _ => super.canMove(world, x, y, z)
     }
@@ -309,14 +309,14 @@ class ImmovableTileHandler extends ITileHandler {
 
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
     //log.info(s"Tmove: ($x, $y, $z), side: ${EffectiveSide(world)}")
-    val (id, meta, te) = getBlockInfo(world, x, y, z)
+    val (block, meta, te) = getBlockInfo(world, x, y, z)
     te match {
       case t: TileMultipart =>
         val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
         //te.invalidate()
         uncheckedRemoveTileEntity(world, x, y, z)
-        uncheckedSetBlock(world, x, y, z, 0, 0)
-        uncheckedSetBlock(world, nx, ny, nz, id, meta)
+        uncheckedSetBlock(world, x, y, z, Blocks.air, 0)
+        uncheckedSetBlock(world, nx, ny, nz, block, meta)
         te.xCoord = nx
         te.yCoord = ny
         te.zCoord = nz
@@ -338,4 +338,4 @@ class ImmovableTileHandler extends ITileHandler {
       case _ => super.postMove(world, x, y, z)
     }
   }
-}*/
+}
