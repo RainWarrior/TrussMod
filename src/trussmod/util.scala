@@ -679,7 +679,7 @@ object utils {
 
   def sendToPlayersWatchingChunk(world: WorldServer, x: Int, z: Int, packet: Packet): Unit = {
     val loc = new ChunkCoordIntPair(x, z)
-    for(p <- getPlayersWatchingChunk(world, x, z) if p.loadedChunks contains loc) {
+    for(p <- getPlayersWatchingChunk(world, x, z) if !(p.loadedChunks contains loc)) {
       p.playerNetServerHandler.sendPacket(packet)
     }
   }
