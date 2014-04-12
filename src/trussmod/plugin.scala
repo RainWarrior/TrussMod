@@ -185,7 +185,7 @@ class Transformer extends IClassTransformer {
       //node.accept(checker)
       writer.toByteArray
       //data
-    } else if(tName == "net.minecraft.world.WorldServer") { // access transformer
+    /*} else if(tName == "net.minecraft.world.WorldServer") { // access transformer FIXME
       log.finer(s"TrussMod: transforming: $tName")
       val node = new ClassNode
       val reader = new ClassReader(data)
@@ -218,7 +218,7 @@ class Transformer extends IClassTransformer {
       //val checker = new TraceClassVisitor(writer, new ASMifier, new PrintWriter(System.out))
       //node.accept(checker)
       writer.toByteArray
-      //data
+      //data*/
     } else if(name endsWith "$class") { // Optional trait transformer
       val lookupName = name.substring(0, name.length - 6)
       if(Plugin.optionals contains lookupName) {

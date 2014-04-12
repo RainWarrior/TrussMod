@@ -55,9 +55,8 @@ import net.minecraft._,
   chunk.storage.ExtendedBlockStorage
 import org.lwjgl.opengl.GL11._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
-import cpw.mods.fml.common.FMLCommonHandler
 import cpw.mods.fml.{ common, client, relauncher }
-import common.{ Mod, event, network, registry, FMLCommonHandler }
+import common.{ Mod, event, network, registry, FMLCommonHandler, ObfuscationReflectionHelper }
 import network.{ NetworkRegistry }
 import registry.{ GameRegistry, LanguageRegistry }
 import client.registry.{ ClientRegistry, RenderingRegistry, ISimpleBlockRenderingHandler }
@@ -283,9 +282,24 @@ trait StripHolderTile extends TileEntity {
   def fixScheduledTicks() {
     getWorldObj match {
       case world: WorldServer =>
-        val hash = world.pendingTickListEntriesHashSet.asInstanceOf[JSet[NextTickListEntry]]
-        val tree = world.pendingTickListEntriesTreeSet.asInstanceOf[JTreeSet[NextTickListEntry]]
-        val list = world.pendingTickListEntriesThisTick.asInstanceOf[ArrayList[NextTickListEntry]]
+        val hash = ObfuscationReflectionHelper.getPrivateValue(
+          classOf[WorldServer],
+          world,
+          "field_73064_N",
+          "pendingTickListEntriesHashSet"
+        ).asInstanceOf[JSet[NextTickListEntry]]
+        val tree = ObfuscationReflectionHelper.getPrivateValue(
+          classOf[WorldServer],
+          world,
+          "field_73065_O",
+          "pendingTickListEntriesTreeSet"
+        ).asInstanceOf[JTreeSet[NextTickListEntry]]
+        val list = ObfuscationReflectionHelper.getPrivateValue(
+          classOf[WorldServer],
+          world,
+          "field_94579_S",
+          "pendingTickListEntriesThisTick"
+        ).asInstanceOf[ArrayList[NextTickListEntry]]
         val isOptifine = world.getClass.getName == "WorldServerOF"
         val blocks = this.blocks().toSet
         val allBlocks = this.allBlocks()

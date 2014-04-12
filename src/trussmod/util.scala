@@ -635,6 +635,7 @@ object utils {
 
   import io.netty.channel.{ Channel, ChannelHandlerContext }
   import cpw.mods.fml.common.network.NetworkRegistry._
+  import cpw.mods.fml.common.ObfuscationReflectionHelper
 
   def getSide(ctx: ChannelHandlerContext): Side = ctx.channel.attr(CHANNEL_SOURCE).get
 
@@ -647,9 +648,19 @@ object utils {
     }
   }
 
+  lazy val playerInstanceClass = {
+    val clss = classOf[net.minecraft.server.management.PlayerManager].getDeclaredClasses
+    clss.filter(_.getSimpleName == "PlayerInstance").head
+  }
+
   def getPlayersWatchingChunk(world: WorldServer, x: Int, z: Int): Seq[EntityPlayerMP] = {
-    Option(world.getPlayerManager.getOrCreateChunkWatcher(x, z, false)).map(
-      _.playersWatchingChunk.asInstanceOf[JList[EntityPlayerMP]].toSeq
+    Option(world.getPlayerManager.getOrCreateChunkWatcher(x, z, false)).map( w =>
+      ObfuscationReflectionHelper.getPrivateValue(
+        playerInstanceClass.asInstanceOf[Class[_ >: Any]],
+        w,
+        "field_73263_b",
+        "playersWatchingChunk"
+      ).asInstanceOf[JList[EntityPlayerMP]].toSeq
     ).getOrElse(Seq.empty[EntityPlayerMP])
   }
 
