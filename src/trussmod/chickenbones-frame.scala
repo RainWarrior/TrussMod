@@ -68,7 +68,7 @@ class ChickenBonesFramePart extends TMultiPart with Frame with JPartialOcclusion
     player.getBreakSpeed(frameBlock, false, 0, mop.blockX, mop.blockY, mop.blockZ) /
       frameBlock.getBlockHardness(player.worldObj, mop.blockX, mop.blockY, mop.blockZ)
 
-  override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(tile.blockType, 1, 0))
+  override def getDrops: JIterable[ItemStack] = Seq(new ItemStack(frameBlock, 1, 0))
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(-eps, -eps, -eps, 1 + eps, 1 + eps, 1 + eps)))
 
   //override val getSubParts: JIterable[IndexedCuboid6] = Seq(new IndexedCuboid6(0, new Cuboid6(0, 0, 0, 1, 1, 1)))
