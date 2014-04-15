@@ -40,6 +40,7 @@ import net.minecraft._,
   nbt.NBTTagCompound,
   network.{ NetHandlerPlayServer, Packet },
   tileentity.TileEntity,
+  server.management.PlayerManager,
   world.{ ChunkCoordIntPair, ChunkPosition, chunk, IBlockAccess, World, WorldServer },
   chunk.storage.ExtendedBlockStorage,
   util.{ MovingObjectPosition, Vec3, Vec3Pool }
@@ -636,6 +637,9 @@ object utils {
   import io.netty.channel.{ Channel, ChannelHandlerContext }
   import cpw.mods.fml.common.network.NetworkRegistry._
   import cpw.mods.fml.common.ObfuscationReflectionHelper
+  import cpw.mods.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper.{ INSTANCE => FMLDeobfuscatingRemapper }
+  import java.lang.reflect.Method
+  import org.objectweb.asm.Type
 
   def getSide(ctx: ChannelHandlerContext): Side = ctx.channel.attr(CHANNEL_SOURCE).get
 
@@ -649,12 +653,22 @@ object utils {
   }
 
   lazy val playerInstanceClass = {
-    val clss = classOf[net.minecraft.server.management.PlayerManager].getDeclaredClasses
+    val clss = classOf[PlayerManager].getDeclaredClasses
     clss.filter(_.getSimpleName == "PlayerInstance").head
   }
 
+  lazy val getChunkWatcherMethod = {
+    getPrivateMethod(
+      classOf[PlayerManager],
+      Array(Integer.TYPE, Integer.TYPE, java.lang.Boolean.TYPE),
+      playerInstanceClass,
+      "func_72690_a",
+      "getOrCreateChunkWatcher"
+    )
+  }
+
   def getPlayersWatchingChunk(world: WorldServer, x: Int, z: Int): Seq[EntityPlayerMP] = {
-    Option[AnyRef](world.getPlayerManager.getOrCreateChunkWatcher(x, z, false)).map( w =>
+    Option[AnyRef](getChunkWatcherMethod.invoke(world.getPlayerManager, Int.box(x), Int.box(z), Boolean.box(false))).map( w =>
       ObfuscationReflectionHelper.getPrivateValue(
         playerInstanceClass.asInstanceOf[Class[_ >: AnyRef]],
         w,
@@ -682,5 +696,21 @@ object utils {
     for(p <- getPlayersWatchingChunk(world, x, z) if !(p.loadedChunks contains loc)) {
       p.playerNetServerHandler.sendPacket(packet)
     }
+  }
+
+  def getPrivateMethod(cls: Class[_], argTypes: Array[Class[_]], ret: Class[_], names: String*): Method = {
+    val clsName = cls.getName().replace('.', '/')
+    val desc = Type.getMethodDescriptor(Type.getType(ret), argTypes.map(Type.getType): _*)
+    for(n <- names) {
+      try {
+        val m = cls.getDeclaredMethod(FMLDeobfuscatingRemapper.mapMethodName(clsName, n, desc), argTypes: _*)
+        m.setAccessible(true)
+        return m
+      }
+      catch {
+        case e: NoSuchMethodException =>
+      }
+    }
+    throw new NoSuchMethodException(names.toString)
   }
 }
