@@ -54,9 +54,9 @@ trait ITileHandler {
 
 object MovingTileRegistry {
 
-  val rName = raw"([\w:]+)".r
-  val rNameMeta = raw"([\w:]+):(\d+)".r
-  val rNameMetaM = raw"([\w:]+)m(\d+)".r
+  val rName = raw"(.+)".r
+  val rNameMeta = raw"(.+):(\d+)".r
+  val rNameMetaM = raw"(.+)m(\d+)".r
 
   // sticky sets
 
