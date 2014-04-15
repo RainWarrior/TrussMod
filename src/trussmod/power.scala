@@ -39,7 +39,7 @@ import util.ForgeDirection
 import TrussMod._
 import rainwarrior.utils._
 
-//import buildcraft.api.power.{ PowerHandler, IPowerReceptor }
+import buildcraft.api.power.{ PowerHandler, IPowerReceptor }
 //import cofh.api.energy.{ EnergyStorage, IEnergyHandler }
 //import ic2.api.energy.tile.IEnergySink
 //import ic2.api.energy.event.{ EnergyTileLoadEvent, EnergyTileUnloadEvent }
@@ -65,7 +65,7 @@ trait CommonTilePower extends TileEntity {
 
   def maxEnergy: Double
 
-/*  abstract override def readFromNBT(cmp: NBTTagCompound) {
+  abstract override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
     energy = cmp.getDouble("energy")
   }
@@ -73,10 +73,10 @@ trait CommonTilePower extends TileEntity {
   abstract override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     cmp.setDouble("energy", energy)
-  }*/
+  }
 }
 
-/*@Optional.InterfaceList(Array(
+@Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIPowerReceptor, modid = bcid)
 ))
 trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
@@ -104,7 +104,7 @@ trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
 
   // will lose internal amount on save/load, oh well
 
-/*  abstract override def readFromNBT(cmp: NBTTagCompound) {
+  abstract override def readFromNBT(cmp: NBTTagCompound) {
     super.readFromNBT(cmp)
     if(Loader.isModLoaded(bcid)) powerHandler.readFromNBT(cmp)
   }
@@ -112,33 +112,33 @@ trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
   abstract override def writeToNBT(cmp: NBTTagCompound) {
     super.writeToNBT(cmp)
     if(Loader.isModLoaded(bcid)) powerHandler.writeToNBT(cmp)
-  }*/
+  }
 
   @Optional.Method(modid = bcid)
   override def getPowerReceiver(side: ForgeDirection): PowerHandler#PowerReceiver = 
     powerHandler.getPowerReceiver
 
   @Optional.Method(modid = bcid)
-  override def doWork(workProvider: PowerHandler) = if(!worldObj.isRemote) {
+  override def doWork(workProvider: PowerHandler) = if(!getWorldObj.isRemote) {
     assert(workProvider == powerHandler)
     if(powerHandler.getEnergyStored >= minBcStored) {
       val avail = powerHandler.useEnergy(minBcStored, maxBcStored, false)
       val d1 = avail.min(((maxEnergy - energy) * bcRatio).toFloat)
-      val delta = powerHandler.useEnergy(minBcStored min d1, d1, true).toDouble / bcRatio
+      val delta = powerHandler.useEnergy(d1 min minBcStored, d1, true).toDouble / bcRatio
       energy += delta
     }
   }
 
   @Optional.Method(modid = bcid)
-  override def getWorld = worldObj
+  override def getWorld = getWorldObj
 
   abstract override def updateEntity() {
     super.updateEntity()
-    if(worldObj.isServer && Loader.isModLoaded(bcid)) powerHandler.getPowerReceiver.update()
+    if(getWorldObj.isServer && Loader.isModLoaded(bcid)) powerHandler.getPowerReceiver.update()
   }
 }
 
-@Optional.InterfaceList(Array(
+/*@Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIEnergyHandler, modid = cofhid)
 ))
 trait CofhEnergyHandler extends CommonTilePower with IEnergyHandler {
@@ -232,5 +232,5 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
   //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid)
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
-trait PowerTile extends CommonTilePower //with BuildcraftPowerReceptor with CofhEnergyHandler with Ic2EnergySink
+trait PowerTile extends CommonTilePower with BuildcraftPowerReceptor //with CofhEnergyHandler with Ic2EnergySink
 

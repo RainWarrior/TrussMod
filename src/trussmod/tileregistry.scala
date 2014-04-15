@@ -132,7 +132,6 @@ object MovingTileRegistry {
 
   def getHandler(block: Block, meta: Int) = {
     val name = GameData.getBlockRegistry.getNameForObject(block)
-    log.info(s"getHandler $block $meta $name")
     blockMetaMap.getOrElse((name, meta),
       blockMap.getOrElse(name,
         modMap.getOrElse(getModId(name), defaultHandler)
