@@ -71,8 +71,6 @@ object TrussMod {
 
   import cpw.mods.fml.common.registry._
 
-  val movingTileHandler = proxy.genTileHandler()
-
   val config = new Configuration(new File(Loader.instance.getConfigDir, modId + ".cfg"))
   config.load()
   
@@ -100,21 +98,21 @@ Default values:
   "immovable" - For mods that shouldn't move their blocks for some reason
 Default keys:
   "default" - Default handler, if no other found
-  "vanilla" - Handler for vanilla blocks
+  "mod:minecraft" - Handler for vanilla blocks
 Other keys can be:
-  ID strings of mods
-  block IDs
-  ID-metadata pairs in form of IDmMETA (example: 35m1 - orange wool)
+  mod IDs
+  block names
+  name-metadata pairs in form of <name>m<meta> (example: minecraft:woolm1 or woolm1 - orange wool)
 """)
 
   val defaulthandlers = List(
     ("default", "default-hard"),
-    ("vanilla", "default-soft"),
-    ("TrussMod", "default-soft"),
-    ("ComputerCraft", "default-soft"),
-    ("EnderStorage", "default-soft"),
-    ("ChickenChunks", "default-soft"),
-    ("Translocator", "default-soft")
+    ("mod:minecraft", "default-soft"),
+    ("mod:TrussMod", "default-soft"),
+    ("mod:ComputerCraft", "default-soft"),
+    ("mod:EnderStorage", "default-soft"),
+    ("mod:ChickenChunks", "default-soft"),
+    ("mod:Translocator", "default-soft")
   )
 
   if(!handlers.containsKey("default")) {
@@ -135,9 +133,9 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
 """)
 
   val defaultSets = Map(
-    "bed" -> "26",
-    "wooden_door" -> "64",
-    "iron_door" -> "71"
+    "bed" -> "bed",
+    "wooden_door" -> "wooden_door",
+    "iron_door" -> "iron_door"
   )
 
   for((k, v) <- defaultSets  if !sets.containsKey(k))
@@ -172,6 +170,8 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
     }
 
   config.save()
+
+  proxy.updateTileHandler()
 
   model.loadModel(log, modId, "Frame")
   model.loadModel(log, modId, "Motor")
@@ -208,8 +208,7 @@ class ProxyParent {
   def genFrameItem(): Class[_ <: ItemBlock] =
     classOf[ItemBlock]
 
-  def genTileHandler(): ITileHandler =
-    new TileHandlerIdDispatcher
+  def updateTileHandler(): Unit = {}
 }
 
 @Optional.InterfaceList(Array())
@@ -232,8 +231,9 @@ class CommonProxy extends ProxyParent {
   }
 
   @Optional.Method(modid = "ForgeMultipart")
-  override def genTileHandler(): ITileHandler =
-    new TMultipartTileHandler
+  override def updateTileHandler(): Unit = {
+    MovingTileRegistry.rootHandler = new TMultipartTileHandler(MovingTileRegistry.rootHandler)
+  }
 }
 
 @Optional.InterfaceList(Array())

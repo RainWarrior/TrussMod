@@ -240,7 +240,7 @@ trait MotorTile extends TileEntity with StripHolderTile {
     val block = getWorldObj.getBlock(pos.x, pos.y, pos.z)
     if ( block == Blocks.air
       || MovingRegistry.isMoving(getWorldObj, pos.x, pos.y, pos.z)
-      || !movingTileHandler.canMove(getWorldObj, pos.x, pos.y, pos.z)
+      || !MovingTileRegistry.rootHandler.canMove(getWorldObj, pos.x, pos.y, pos.z)
     ) return false
 
     //log.info(s"Activated! meta: $meta, pos: $pos, dirTo: $dirTo, side: ${EffectiveSide(getWorldObj)}")
@@ -325,7 +325,7 @@ trait MotorTile extends TileEntity with StripHolderTile {
             if !greyBlocks.contains(c)
             if !(MovingRegistry.isMoving(getWorldObj, c.x, c.y, c.z))
             if !getWorldObj.isAirBlock(c.x, c.y, c.z)
-            if movingTileHandler.canMove(getWorldObj, c.x, c.y, c.z)
+            if MovingTileRegistry.rootHandler.canMove(getWorldObj, c.x, c.y, c.z)
             /*if !(id == blockMotorId && {
               val meta = getWorldObj.getBlockMetadata(c.x, c.y, c.z)
               c == next - ForgeDirection.values()(meta)

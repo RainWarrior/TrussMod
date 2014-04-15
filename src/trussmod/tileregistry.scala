@@ -32,6 +32,7 @@ package rainwarrior.hooks
 import java.util.{ Set => JSet }
 import java.security.InvalidKeyException
 import collection.JavaConversions._
+import cpw.mods.fml.common.Loader
 import cpw.mods.fml.common.registry.GameData
 import net.minecraftforge.common.util.ForgeDirection
 import net.minecraft.tileentity.TileEntity
@@ -57,6 +58,8 @@ object MovingTileRegistry {
   val rNameMeta = raw"([\w:]+):(\d+)".r
   val rNameMetaM = raw"([\w:]+)m(\d+)".r
 
+  // sticky sets
+
   var stickyMap = Map.empty[(String, Int), Set[(String, Int)]]
 
   def addStickySet(set: Set[(String, Int)]) {
@@ -71,9 +74,9 @@ object MovingTileRegistry {
     var set = Set.empty[(String, Int)]
     for(s <- string.stripPrefix("\"").stripSuffix("\"").split(',')) s match {
       case rName(name) =>
-        for(m <- 0 until 16) set += ((name, m))
+        for(m <- 0 until 16) set += ((fixName(name), m))
       case rNameMeta(name, ms) =>
-        set += ((name, ms.toInt))
+        set += ((fixName(name), ms.toInt))
       case s =>
         throw new MatchError(s"Illegal set part: $s")
     }
@@ -91,59 +94,60 @@ object MovingTileRegistry {
     }
   }
 
-  lazy val modBlockMap = 
-    (for(k <- GameData.getBlockRegistry.getKeys.asInstanceOf[JSet[String]]) yield {
-      (GameData.getBlockRegistry.getObject(k).asInstanceOf[Block], k.take(k.indexOf(':')))
-    }).toMap
+  // moving handlers
 
   var blockMap = Map.empty[String, ITileHandler]
   var blockMetaMap = Map.empty[(String, Int), ITileHandler]
-  var modMap = Map.empty[Option[String], ITileHandler]
+  var modMap = Map.empty[String, ITileHandler]
 
   var handlerNameMap = Map(
     "default-soft" -> new DefaultTileHandler,
     "default-hard" -> new DefaultModTileHandler,
     "immovable" -> new ImmovableTileHandler)
 
+  var rootHandler: ITileHandler = new TileHandlerIdDispatcher
+
   var defaultHandler = resolveHandler("default-hard")
 
-  def resolveHandler(handler: String) =
+  def resolveHandler(handler: String): ITileHandler =
     handlerNameMap.getOrElse(handler, throw new InvalidKeyException(s"No mod handler named '$handler'"))
 
-  /*try {
-    Class.forName("buildcraft.transport.PipeTransportItems")
-    modMap += (Some("BuildCraft|Transport") -> BuildCraftTileHandler)
-  } catch {
-    case e: ClassNotFoundException =>
-  }*/
-
-  def setDefaultHandler(handler: String) {
-    defaultHandler = resolveHandler(handler)
-  }
-
-  def setHandler(mod: String, handler: String) {
+  def setHandler(target: String, handler: String) {
     val h = resolveHandler(handler)
-    mod match {
-      case rName(name) =>
-        blockMap += name -> h
+    target match {
       case rNameMetaM(name, meta) =>
-        blockMetaMap += (name, meta.toInt) -> h
+        log.trace(s"setHandler $name $meta $handler")
+        blockMetaMap += (fixName(name), meta.toInt) -> h
       case "default" =>
+        log.trace(s"setHandler default $handler")
         defaultHandler = h
-      case "vanilla" =>
-        modMap += None -> h
-      case mod =>
-        modMap += Some(mod) -> h
+      case mod if Loader.isModLoaded(mod) =>
+        log.trace(s"setHandler mod $mod $handler")
+        modMap += mod -> h
+      case rName(name) =>
+        log.trace(s"setHandler $name $handler")
+        blockMap += fixName(name) -> h
     }
   }
 
-  def getHandler(block: Block, meta: Int) =  {
+  def getHandler(block: Block, meta: Int) = {
     val name = GameData.getBlockRegistry.getNameForObject(block)
+    log.info(s"getHandler $block $meta $name")
     blockMetaMap.getOrElse((name, meta),
-      blockMap.getOrElse(name, {
-        modMap.getOrElse(modBlockMap.get(block), defaultHandler)
-      })
+      blockMap.getOrElse(name,
+        modMap.getOrElse(getModId(name), defaultHandler)
+      )
     )
+  }
+
+  @inline final def getModId(name: String) = name.indexOf(':') match {
+    case -1 => "minecraft"
+    case i => name.take(i)
+  }
+
+  @inline final def fixName(name: String) = name.indexOf(':') match {
+    case -1 => "minecraft:" + name
+    case i => name
   }
 }
 
@@ -247,63 +251,13 @@ class ImmovableTileHandler extends ITileHandler {
   override def postMove(world: World, x: Int, y: Int, z: Int) {}
 }
 
-/*object BuildCraftTileHandler extends ITileHandler {
-  import buildcraft.api.transport.{ IPipeTile }
-  import buildcraft.transport.{ Pipe, PipeTransportItems }
-
-  override def canMove(world: World, x: Int, y: Int, z: Int) = {
-    //log.info(s"BC canMove: ($x, $y, $z)")
-    world.getBlockTileEntity(x, y, z) match {
-      case te: IPipeTile =>
-        true
-      case _ => false
-    }
-  }
-
-  override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
-    //log.info(s"BC move: ($x, $y, $z)")
-    val (id, meta, te) = getBlockInfo(world, x, y, z)
-    val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
-    te match {
-      case pte: IPipeTile =>
-        te.invalidate()
-        uncheckedRemoveTileEntity(world, x, y, z)
-      case _ =>
-    }
-    uncheckedSetBlock(world, x, y, z, 0, 0)
-    uncheckedSetBlock(world, nx, ny, nz, id, meta)
-    te match {
-      case pte: IPipeTile => 
-        te.xCoord = nx
-        te.yCoord = ny
-        te.zCoord = nz
-        te.validate()
-        uncheckedAddTileEntity(world, nx, ny, nz, te)
-        pte.getPipe match {
-          case pipe: Pipe => pipe.transport match {
-            case tr: PipeTransportItems => for (e <- tr.travelingEntities.values; i = e.item) {
-              val p = i.getPosition
-              i.setPosition(
-                p.x + dirTo.x,
-                p.y + dirTo.y,
-                p.z + dirTo.z)
-            }
-            case _ =>
-          }
-          case _ =>
-        }
-      case _ =>
-    }
-  }
-}*/
-
-class TMultipartTileHandler extends TileHandlerIdDispatcher {
+class TMultipartTileHandler(val parent: ITileHandler) extends ITileHandler {
   import codechicken.multipart.TileMultipart
   override def canMove(world: World, x: Int, y: Int, z: Int) = {
     //log.info(s"TcanMove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     world.getTileEntity(x, y, z) match {
       case t: TileMultipart => true
-      case _ => super.canMove(world, x, y, z)
+      case _ => parent.canMove(world, x, y, z)
     }
   }
 
@@ -323,7 +277,7 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
         //te.tileEntityInvalid = false
         //t.setValid(true)
         uncheckedAddTileEntity(world, nx, ny, nz, te)
-      case _ => super.move(world, x, y, z, dirTo)
+      case _ => parent.move(world, x, y, z, dirTo)
     }
   }
 
@@ -335,7 +289,7 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
         //te.setValid(false)
         //te.validate()
         te.onMoved()
-      case _ => super.postMove(world, x, y, z)
+      case _ => parent.postMove(world, x, y, z)
     }
   }
 }

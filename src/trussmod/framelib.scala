@@ -185,13 +185,13 @@ case class StripData(pos: WorldPos, dirTo: ForgeDirection, size: Int) {
     for(i <- 1 to size) {
       val c = pos - dirTo * i
       //log.info(s"c: $c")
-      movingTileHandler.move(world, c.x, c.y, c.z, dirTo)
+      MovingTileRegistry.rootHandler.move(world, c.x, c.y, c.z, dirTo)
     }
   }
   def postCycle(world: World) {
     for(i <- 0 until size) {
       val c = pos - dirTo * i
-      movingTileHandler.postMove(world, c.x, c.y, c.z)
+      MovingTileRegistry.rootHandler.postMove(world, c.x, c.y, c.z)
     }
   }
   def stopMoving(world: World) {
