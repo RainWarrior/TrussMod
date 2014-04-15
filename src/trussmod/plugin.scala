@@ -57,32 +57,6 @@ class Plugin extends IFMLLoadingPlugin with IFMLCallHook {
     null
   }
 }
-object Plugin {
-  private[this] lazy val dataTableField = {
-    val field = classOf[ModAPIManager].getDeclaredField("dataTable")
-    field.setAccessible(true)
-    field
-  }
-
-  def dataTable =
-    dataTableField.get(ModAPIManager.INSTANCE).asInstanceOf[ASMDataTable]
-
-  private[this] lazy val _optionals = {
-    (dataTable.getAll("cpw.mods.fml.common.Optional$Interface") ++
-    dataTable.getAll("cpw.mods.fml.common.Optional$Method") ++ (for {
-      data <- dataTable.getAll("cpw.mods.fml.common.Optional$InterfaceList")
-      packed <- data.getAnnotationInfo.get("value").asInstanceOf[JList[JMap[String, AnyRef]]]
-    } yield data.copy(packed))).foldLeft(Map.empty[String, Set[ASMData]]) { (map, data) =>
-      val name = data.getClassName
-      map + (name -> map.get(name).map(_ + data).getOrElse(Set(data)))
-    }
-  }
-
-  def optionals = Option(dataTable) match {
-    case Some(table) => _optionals
-    case None => Map.empty[String, Set[ASMData]]
-  }
-}
 
 class Transformer extends IClassTransformer {
   type MethodChecker = (String, MethodNode) => Boolean
@@ -193,67 +167,6 @@ class Transformer extends IClassTransformer {
       //node.accept(checker)
       writer.toByteArray
       //data
-    /*} else if(tName == "net.minecraft.world.WorldServer") { // access transformer FIXME
-      log.finer(s"TrussMod: transforming: $tName")
-      val node = new ClassNode
-      val reader = new ClassReader(data)
-      reader.accept(node, 0)
-
-      for(f@(_f: FieldNode) <- node.fields) {
-        if(f.name == "pendingTickListEntriesHashSet"
-        || mapper.mapFieldName(name, f.name, "Ljava/util/Set;") == "field_73064_N") {
-          log.finer("TrussMod: FOUND pendingTickListEntriesHashSet")
-          f.access &= ~ACC_PRIVATE
-          f.access &= ~ACC_PROTECTED
-          f.access |= ACC_PUBLIC
-        } else if(f.name == "pendingTickListEntriesTreeSet"
-        || mapper.mapFieldName(name, f.name, "Ljava/util/TreeSet;") == "field_73065_O") {
-          log.finer("TrussMod: FOUND pendingTickListEntriesTreeSet")
-          f.access &= ~ACC_PRIVATE
-          f.access &= ~ACC_PROTECTED
-          f.access |= ACC_PUBLIC
-        } else if(f.name == "pendingTickListEntriesThisTick"
-        || mapper.mapFieldName(name, f.name, "Ljava/util/List;") == "field_94579_S") {
-          log.finer("TrussMod: FOUND pendingTickListEntriesThisTick")
-          f.access &= ~ACC_PRIVATE
-          f.access &= ~ACC_PROTECTED
-          f.access |= ACC_PUBLIC
-        }
-      }
-      
-      val writer = new ClassWriter(ClassWriter.COMPUTE_MAXS)
-      node.accept(writer)
-      //val checker = new TraceClassVisitor(writer, new ASMifier, new PrintWriter(System.out))
-      //node.accept(checker)
-      writer.toByteArray
-      //data*/
-    } else if(name endsWith "$class") { // Optional trait transformer
-      val lookupName = name.substring(0, name.length - 6)
-      if(Plugin.optionals contains lookupName) {
-        val node = new ClassNode
-        val reader = new ClassReader(data)
-        reader.accept(node, 0)
-
-        val toRemove = for {
-          optional <- Plugin.optionals(lookupName)
-          annInfo = optional.getAnnotationInfo
-          if !annInfo.containsKey("iface")
-          modId = annInfo.get("modid").asInstanceOf[String]
-          if !(Loader.isModLoaded(modId) || ModAPIManager.INSTANCE.hasAPI(modId))
-          desc = optional.getObjectName.asInstanceOf[String]
-          pos = desc.indexOf('(') + 1
-        } yield desc.patch(pos, s"L${lookupName.replace('.', '/')};", 0)
-
-        val oldMethods = node.methods.asInstanceOf[JList[MethodNode]]
-        val newMethods = oldMethods filterNot { m => toRemove(m.name + m.desc) }
-        node.methods = newMethods
-
-        //log.finer(s"TrussMod Optional removing: ${node.name} $toRemove ${oldMethods.map(m => m.name + m.desc)}, ${newMethods.map(m => m.name + m.desc)}")
-
-        val writer = new ClassWriter(ClassWriter.COMPUTE_MAXS)
-        node.accept(writer)
-        writer.toByteArray
-      } else data
     } else data
   }
 }
