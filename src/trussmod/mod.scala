@@ -216,9 +216,9 @@ class CommonProxy extends ProxyParent {
 
   def preInit(): Unit = TrussMod
 
-  /*@Optional.Method(modid = "ImmibisMicroblocks")
+  @Optional.Method(modid = "ImmibisMicroblocks")
   override def genFrameBlock(): Block =
-    new BlockImmibisFrame(CommonProxy.blockFrameId)*/
+    new BlockImmibisFrame
 
   @Optional.Method(modid = "ForgeMultipart")
   override def genFrameItem(): Class[_ <: ItemBlock] = {

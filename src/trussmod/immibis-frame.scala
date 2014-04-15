@@ -43,6 +43,7 @@ import net.minecraft._,
   creativetab.CreativeTabs,
   entity.Entity,
   entity.player.EntityPlayer,
+  init.{ Blocks, Items },
   item.{ Item, ItemStack },
   nbt.{ NBTTagCompound, NBTTagList },
   tileentity.TileEntity,
@@ -62,26 +63,25 @@ import TrussMod._
 import rainwarrior.utils._
 import rainwarrior.hooks.{ MovingRegistry, MovingTileRegistry }
 
-/*import mods.immibis.core.api.multipart.util.BlockMultipartBase
+import mods.immibis.core.api.multipart.util.BlockMultipartBase
 import mods.immibis.microblocks.api.util.TileCoverableBase
 import mods.immibis.microblocks.api.{ EnumPosition, EnumPositionClass, IMicroblockCoverSystem, PartType }
 
 trait TraitImmibisFrame extends BlockMultipartBase with Frame {
-  setStepSound(Block.soundMetalFootstep)
-  setUnlocalizedName(modId + ":BlockFrame")
+  setStepSound(Block.soundTypeMetal)
+  setBlockName(s"$modId:BlockFrame")
   setCreativeTab(CreativeTabs.tabBlock)
   //setBlockBounds(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
   setBlockBounds(0, 0, 0, 1, 1, 1)
 
   import cpw.mods.fml.common.registry._
-  LanguageRegistry.addName(this, "Frame Block")
-  GameRegistry.registerBlock(this, CommonProxy.frameItemClass, "Frame_Block");
+  GameRegistry.registerBlock(this, frameItemClass, "Frame_Block");
   GameRegistry.registerTileEntity(classOf[TileEntityImmibisFrame], "Frame_TileEntity");
   {
     val frame = new ItemStack(this, 8)
-    val iron = new ItemStack(Block.blockIron)
-    val redstone = new ItemStack(Item.redstone)
-    val slime = new ItemStack(Item.slimeBall)
+    val iron = new ItemStack(Blocks.iron_block)
+    val redstone = new ItemStack(Items.redstone)
+    val slime = new ItemStack(Items.slime_ball)
     GameRegistry.addRecipe(
       frame,
       "srs",
@@ -93,7 +93,7 @@ trait TraitImmibisFrame extends BlockMultipartBase with Frame {
   }
 
   override def getPartHardness(world: World, x: Int, y: Int, z: Int, part: Int) = 5f 
-  override def createNewTileEntity(world: World): TileEntity =  new TileEntityImmibisFrame
+  override def createNewTileEntity(world: World, meta: Int): TileEntity = new TileEntityImmibisFrame
   @SideOnly(Side.CLIENT)
   override def wrappedGetRenderType = BlockFrameRenderer.getRenderId
 
@@ -101,7 +101,7 @@ trait TraitImmibisFrame extends BlockMultipartBase with Frame {
     blockRayTrace(world, x, y, z, from, to, model.getPartFaces("Frame", "Frame"))
 
   override def isSideSticky(world: World, x: Int, y: Int, z: Int, side: ForgeDirection) = {
-    world.getBlockTileEntity(x, y, z) match {
+    world.getTileEntity(x, y, z) match {
       case te: TileEntityImmibisFrame =>
         te.isSideSticky(side)
       case _ => true
@@ -109,8 +109,8 @@ trait TraitImmibisFrame extends BlockMultipartBase with Frame {
   }
 }
 
-class BlockImmibisFrame(id: Int)
-  extends BlockMultipartBase(id, Material.ground)
+class BlockImmibisFrame
+  extends BlockMultipartBase(Material.ground)
   with TraitImmibisFrame
 
 class TileEntityImmibisFrame extends TileCoverableBase {
@@ -142,7 +142,7 @@ class TileEntityImmibisFrame extends TileCoverableBase {
   override def isPositionOccupiedByTile(pos: EnumPosition) = pos == Centre
 
   override def getPlayerRelativePartHardness(player: EntityPlayer, part: Int) =
-    player.getCurrentPlayerStrVsBlock(getBlockType, false, getBlockMetadata) / 3F / 30F
+    player.getBreakSpeed(getBlockType, false, getBlockMetadata, 0, -1, 0) / 3F / 30F
 
   override def pickPart(rayTrace: MovingObjectPosition, part: Int) = 
     new ItemStack(getBlockType)
@@ -185,4 +185,4 @@ class TileEntityImmibisFrame extends TileCoverableBase {
 
   override def getNumTileOwnedParts() = 1
 
-}*/
+}
