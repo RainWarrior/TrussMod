@@ -143,11 +143,6 @@ class Transformer extends IClassTransformer {
       transformRenderTileEntity
     )))
   override def transform(name: String, tName: String, data: Array[Byte]) = {
-    log.finer(s"checking: $name, $tName")
-    //val getMethodMap = mapper.getClass.getDeclaredMethod("getMethodMap", classOf[String])
-    //getMethodMap.setAccessible(true)
-    //val classNameBiMap = mapper.getClass.getDeclaredField("classNameBiMap")
-    //classNameBiMap.setAccessible(true)
     if(classData.keys.contains(tName)) { // patch table transformer
       println(s"TrussMod: transforming: $tName")
       val (ch1, ch2, tr) = classData(tName)
@@ -166,7 +161,6 @@ class Transformer extends IClassTransformer {
       //val checker = new TraceClassVisitor(writer, new ASMifier, new PrintWriter(System.out))
       //node.accept(checker)
       writer.toByteArray
-      //data
     } else data
   }
 }
