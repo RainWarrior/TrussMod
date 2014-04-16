@@ -79,6 +79,7 @@ object TrussMod {
   //val blockFrameId = config.getBlock("frame", 501).getInt()
   val frameItemClass = proxy.genFrameItem()
   val frameBlock = proxy.genFrameBlock()
+  proxy.postFrameHook()
 
   //val blockMotorId = config.getBlock("motor", 502).getInt()
   val blockMotor = new BlockMotor
@@ -208,6 +209,8 @@ class ProxyParent {
   def genFrameItem(): Class[_ <: ItemBlock] =
     classOf[ItemBlock]
 
+  def postFrameHook(): Unit = {}
+
   def updateTileHandler(): Unit = {}
 }
 
@@ -221,13 +224,15 @@ class CommonProxy extends ProxyParent {
     new BlockImmibisFrame
 
   @Optional.Method(modid = "ForgeMultipart")
-  override def genFrameItem(): Class[_ <: ItemBlock] = {
+  override def genFrameItem(): Class[_ <: ItemBlock] =
+    classOf[ChickenBonesFrameItem]
+
+  @Optional.Method(modid = "ForgeMultipart")
+  override def postFrameHook(): Unit = {
     import codechicken.multipart.{ MultiPartRegistry, MultipartGenerator }
     MultipartGenerator.registerPassThroughInterface("rainwarrior.trussmod.Frame")
     MultiPartRegistry.registerParts((_, _) => new ChickenBonesFramePart, "Frame")
     MultiPartRegistry.registerConverter(ChickenBonesPartConverter)
-
-    classOf[ChickenBonesFrameItem]
   }
 
   @Optional.Method(modid = "ForgeMultipart")
