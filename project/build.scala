@@ -33,7 +33,7 @@ object McpBuild extends Build {
     bd / "project/output.jar"
   }
 
-  def reobfuscateTask = Def.task {
+  def bonTask = Def.task {
     val bd = baseDirectory.value
     val options = new ForkOptions(javaHome = Keys.javaHome.value, workingDirectory = some(bd))
     val runner = new ForkRun(options)
@@ -52,6 +52,26 @@ object McpBuild extends Build {
         (if(f contains "-dev") "MCP:" else "OBF:") + f
       }.flatMap { f =>
         Seq("-refn", f)
+      },
+      streams.value.log)
+    bd / "project/output.jar"
+  }
+
+  def treeTask = Def.task {
+    val bd = baseDirectory.value
+    val options = new ForkOptions(javaHome = Keys.javaHome.value, workingDirectory = some(bd))
+    val runner = new ForkRun(options)
+    val inJar = (packageBin in Compile).value.getPath
+    runner.run(
+      "com.simontuffs.onejar.Boot",
+      Seq(bd / "project/tree_obfuscator.jar"),
+      Seq(
+        "-cf", inJar,
+        "-s", (bd / "project/mcp2srg.srg").getPath,
+        s"-c:$inJar=" + (bd / "project/output.jar").getPath
+        //(bd / "bin/minecraft").getPath
+      ) ++ ((bd / "run/mods" ** "*.jar").getPaths ++ (bd / "lib/mods" ** "*.jar").getPaths).flatMap { f =>
+        Seq(if((f contains "-dev") || (f contains "-deo")) "-cf" else "-ct", f)
       },
       streams.value.log)
     bd / "project/output.jar"
@@ -81,9 +101,10 @@ object McpBuild extends Build {
   }
 
   def runJavaOptions(mcVersion: String) = Seq(
-    s"-Djava.library.path=../jars/versions/$mcVersion/$mcVersion-natives/",
+    s"-Djava.library.path=../build/natives/",
+    "-Dfml.debugAPITransformer=true",
     "-Xdebug",
-    "-Xrunjdwp:transport=dt_socket,server=y,address=8000",
+    "-Xrunjdwp:transport=dt_socket,server=y,address=8000,suspend=n",
     "-Dfml.coreMods.load="
     + "rainwarrior.hooks.plugin.Plugin"
     //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
@@ -93,6 +114,7 @@ object McpBuild extends Build {
 
   def buildJars: Initialize[Task[Classpath]] = Def.task {
     ((baseDirectory.value / "run/mods" ** "*.jar") +++
+     (baseDirectory.value / "lib" ** "*.jar") +++
      runJars.value).classpath
   }
 
@@ -107,10 +129,11 @@ object McpBuild extends Build {
       val wv = wrapperVersion.value
       (Seq(
         sourceDirectory.value,
-        bd / s"jars/versions/$v/$v.jar").map(Attributed.blank) ++: runJars.value.classpath
-      ) ++ (
+        bd / "run",
+        bd / s"jars/minecraft-$v.jar"
+      ).map(Attributed.blank) ++: runJars.value.classpath) ++ (
         (resourceDirectories in Compile).value :+
-        (bd / s"jars/libraries/net/minecraft/launchwrapper/$wv/launchwrapper-$wv.jar")
+        (bd / s"jars/libraries/launchwrapper-$wv.jar")
       ).map(Attributed.blank)
   }
 
@@ -133,8 +156,10 @@ object McpBuild extends Build {
       "net.minecraft.launchwrapper.Launch",
       (fullClasspath in Runtime).value.map(_.data),
       Seq(
+        "--version", "1.7",
         "--tweakClass", "cpw.mods.fml.common.launcher.FMLTweaker",
-        "--version", "FML_DEV"
+        "--username", "ForgeDevName",
+        "--accessToken", "FML"
       ),
       streams.value.log
     ))
@@ -163,8 +188,8 @@ object McpBuild extends Build {
   }
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
-    sourceDirectory := baseDirectory.value / "src/minecraft",
-    classDirectory in Compile := baseDirectory.value / "bin/minecraft",
+    sourceDirectory := baseDirectory.value / "src",
+    classDirectory in Compile := baseDirectory.value / "bin",
     javaSource in Compile := sourceDirectory.value,
     scalaSource in Compile := sourceDirectory.value,
     unmanagedJars in Compile ++= buildJars.value,
@@ -175,14 +200,40 @@ object McpBuild extends Build {
     unmanagedClasspath in Runtime := runClasspath.value,
     autoCompilerPlugins := true,
     addCompilerPlugin("org.scala-lang.plugins" % "continuations" % "2.10.2"),
-    scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", "-optimise", "-Xlint", "-g:vars"),
+    scalacOptions ++= Seq("-P:continuations:enable", "-feature", "-deprecation", "-unchecked", /*"-optimise", */"-Xlint", "-g:vars", "-Yinline-warnings"),
     javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-g"),
-    libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+    resolvers += "forge" at "http://files.minecraftforge.net/maven",
+    //libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+    libraryDependencies += "org.ow2.asm" % "asm-debug-all" % "4.1",
+    libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.5",
+    libraryDependencies += "java3d" % "vecmath" % "1.3.1",
+    libraryDependencies += "net.sf.trove4j" % "trove4j" % "3.0.3",
+    //libraryDependencies += "com.ibm.icu" % "icu4j-core-mojang" % "51.2",
+    //libraryDependencies += "lzma" % "lzma" % "0.0.1",
+    //libraryDependencies += "com.paulscode" % "codecjorbis" % "20101023",
+    //libraryDependencies += "com.paulscode" % "codecwav" % "20101023",
+    //libraryDependencies += "com.paulscode" % "libraryjavasound" % "20101123",
+    //libraryDependencies += "com.paulscode" % "librarylwjglopenal" % "20100824",
+    //libraryDependencies += "com.paulscode" % "soundsystem" % "20120107",
+    libraryDependencies += "io.netty" % "netty-all" % "4.0.10.Final",
+    libraryDependencies += "com.google.guava" % "guava" % "15.0",
+    libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.1",
+    libraryDependencies += "commons-io" % "commons-io" % "2.4",
+    libraryDependencies += "net.java.jinput" % "jinput" % "2.0.5",
+    libraryDependencies += "net.java.jutils" % "jutils" % "1.0.0",
+    libraryDependencies += "com.google.code.gson" % "gson" % "2.2.4",
+    //libraryDependencies += "com.mojang" % "authlib" % "1.3",
+    libraryDependencies += "org.apache.logging.log4j" % "log4j-api" % "2.0-beta9",
+    libraryDependencies += "org.apache.logging.log4j" % "log4j-core" % "2.0-beta9",
+    //libraryDependencies += "" % "" % "",
+    libraryDependencies += "org.lwjgl.lwjgl" % "lwjgl" % "2.9.0",
+    libraryDependencies += "org.lwjgl.lwjgl" % "lwjgl_util" % "2.9.0",
+    libraryDependencies += "org.lwjgl.lwjgl" % "lwjgl-platform" % "2.9.0",
     //libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.4", // for SpecialSource
     //libraryDependencies += "org.ow2.asm" % "asm-debug-all" % "4.1", // for SpecialSource
     //libraryDependencies += "com.google.guava" % "guava" % "14.0-rc3", // for SpecialSource
-    reobfuscate in Compile := reobfuscateTask.value,
+    reobfuscate in Compile := treeTask.value,
     `package` in Compile := packageTask.value,
     runClient in Runtime := runClientTask.value,
     runServer in Runtime := runServerTask.value,
