@@ -30,7 +30,6 @@ package rainwarrior.serial
 
 import collection.mutable.ArrayBuilder
 import collection.JavaConversions._
-import scala.reflect.{io => _, _}
 import annotation.tailrec
 import language.higherKinds
 
@@ -80,8 +79,6 @@ trait IsSerialSource[F] {
 trait IsSerialFormat[F] extends IsSerialSink[F] with IsSerialSource[F]
 
 object SerialFormats {
-  val stringClass = classTag[String].runtimeClass
-
   import net.minecraft.nbt._
 
   object nbtSerialInstance extends IsSerialFormat[NBTBase] {
