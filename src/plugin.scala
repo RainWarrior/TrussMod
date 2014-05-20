@@ -29,7 +29,7 @@ of this Program grant you additional permission to convey the resulting work.
 
 package rainwarrior.hooks.plugin
 
-import net.minecraft.launchwrapper.IClassTransformer
+import net.minecraft.launchwrapper.{ IClassTransformer, Launch }
 import cpw.mods.fml.relauncher.{ FMLRelaunchLog => log, IFMLCallHook, IFMLLoadingPlugin }
 import cpw.mods.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper.{ INSTANCE => mapper }
 import cpw.mods.fml.common.{ Loader, ModAPIManager }
@@ -61,7 +61,7 @@ class Plugin extends IFMLLoadingPlugin with IFMLCallHook {
 class Transformer extends IClassTransformer {
   type MethodChecker = (String, MethodNode) => Boolean
   type InsTransformer = MethodNode => Unit
-  lazy val deobfEnv = this.getClass.getClassLoader.getResource("net/minecraft/world/World.class") != null
+  lazy val deobfEnv = (Launch.blackboard get "fml.deobfuscatedEnvironment").asInstanceOf[Boolean]
   lazy val blockClass = mapper.unmap("net/minecraft/block/Block")
   lazy val teClass = mapper.unmap("net/minecraft/tileentity/TileEntity")
   def transformRenderBlockByRenderType(m: MethodNode) {
@@ -111,7 +111,7 @@ class Transformer extends IClassTransformer {
 
       for(m@(_m: MethodNode) <- node.methods) {
         if((deobfEnv && ch1(name, m)) || (!deobfEnv && ch2(name, m))) {
-          log.finer(s"TrussMod: FOUND ${m.name} ${m.desc}")
+          log.finer(s"TrussMod: FOUND $name $tName ${m.name} ${m.desc}")
           tr(m)
         }
       }
