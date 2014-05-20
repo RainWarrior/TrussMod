@@ -41,8 +41,8 @@ import rainwarrior.utils._
 
 import buildcraft.api.power.{ PowerHandler, IPowerReceptor }
 //import cofh.api.energy.{ EnergyStorage, IEnergyHandler }
-//import ic2.api.energy.tile.IEnergySink
-//import ic2.api.energy.event.{ EnergyTileLoadEvent, EnergyTileUnloadEvent }
+import ic2.api.energy.tile.IEnergySink
+import ic2.api.energy.event.{ EnergyTileLoadEvent, EnergyTileUnloadEvent }
 
 object Power {
   final val bcid = "BuildCraft|Energy"
@@ -168,7 +168,7 @@ trait CofhEnergyHandler extends CommonTilePower with IEnergyHandler {
   @Optional.Method(modid = cofhid)
   override def getMaxEnergyStored(from: ForgeDirection) =
     (maxEnergy * cofhRatio).floor.toInt
-}
+}*/
 
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIEnergySink, modid = icid)
@@ -199,12 +199,12 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
   override def getMaxSafeInput: Int = Int.MaxValue // TODO
 
   @Optional.Method(modid = icid)
-  def load(): Unit = if(worldObj.isServer) {
+  def load(): Unit = if(getWorldObj.isServer) {
     MinecraftForge.EVENT_BUS.post(new EnergyTileLoadEvent(this))
   }
 
   @Optional.Method(modid = icid)
-  def unload(): Unit = if(worldObj.isServer) {
+  def unload(): Unit = if(getWorldObj.isServer) {
     MinecraftForge.EVENT_BUS.post(new EnergyTileUnloadEvent(this))
   }
 
@@ -223,7 +223,7 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
       registered = false
     }
   }
-}*/
+}
 
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
@@ -232,5 +232,8 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
   //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid)
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
-trait PowerTile extends CommonTilePower with BuildcraftPowerReceptor //with CofhEnergyHandler with Ic2EnergySink
+trait PowerTile extends CommonTilePower
+  with BuildcraftPowerReceptor
+  //with CofhEnergyHandler
+  with Ic2EnergySink
 
