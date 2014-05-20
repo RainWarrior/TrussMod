@@ -43,7 +43,7 @@ import net.minecraft._,
   server.management.PlayerManager,
   world.{ ChunkCoordIntPair, ChunkPosition, chunk, IBlockAccess, World, WorldServer },
   chunk.storage.ExtendedBlockStorage,
-  util.{ MovingObjectPosition, Vec3, Vec3Pool }
+  net.minecraft.util.{ MovingObjectPosition, Vec3, Vec3Pool }
 import net.minecraftforge.common.util.ForgeDirection
 import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }

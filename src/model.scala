@@ -35,7 +35,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.Map
 import scala.collection.JavaConversions._
 
-import net.minecraft.client.renderer.Tessellator.{ instance => tes }
+import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.texture.TextureMap
 import net.minecraft.client.Minecraft.{ getMinecraft => mc }
 import net.minecraft.util.IIcon
@@ -46,7 +46,10 @@ import Side.CLIENT
 import rainwarrior.obj
 import rainwarrior.utils.{ filterQuads, TexturedQuad, LightMatrix, light, staticLight }
 
+import scalaxy.loops._
+
 object model {
+  @inline def tes = Tessellator.instance
   var models = Map.empty[String, Map[String, Seq[TexturedQuad]]]
   var icons = Map.empty[String, IIcon]
 
@@ -81,14 +84,14 @@ object model {
     assert(icon != null)
     for {
       f <- faces
-      n = f.normal
     } {
+      val n = f.normal
       tes.setNormal(n.x.toFloat, n.y.toFloat, n.z.toFloat)
       for {
-        i <- 0 until f.length
-        v = f(i)
-        t = f.tq(i)
+        i <- (0 until f.length).optimized
       } {
+        val v = f(i)
+        val t = f.tq(i)
         val (b, c) = light(m)(v.x, v.y, v.z)
         val fc = (staticLight(n.x, n.y, n.z) * c).toFloat
         tes.setColorOpaque_F(fc, fc, fc)
@@ -109,16 +112,16 @@ object model {
       rotator: (Double, Double, Double) => (Double, Double, Double)) {
     for {
       f <- getPartFaces(modelName, partName)
-      n = f.normal
-      (nx, ny, nz) = rotator(n.x, n.y, n.z)
     } {
+      val n = f.normal
+      val (nx, ny, nz) = rotator(n.x, n.y, n.z)
       tes.setNormal(nx.toFloat, ny.toFloat, nz.toFloat)
       for {
-        i <- 0 until f.length
-        v = f(i)
-        t = f.tq(i)
-        (x, y, z) = rotator(v.x, v.y, v.z)
+        i <- (0 until f.length).optimized
       } {
+        val v = f(i)
+        val t = f.tq(i)
+        val (x, y, z) = rotator(v.x, v.y, v.z)
         val (b, c) = light(m)(x, y, z)
         val fc = (staticLight(nx, ny, nz) * c).toFloat
         tes.setColorOpaque_F(fc, fc, fc)
