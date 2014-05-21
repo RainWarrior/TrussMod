@@ -1,6 +1,6 @@
 /*
 
-Copyright © 2012, 2013 RainWarrior
+Copyright © 2012 - 2014 RainWarrior
 
 This file is part of TrussMod.
 

@@ -1,6 +1,6 @@
 /*
 
-Copyright © 2012, 2013 RainWarrior
+Copyright © 2012 - 2014 RainWarrior
 
 This file is part of TrussMod.
 
@@ -60,7 +60,7 @@ object TrussMod {
 
   val log = LogManager.getLogger(modId)
 
-  log.info("Copyright (C) 2013 RainWarrior")
+  log.info("Copyright (C) 2012 - 2014 RainWarrior")
   log.info("See included LICENSE file for the license (GPLv3+ with additional terms)")
   log.info("TrussMod is free software: you are free to change and redistribute it.")
   log.info("There is NO WARRANTY, to the extent permitted by law.")
