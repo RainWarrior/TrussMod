@@ -420,7 +420,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     glColor4f(0F, 0F, 0F, 0F)
     glPushMatrix()
     glTranslated(x, y, z)
-    RenderHelper.disableStandardItemLighting()
+    glDisable(GL_LIGHTING)
     this.bindTexture(TextureMap.locationBlocksTexture)
     glTranslatef(.5F, .5F, .5F)
     glRotatef(90 * or, dir.offsetX, dir.offsetY, dir.offsetZ)
@@ -453,7 +453,7 @@ object TileEntityMotorRenderer extends TileEntitySpecialRenderer {
     model.render(getLightMatrix(te.getWorldObj, pos.x, pos.y, pos.z).get, "Motor", "Gear", model.getIcon("block", "MotorGear")) // slightly incorrect
     tes.draw()
     glPopMatrix()
-    RenderHelper.enableStandardItemLighting()
+    glEnable(GL_LIGHTING)
   }
 }
 
@@ -466,7 +466,7 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
       modelId: Int,
       rb: RenderBlocks) {
     glPushMatrix()
-    RenderHelper.disableStandardItemLighting()
+    glDisable(GL_LIGHTING)
     tes.startDrawingQuads()
     //tes.setColorOpaque_F(1, 1, 1)
     model.render(dummyLightMatrix, "Motor", "Base", model.getIcon("block", "MotorBase"))
@@ -478,7 +478,7 @@ object BlockMotorRenderer extends ISimpleBlockRenderingHandler {
     model.render(dummyLightMatrix, "Motor", "Gear", model.getIcon("block", "MotorGear"))
     tes.draw()
     glPopMatrix()
-    RenderHelper.enableStandardItemLighting()
+    glEnable(GL_LIGHTING)
   }
 
   override def renderWorldBlock(

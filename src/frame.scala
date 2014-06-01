@@ -169,12 +169,12 @@ object BlockFrameRenderer extends ISimpleBlockRenderingHandler {
       modelId: Int,
       rb: RenderBlocks) {
     //rainwarrior.utils.renderInventoryBlock(rb, block, metadata)
-    RenderHelper.disableStandardItemLighting()
+    glDisable(GL_LIGHTING)
     tes.startDrawingQuads()
     tes.setColorOpaque_F(1, 1, 1)
     model.render(dummyLightMatrix, "Frame", "Frame", model.getIcon("block", "BlockFrame"))
     tes.draw()
-    RenderHelper.enableStandardItemLighting()
+    glEnable(GL_LIGHTING)
   }
 
   override def renderWorldBlock(
