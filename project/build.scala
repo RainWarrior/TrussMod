@@ -57,6 +57,26 @@ object McpBuild extends Build {
     bd / "project/output.jar"
   }
 
+  def treeTask = Def.task {
+    val bd = baseDirectory.value
+    val options = new ForkOptions(javaHome = Keys.javaHome.value, workingDirectory = some(bd))
+    val runner = new ForkRun(options)
+    val inJar = (packageBin in Compile).value.getPath
+    runner.run(
+      "com.simontuffs.onejar.Boot",
+      Seq(bd / "project/tree_obfuscator.jar"),
+      Seq(
+        "-cf", inJar,
+        "-s", (bd / "project/mcp2srg.srg").getPath,
+        s"-c:$inJar=" + (bd / "project/output.jar").getPath
+        //(bd / "bin/minecraft").getPath
+      ) ++ ((bd / "run/mods" ** "*.jar").getPaths ++ (bd / "lib/mods" ** "*.jar").getPaths).flatMap { f =>
+        Seq(if((f contains "-dev") || (f contains "-deo")) "-cf" else "-ct", f)
+      },
+      streams.value.log)
+    bd / "project/output.jar"
+  }
+
   val `package` = taskKey[File]("Mod package task")
   def packageTask: Initialize[Task[File]] = Def.task {
     import sbt.IO._
@@ -83,7 +103,7 @@ object McpBuild extends Build {
   def runJavaOptions(mcVersion: String) = Seq(
     s"-Djava.library.path=../jars/versions/$mcVersion/$mcVersion-natives/",
     "-Xdebug",
-    "-Xrunjdwp:transport=dt_socket,server=y,address=8000",
+    "-Xrunjdwp:transport=dt_socket,server=y,address=8000,suspend=n",
     "-Dfml.coreMods.load="
     + "rainwarrior.hooks.plugin.Plugin"
     //+ "mods.immibis.microblocks.coremod.MicroblocksCoreMod,"
@@ -182,7 +202,7 @@ object McpBuild extends Build {
     //libraryDependencies += "net.sf.jopt-simple" % "jopt-simple" % "4.4", // for SpecialSource
     //libraryDependencies += "org.ow2.asm" % "asm-debug-all" % "4.1", // for SpecialSource
     //libraryDependencies += "com.google.guava" % "guava" % "14.0-rc3", // for SpecialSource
-    reobfuscate in Compile := reobfuscateTask.value,
+    reobfuscate in Compile := treeTask.value,
     `package` in Compile := packageTask.value,
     runClient in Runtime := runClientTask.value,
     runServer in Runtime := runServerTask.value,
