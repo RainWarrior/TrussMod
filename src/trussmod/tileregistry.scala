@@ -316,11 +316,14 @@ class TMultipartTileHandler extends TileHandlerIdDispatcher {
     }
   }
 
+  lazy val putClientCache = TileMultipart.getClass.getDeclaredMethod("putClientCache", classOf[TileMultipart])
+
   override def move(world: World, x: Int, y: Int, z: Int, dirTo: ForgeDirection) {
     //log.info(s"Tmove: ($x, $y, $z), side: ${EffectiveSide(world)}")
     val (id, meta, te) = getBlockInfo(world, x, y, z)
     te match {
       case t: TileMultipart =>
+        putClientCache.invoke(TileMultipart, t)
         val WorldPos(nx, ny, nz) = (x, y, z) + dirTo
         //for(p <- t.partList) p.onWorldSeparate()
         //te.invalidate()
