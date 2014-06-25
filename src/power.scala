@@ -40,22 +40,19 @@ import TrussMod._
 import rainwarrior.utils._
 
 import buildcraft.api.power.{ PowerHandler, IPowerReceptor }
-//import cofh.api.energy.{ EnergyStorage, IEnergyHandler }
+import cofh.api.energy.IEnergyHandler
 import ic2.api.energy.tile.IEnergySink
 import ic2.api.energy.event.{ EnergyTileLoadEvent, EnergyTileUnloadEvent }
 
 object Power {
-  final val bcid = "BuildCraft|Energy"
+  final val bcid = "BuildCraftAPI|power"
   final val CIPowerReceptor = "buildcraft.api.power.IPowerReceptor"
-  final val CBuildcraftPowerReceptor = "rainwarrior.trussmod.BuildcraftPowerReceptor$class"
 
-  final val cofhid = "CoFHCore"
+  final val cofhid = "CoFHAPI"
   final val CIEnergyHandler = "cofh.api.energy.IEnergyHandler"
-  final val CCofhEnergyHandler = "rainwarrior.trussmod.CofhEnergyHandler$class"
 
   final val icid = "IC2"
   final val CIEnergySink = "ic2.api.energy.tile.IEnergySink"
-  final val CIc2EnergySink = "rainwarrior.trussmod.Ic2EnergySink"
 }
 import Power._
 
@@ -138,7 +135,7 @@ trait BuildcraftPowerReceptor extends CommonTilePower with IPowerReceptor {
   }
 }
 
-/*@Optional.InterfaceList(Array(
+@Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIEnergyHandler, modid = cofhid)
 ))
 trait CofhEnergyHandler extends CommonTilePower with IEnergyHandler {
@@ -159,7 +156,7 @@ trait CofhEnergyHandler extends CommonTilePower with IEnergyHandler {
   }
 
   @Optional.Method(modid = cofhid)
-  override def canInterface(from: ForgeDirection) = true
+  override def canConnectEnergy(from: ForgeDirection) = true
 
   @Optional.Method(modid = cofhid)
   override def getEnergyStored(from: ForgeDirection) =
@@ -168,7 +165,7 @@ trait CofhEnergyHandler extends CommonTilePower with IEnergyHandler {
   @Optional.Method(modid = cofhid)
   override def getMaxEnergyStored(from: ForgeDirection) =
     (maxEnergy * cofhRatio).floor.toInt
-}*/
+}
 
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIEnergySink, modid = icid)
@@ -227,13 +224,11 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
 
 @Optional.InterfaceList(Array(
   new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
-  //new Optional.Interface(iface = CBuildcraftPowerReceptor, modid = bcid),
   new Optional.Interface(iface = CIEnergyHandler, modid = cofhid),
-  //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid)
   new Optional.Interface(iface = CIEnergySink, modid = icid)
 ))
 trait PowerTile extends CommonTilePower
   with BuildcraftPowerReceptor
-  //with CofhEnergyHandler
+  with CofhEnergyHandler
   with Ic2EnergySink
 
