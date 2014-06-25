@@ -641,12 +641,22 @@ object utils {
   import java.lang.reflect.Method
   import org.objectweb.asm.Type
 
+  class ParentHelper {
+    def clientPlayer: EntityPlayer = ???
+  }
+
+  object Helper extends ParentHelper {
+    @SideOnly(Side.CLIENT)
+    override def clientPlayer: EntityPlayer =
+      cpw.mods.fml.client.FMLClientHandler.instance.getClientPlayerEntity
+  }
+
   def getSide(ctx: ChannelHandlerContext): Side = ctx.channel.attr(CHANNEL_SOURCE).get
 
   def getPlayer(ctx: ChannelHandlerContext): EntityPlayer = {
     (getSide(ctx): @unchecked) match {
       case Side.CLIENT =>
-        cpw.mods.fml.client.FMLClientHandler.instance.getClient().thePlayer
+        Helper.clientPlayer
       case Side.SERVER =>
         ctx.channel.attr(NET_HANDLER).get.asInstanceOf[NetHandlerPlayServer].playerEntity
     }
