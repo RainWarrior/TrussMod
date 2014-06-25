@@ -126,7 +126,7 @@ Other keys can be:
     MovingTileRegistry.setHandler(k, v)
   }
 
-  //MovingTileRegistry.setHandler(blockMovingStripId.toString, "immovable")
+  MovingTileRegistry.setHandler(s"$modId:Moving_Strip_Block", "immovable")
 
   val sets = config.getCategory("Sticky Sets")
   sets.setComment("""
