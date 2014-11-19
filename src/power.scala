@@ -179,13 +179,13 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
   override def acceptsEnergyFrom(emitter: TileEntity, from: ForgeDirection): Boolean = true
 
   @Optional.Method(modid = icid)
-  override def demandedEnergyUnits: Double = {
+  override def getDemandedEnergy: Double = {
     //log.info(s"IC2 demand: $energy, $maxEnergy, ${(maxEnergy - energy) * ic2Ratio}")
     (maxEnergy - energy) * ic2Ratio
   }
 
   @Optional.Method(modid = icid)
-  override def injectEnergyUnits(from: ForgeDirection, amount: Double): Double = {
+  override def injectEnergy(from: ForgeDirection, amount: Double, voltage: Double): Double = {
     val delta = (amount / ic2Ratio).min(maxEnergy - energy)
     //log.info(s"IC2 inject: $energy, $maxEnergy, $delta, $amount")
     energy += delta
@@ -193,7 +193,7 @@ trait Ic2EnergySink extends CommonTilePower with IEnergySink {
   }
 
   @Optional.Method(modid = icid)
-  override def getMaxSafeInput: Int = Int.MaxValue // TODO
+  override def getSinkTier: Int = Int.MaxValue
 
   @Optional.Method(modid = icid)
   def load(): Unit = if(getWorldObj.isServer) {

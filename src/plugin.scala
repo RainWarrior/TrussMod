@@ -75,7 +75,9 @@ class Transformer extends IClassTransformer {
       INVOKESTATIC,
       "rainwarrior/hooks/HelperRenderer",
       "getRenderType",
-      "(Lnet/minecraft/block/Block;III)I"))
+      "(Lnet/minecraft/block/Block;III)I",
+      false
+    ))
     m.instructions.insert(old, list)
     m.instructions.remove(old)
   }
@@ -86,7 +88,8 @@ class Transformer extends IClassTransformer {
       INVOKESTATIC,
       "rainwarrior/hooks/TileEntityDispatcherHook",
       "renderTileEntityAt",
-      old.desc
+      old.desc,
+      false
     ))
     m.instructions.remove(old)
   }

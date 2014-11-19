@@ -43,7 +43,7 @@ import net.minecraft._,
   server.management.PlayerManager,
   world.{ ChunkCoordIntPair, ChunkPosition, chunk, IBlockAccess, World, WorldServer },
   chunk.storage.ExtendedBlockStorage,
-  net.minecraft.util.{ MovingObjectPosition, Vec3, Vec3Pool }
+  net.minecraft.util.{ MovingObjectPosition, Vec3 }
 import net.minecraftforge.common.util.ForgeDirection
 import ForgeDirection._
 import cpw.mods.fml.relauncher.{ SideOnly, Side }
@@ -389,7 +389,7 @@ object utils {
       x * that.y - y * that.x)
     def dot(that: Vector3) = x * that.x + y * that.y + z * that.z
 
-    def toVec3(pool: Vec3Pool) = pool.getVecFromPool(x, y, z)
+    def toVec3 = Vec3.createVectorHelper(x, y, z)
 
     def len = math.sqrt(x * x + y * y + z * z)
     def toSide = {
@@ -552,7 +552,7 @@ object utils {
       case Some((t, normal)) if t <= 1 =>
         val side = sideHit(normal, start + dir * t)
         //log.info(s"f: $from, t: $to, t: $t")
-        val mop = new MovingObjectPosition(x, y, z, side, blockExpand(Vector3(x, y, z), from + dir * t).toVec3(world.getWorldVec3Pool))
+        val mop = new MovingObjectPosition(x, y, z, side, blockExpand(Vector3(x, y, z), from + dir * t).toVec3)
         mop.subHit = 0
         mop
       case _ => null

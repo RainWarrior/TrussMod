@@ -316,8 +316,6 @@ class MovingWorldProxy(val world: World) extends IBlockAccess {
   override def doesBlockHaveSolidTopSurface(x: Int, y: Int, z: Int) =
     world.doesBlockHaveSolidTopSurface(x, y, z)*/
 
-  override def getWorldVec3Pool() = world.getWorldVec3Pool()
-
   override def isBlockProvidingPowerTo(x: Int, y: Int, z: Int, side: Int) =
     world.isBlockProvidingPowerTo(x, y, z, side)
 

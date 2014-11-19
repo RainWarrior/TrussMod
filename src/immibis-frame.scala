@@ -175,7 +175,7 @@ class TileEntityImmibisFrame extends TileCoverableBase {
   }
 
   override def getPartAABBFromPool(part: Int) =
-    AxisAlignedBB.getAABBPool.getAABB(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
+    AxisAlignedBB.getBoundingBox(eps, eps, eps, 1 - eps, 1 - eps, 1 - eps)
 
   /*override def getCollidingBoundingBoxes(mask: AxisAlignedBB, list: JList[AxisAlignedBB]) {
     val hit = AxisAlignedBB.getAABBPool.getAABB(0, 0, 0, 1, 1, 1).offset(xCoord, yCoord, zCoord)
