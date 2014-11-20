@@ -2,16 +2,31 @@ name := "mcp"
 
 version := "1.0"
 
-scalaVersion := "2.10.2"
+forgeVersion := "10.13.2.1236"
 
-mcVersion := "1.7.2"
+scalaVersion := "2.11.1"
 
-wrapperVersion := "1.9"
+mcVersion := "1.7.10"
 
-packageRegex := """(assets/trussmod/(models/(Motor|Frame)\.obj|textures/.*)|rainwarrior/(trussmod/.*|hooks/.*|serial/.*|[^/]*)|gnu/.*)"""
+coremods := Seq(
+  "rainwarrior.hooks.plugin.Plugin"
+  //"rainwarrior.glmod.plugin.Plugin"
+  //"codechicken.core.launch.CodeChickenCorePlugin"
+  //"codechicken.nei.asm.NEICorePlugin"
+)
+
+packageClasses := ((_: File) / "rainwarrior") andThen { base =>
+  (base * "*.class") +++
+  (base * ("trussmod" || "hooks" || "serial") ** "*.class")
+}
+
+packageResources := ((_: File) / "trussmod") andThen { base =>
+  base * "models" * ("Motor.obj" || "Frame.obj") +++
+  (base * "textures").***
+}
 
 buildName := "TrussMod-beta-%s-%s"
 
-buildId := "34"
+buildId := "36"
 
 compileOrder in Compile := CompileOrder.Mixed

@@ -1,5 +1,5 @@
-scalaVersion := "2.10.2"
-
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked", "-Xlint")
 
-//libraryDependencies += "immibis.bon" % "bon" % "current" from "http://dl.dropbox.com/u/2944265/mods/BON.jar"
+resolvers += "gradle" at "http://repo.gradle.org/gradle/libs-releases-local"
+
+libraryDependencies += "org.gradle" % "gradle-tooling-api" % "1.9"
