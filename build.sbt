@@ -27,6 +27,6 @@ packageResources := ((_: File) / "trussmod") andThen { base =>
 
 buildName := "TrussMod-beta-%s-%s"
 
-buildId := "36"
+buildId := "37"
 
 compileOrder in Compile := CompileOrder.Mixed

@@ -349,8 +349,6 @@ trait MotorTile extends TileEntity with StripHolderTile {
 }
 
 @Optional.InterfaceList(Array(
-  new Optional.Interface(iface = CIPowerReceptor, modid = bcid),
-  //new Optional.Interface(iface = CBuildcraftPowerReceptor, modid = bcid),
   new Optional.Interface(iface = CIEnergyHandler, modid = cofhid),
   //new Optional.Interface(iface = CCofhEnergyHandler, modid = cofhid),
   new Optional.Interface(iface = CIEnergySink, modid = icid)
@@ -365,7 +363,6 @@ class TileEntityMotor(
 
   val maxEnergy = motorCapacity
 
-  val bcRatio = TrussMod.bcRatio
   val cofhRatio = TrussMod.cofhRatio
   val ic2Ratio = TrussMod.ic2Ratio
 }

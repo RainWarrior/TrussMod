@@ -155,7 +155,6 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
     "motorCapacity" -> 5000D,
     "moveCost" -> 200D,
     "moveCostMultiplier" -> 50D,
-    "bcRatio" -> 1.0,
     "cofhRatio" -> 0.1,
     "ic2Ratio" -> 0.5
   )
@@ -163,8 +162,8 @@ Sets of blocks that move together (multiblock structures) (ADVANCED)
   for((k, v) <- defaultPowers if !power.containsKey(k))
     power.put(k, new Property(k, v.toString, Property.Type.DOUBLE))
 
-  val Seq(motorCapacity, moveCost, moveCostMultiplier, bcRatio, cofhRatio, ic2Ratio) =
-    Seq("motorCapacity", "moveCost", "moveCostMultiplier", "bcRatio", "cofhRatio", "ic2Ratio") map { k =>
+  val Seq(motorCapacity, moveCost, moveCostMultiplier, cofhRatio, ic2Ratio) =
+    Seq("motorCapacity", "moveCost", "moveCostMultiplier", "cofhRatio", "ic2Ratio") map { k =>
       val p = power.get(k).getDouble(defaultPowers(k)).max(0D)
       power.put(k, new Property(k, p.toString, Property.Type.DOUBLE))
       p
